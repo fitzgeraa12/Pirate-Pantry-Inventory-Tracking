@@ -2,13 +2,14 @@ from typing import List, Any, Optional
 from flask import Flask, request, jsonify
 from flask.typing import ResponseReturnValue
 
-from schema import db, FoodType
+from backend.sql_alchemy import sql_alchemy
+from schema import FoodType
 
 # https://dev.to/hardy_mervana/how-to-create-rest-api-with-python-a-step-by-step-guide-g93
 
 api = Flask(__name__)
 api.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
-db.init_app(api)
+sql_alchemy.init_app(api)
 
 # Food type
 @api.route('/food_types', methods=['GET'])
@@ -33,15 +34,15 @@ def create_food_type() -> ResponseReturnValue:
     brand_id: int = int(0) # default value for now
 
     food_type = FoodType(id, brand_id)
-    db.session.add(food_type)
-    db.session.commit()
+    sql_alchemy.session.add(food_type)
+    sql_alchemy.session.commit()
 
     return jsonify(food_type.serialize())
 
 @api.route('/food_type/<int:id>', methods=['DELETE'])
 def delete_food_type(id: int) -> ResponseReturnValue:
     food_type = FoodType.query.filter_by(id=id).first()
-    db.session.delete(food_type)
-    db.session.commit()
+    sql_alchemy.session.delete(food_type)
+    sql_alchemy.session.commit()
 
     return jsonify({'message': 'FoodType deleted'})
