@@ -167,8 +167,6 @@ function AddItem() {
                         </label>
                     </form>
                     <div id="add-item-buttons">
-                        {/* add-item-scan-barcode-button */}
-                        {/* add-item-existing-product-button */}
                         <button type="button" onClick={on_scan_barcode_clicked} disabled={barcode_scanner_enabled}>
                             Scan Barcode
                         </button>
