@@ -43,14 +43,14 @@
 
 #add-item-container {
     width: 50vw;
-    height: 75vh;
+    height: fit-content;
 
     background-color: rgb(18, 18, 18);
 
     border-radius: 0.5vw;
     border: 2px solid rgb(199, 199, 0);
 
-    padding: 0.5vw;
+    padding: 8px;
 
     display: flex;
     flex-direction: column;
@@ -92,8 +92,12 @@
     flex-grow: 1;
 }
 
+.add-item-field-text-input {
+    background-color: rgb(45, 45, 45);
+    color: white;
+}
+
 #add-item-buttons {
-    height: 10%;
     width: 100%;
 
     background-color: gray;
