@@ -105,3 +105,20 @@
 
     border-radius: 0.5vw;
 }
+
+#barcode-scanner {
+  border-radius: 0.5vw;
+  border: 2px solid rgb(199, 199, 0);
+  padding: 8px;
+  width: 50vw;
+}
+
+#barcode-scanner-title {
+  text-align: center;
+  font-weight: bold;
+}
+
+#barcode-scanner-video {
+  border-radius: 0.5vw;
+  width: 100%;
+}
