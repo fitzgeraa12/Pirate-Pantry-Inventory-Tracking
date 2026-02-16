@@ -1,0 +1,10 @@
+#container {
+    --margin: 16px;
+
+    background-color: var(--su-dark-gray);
+    border: 2px solid var(--su-yellow);
+    width: calc(100vw - 2 * var(--margin));
+    height: calc(100vh - 2 * var(--margin));
+    box-sizing: border-box;
+    margin: var(--margin);
+}

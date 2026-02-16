@@ -1,0 +1,24 @@
+:root {
+    --su-white: #ffffff;
+    --su-light-gray: #808080;
+    --su-mid-gray: #242424;
+    --su-dark-gray: #121212;
+    --su-yellow: #c7c700;
+
+    background-color: var(--su-mid-gray);
+}
+
+* {
+    border-radius: 5px;
+}
+
+/*
+    * Student-facing
+    * Worker-facing
+        * Top Panel
+        * Left Panel
+            * Add Item
+            * Export Statistics
+        * Database View
+            * Entry
+*/
