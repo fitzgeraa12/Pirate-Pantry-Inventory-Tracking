@@ -1,14 +1,26 @@
-import { GoogleLogin, GoogleOAuthProvider, type CredentialResponse } from '@react-oauth/google';
+import {GoogleLogin, GoogleOAuthProvider, type CredentialResponse } from '@react-oauth/google';
 import { jwtDecode } from 'jwt-decode';
 import { useEffect, useState, type PropsWithChildren } from 'react';
 import { AuthContext } from './AuthContext';
+import { Cookies } from 'typescript-cookie';
 
 const CLIENT_ID = "391677624577-24ihed14clpj1d3ioumsq08aeagrj30n.apps.googleusercontent.com";
 const AUTH_TITLE = "Pirate Pantry - Login"
 const SU_DOMAIN = "southwestern.edu"
 
+// https://www.npmjs.com/package/typescript-cookie
+// https://stackoverflow.com/questions/62426269/double-double-questionmarks-in-typescript
+// https://www.spguides.com/typescript-compare-strings/
 function Auth({ children }: PropsWithChildren) {
-    const [auth, set_auth] = useState<string | null>(null);
+    const [auth, set_auth] = useState<string | null>(() => {
+        const cookie = Cookies.get("auth");
+        if (typeof(cookie) !== "string") {
+            console.error("Invalid auth cookie");
+            return null;
+        }
+
+        return cookie;
+    });
 
     // Runs once at start
     useEffect(() => {
@@ -21,11 +33,11 @@ function Auth({ children }: PropsWithChildren) {
             const creds = jwtDecode<{ email: string }>(creds_encoded);
 
             if (!creds.email.endsWith(SU_DOMAIN)) {
-                console.error("Unauthorized email domain");
+                console.warn("Unauthorized email");
                 return;
             }
 
-            console.log(creds_encoded);
+            Cookies.set("auth", creds_encoded, { expires: 1 });
             set_auth(creds_encoded);
         } catch (_) {
             console.error("Failed to parse credentials response");
@@ -33,17 +45,19 @@ function Auth({ children }: PropsWithChildren) {
     }
 
     const on_error = () => {
-        console.error("Login failed");
+        console.error("Authentication failed")
     }
 
-    return auth ? (
-        <AuthContext value={auth}>
+    if (!auth) return (
+        <GoogleOAuthProvider clientId={CLIENT_ID}>
+            <GoogleLogin onSuccess={on_success} onError={on_error} />
+        </GoogleOAuthProvider>
+    );
+
+    return (
+        <AuthContext value={auth }>
             {children}
         </AuthContext>
-    ) : (
-        <GoogleOAuthProvider clientId={CLIENT_ID}>
-            <GoogleLogin onSuccess={on_success} onError={on_error} hosted_domain={SU_DOMAIN}></GoogleLogin>
-        </GoogleOAuthProvider>
     );
 }
 
