@@ -7,4 +7,98 @@
     height: calc(100vh - 2 * var(--margin));
     box-sizing: border-box;
     margin: var(--margin);
+    display: flex;
+    flex-direction: column;
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+#header {
+    border-bottom: 4px double var(--su-mid-gray);
+}
+
+#header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: var(--su-mid-gray);
+    padding: 16px;
+}
+
+#title {
+    font-size: large;
+    color: white;
+    font-size: 2.25rem;
+    font-weight: bold;
+    color: var(--su-light-gray);
+}
+
+#header-top-right {
+    display: flex;
+    align-items: center; /* vertically center */
+    gap: 16px;
+}
+
+.header-button {
+    height: 100%;
+    margin: 0;
+    color: var(--su-yellow);
+    font-size: 0.65em;
+}
+
+#user-view, #log-out {
+    border-color: var(--su-light-gray);
+    background-color: var(--su-dark-mid-gray);
+}
+
+#header-bottom {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    background-color: var(--su-dark-mid-gray);
+}
+
+#add-item, #export-to-xls {
+    height: 20;
+    border-color: var(--su-light-gray);
+    background-color: var(--su-mid-gray);
+}
+
+#add-item {
+    margin-bottom: 0;
+}
+
+#export-to-xls {
+    margin-bottom: 0;
+}
+
+#body {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+#database-view {
+    flex-grow: 1;
+    color: var(--su-light-gray);
+    padding: 16px;
+    border-collapse: separate;
+}
+
+#page-navigation {
+    color: var(--su-light-gray);
+}
+
+#footer {
+    background-color: var(--su-dark-mid-gray);
+    border-top: 4px double var(--su-mid-gray);
+}
+
+#quick-statistics {
+    color: var(--su-light-gray);
+}
+
+.table-entry-button {
+    border: 0;
 }
