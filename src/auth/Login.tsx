@@ -1,5 +1,4 @@
 import { GoogleLogin, GoogleOAuthProvider, type CredentialResponse } from "@react-oauth/google";
-import { useEffect } from "react";
 import Titled from "../misc/Titled";
 
 const CLIENT_ID = "391677624577-24ihed14clpj1d3ioumsq08aeagrj30n.apps.googleusercontent.com";

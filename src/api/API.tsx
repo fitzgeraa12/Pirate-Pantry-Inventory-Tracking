@@ -4,6 +4,7 @@ import { AuthContext } from '../auth/AuthContext';
 import axios, { type AxiosResponse } from 'axios';
 import z from 'zod';
 import { unreachable } from '../misc/misc';
+import type { Perms } from '../auth/perms/Perms';
 
 // https://zod.dev/basics
 const CacheAuthResponse = z.object({
@@ -11,8 +12,7 @@ const CacheAuthResponse = z.object({
 });
 
 // https://zod.dev/basics?id=inferring-types
-const PermsSchema = z.enum(["User", "Trusted", "Admin"]);
-export type Perms = z.infer<typeof PermsSchema>;
+export const PermsSchema = z.enum(["User", "Trusted", "Admin"]);
 const GetPermsResponse = z.object({
     perms: PermsSchema,
 });

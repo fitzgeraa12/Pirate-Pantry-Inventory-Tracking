@@ -14,7 +14,12 @@
 }
 
 #header {
-    border-bottom: 4px double var(--su-mid-gray);
+    border-bottom: 1px solid var(--su-yellow);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: var(--su-mid-gray);
+    padding: 16px;
 }
 
 #header-top {
@@ -41,42 +46,55 @@
 
 .header-button {
     height: 100%;
-    margin: 0;
-    color: var(--su-yellow);
     font-size: 0.65em;
 }
 
 #user-view, #log-out {
     border-color: var(--su-light-gray);
     background-color: var(--su-dark-mid-gray);
+    margin-bottom: 0;
 }
 
-#header-bottom {
+#body-header {
     display: flex;
     align-items: center;
     gap: 8px;
     padding: 8px;
     background-color: var(--su-dark-mid-gray);
+    border-bottom: 2px solid var(--su-mid-gray);
+}
+
+#body-left {
+    width: 50px;
+    background-color: var(--su-dark-mid-gray);
+    border-right: 1px solid var(--su-yellow);
+    min-width: 150px;
+}
+
+#view {
+    flex-grow: 1;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.body-header-button {
+    height: 100%;
+    color: var(--su-yellow);
+    font-size: 0.65em;
 }
 
 #add-item, #export-to-xls {
     height: 20;
     border-color: var(--su-light-gray);
     background-color: var(--su-mid-gray);
-}
-
-#add-item {
-    margin-bottom: 0;
-}
-
-#export-to-xls {
     margin-bottom: 0;
 }
 
 #body {
     flex-grow: 1;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
 }
 
 #database-view {
@@ -88,11 +106,6 @@
 
 #page-navigation {
     color: var(--su-light-gray);
-}
-
-#footer {
-    background-color: var(--su-dark-mid-gray);
-    border-top: 4px double var(--su-mid-gray);
 }
 
 #quick-statistics {
