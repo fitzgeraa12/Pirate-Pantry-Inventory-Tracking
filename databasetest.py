@@ -20,8 +20,9 @@ def group_search(cursor):
     all_groups = pull_groups(cursor)
     print("Choose a group:")
     answer = input()
-    cursor.execute(f'SELECT * FROM Test_table WHERE food_group = "{answer}"')
-    specific_groups = cursor.fetchall()
+    print(f"All {answer} in the database:")
+    cursor.execute(f'SELECT name FROM Test_table WHERE food_group = "{answer}"')
+    specific_groups = [x[0] for x in cursor.fetchall()][0]
     print(specific_groups)
 
 """Prints all of the data in the table"""
@@ -53,13 +54,19 @@ def add_new(name, brand, group, quantity, cursor):
 def main():
     connection = sqlite3.connect('/workspaces/Pirate-Pantry-Inventory-Tracking/Test_table.db') #Connects to existing database
     cursor = connection.cursor() #The cursor is what lets you traverse over the database- what allows you to query records!
-    add_new('Nacho Cheese Doritos','Doritos','Chips',6, cursor) #Manually adds bag of doritos to table
+    add_new('Nacho Cheese Doritos','Doritos','carbs',6, cursor) #Manually adds bag of doritos to table
     add_by_id(cursor, 1222) #Adds 3 more cups of kraft mac n cheese
     view(cursor)
     pull_names(cursor)
-    #group_search(cursor)
+    group_search(cursor)
     cursor.close() #Closes connection and cursor
     connection.close()
+
+#Have tags to separate items- carbs, chips, gluten free, gluten free
+#Could have a field that's just 'tags' that holds a string of all possible tags (carbs, chips, peanut-free...) but I feel like you'd have to do a search in the string everytime you'd want a specific tag
+#Have a tags table that is sorted by id (not food name bc the id stores the brand- will have allergy information)
+#tags table has id and wtv tags the want. i think each tag would be a field and it's a boolean value? 
+#id: 1234, chips: 1, carbs: 1, peanut free: 1, gluten free: 0, vegtables: 0
 
 if __name__ == "__main__":
     main()
