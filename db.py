@@ -22,6 +22,17 @@ def view_inventory(cursor):
     cursor.execute('SELECT * FROM main_table WHERE NOT quantity == \'0\'')
     return cursor.fetchall()
 
+def view_all_tags(cursor):
+    """
+    Returns all tags in tag_table, whether they're currently connected to an item or not
+    Args:
+        cursor (cursor): Allows for connection to the database
+    Returns:
+        cursor: The result of the queries
+    """
+    cursor.execute('SELECT * FROM tag_table')
+    return cursor.fetchall()
+
 def view_item_tags(cursor):
     """
     Returns all tags that are currently associated with an item
@@ -36,16 +47,44 @@ def view_item_tags(cursor):
     cursor.execute(f'SELECT * FROM junction_table WHERE id IN ({ids_list})') #junction_table is the table that connects items to tags. 
     return cursor.fetchall()
 
-def view_all_tags(cursor):
+def view_all_names(cursor):
     """
-    Returns all tags in tag_table, whether they're currently connected to an item or not
+    Views all item names in main table
     Args:
         cursor (cursor): Allows for connection to the database
     Returns:
+        names (list[str]): All of the item names in the database
+    """
+    cursor.execute('SELECT DISTINCT name FROM main_table') #Only unique elements are stored
+    names = [x[0] for x in cursor.fetchall()] 
+    names.sort() #Alphabetizes items
+    return names 
+
+def view_all_brands(cursor):
+    """
+    Views all brands in main table
+    Args:
+        cursor (cursor): Allows for connection to the database
+    Returns:
+        brands (list[str]): All of the item names in the database
+    """
+    cursor.execute('SELECT DISTINCT brand FROM main_table WHERE NOT brand == "''"') #Only unique elements are stored and brands with a null field aren't saved
+    brands = [x[0] for x in cursor.fetchall()] 
+    brands.sort() #Alphabetizes items
+    return brands 
+
+def add_tags(cursor, new_tags):
+    """
+    Adds new tags to the tag_table
+    Args:
+        cursor (cursor): Allows for connection to the database
+        new_tags (list[str]): A list of tags to add
+    Returns:
         cursor: The result of the queries
     """
-    cursor.execute('SELECT * FROM tag_table')
-    return cursor.fetchall()
+    for i in new_tags:
+        cursor.execute(f'INSERT INTO tag_table VALUES ("{i.title()}")')
+    print(view_all_tags(cursor))
 
 def add_new_item(cursor, name, brand, id, quantity, image, tags):
     """
@@ -83,32 +122,36 @@ def update_item(cursor, id, quantity):
     cursor.execute(f'UPDATE main_table SET quantity =={new_quantity} WHERE id == {id}')
     print(view_table(cursor))
 
-def add_tags(cursor, new_tags):
+def get_item_by_tag(cursor, tag):
     """
-    Adds new tags to the tag_table
+    Returns all the items associated with desired tag
     Args:
         cursor (cursor): Allows for connection to the database
-        new_tags (list[str]): A list of tags to add
+        tag (str): The tag of an item
     Returns:
         cursor: The result of the queries
     """
-    for i in new_tags:
-        cursor.execute(f'INSERT INTO tag_table VALUES ("{i.title()}")')
-    print(view_all_tags(cursor))
-
+    cursor.execute(f'SELECT id FROM junction_table WHERE tag == \'{tag.title()}\'') #Gets the id from junction_table
+    id = [x[0] for x in cursor.fetchall()]
+    id_list = ", ".join(str(t) for t in id) #Saves id information so SQL can read it
+    cursor.execute(f'SELECT * FROM main_table WHERE id IN ({id_list})') 
+    return cursor.fetchall()
 
 def main():
     connect = sqlite3.connect('/workspaces/Pirate-Pantry-Inventory-Tracking/Test_Junction.db')
     cursor = connect.cursor()
-    print(type(cursor))
     #print(view_table(cursor))
     #print(view_inventory(cursor))
     #print(view_item_tags(cursor))
-    print(view_all_tags(cursor))
-    #print(add_new_item(cursor, 'potato soUp', 'Campbell\'s', 39393, 9, 'None', ['vegEtaBle', 'CaRbS'])) #capitlization is weird to replicate user error
+    #print(view_all_tags(cursor))
+    print(add_new_item(cursor, 'potato soUp', 'Campbell\'s', 39393, 9, 'None', ['vegEtaBle', 'CaRbS'])) #Capitlization is weird to replicate user error
+    print(add_new_item(cursor, 'Peanut Butter', 'HEB', 2222, 9, 'None', ['Carbs'])) #Capitlization is weird to replicate user error
     #print(view_table(cursor))
     #update_item(cursor, 1234, 5)
-    add_tags(cursor, ['Contains dairy', 'Chips', 'Candy', 'pasta'])
+    get_item_by_tag(cursor, 'carbs')
+    #add_tags(cursor, ['Contains dairy', 'Chips', 'Candy', 'pasta'])
+    #print(view_all_names(cursor))
+    #print(view_all_brands(cursor))
     cursor.close()
     connect.close()
 
