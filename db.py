@@ -1,5 +1,8 @@
 import sqlite3
-from PIL import Image
+
+#------------------------------
+# VIEWING METHODS
+#------------------------------
 
 # Returns info for all items in the main table
 def view_table(cursor):    
@@ -9,19 +12,6 @@ def view_table(cursor):
 # Returns the info for all items with a quantity > 0
 def view_inventory(cursor):
     cursor.execute('SELECT * FROM main_table WHERE NOT quantity == \'0\'')
-    return cursor.fetchall()
-
-# Returns all tags in tag_table, whether they're currently connected to an item or not
-def view_all_tags(cursor):
-    cursor.execute('SELECT * FROM tag_table')
-    return cursor.fetchall()
-
-# Returns all tags that are currently associated with an item
-def view_item_tags(cursor):
-    cursor.execute('SELECT id FROM main_table WHERE NOT quantity == \'0\'') #All of the items actually present in the pantry
-    ids = [x[0] for x in cursor.fetchall()] #Saves all items to a list
-    ids_list = ", ".join(str(t) for t in ids) #Formatting list so SQL can read it
-    cursor.execute(f'SELECT * FROM junction_table WHERE id IN ({ids_list})') #junction_table is the table that connects items to tags. 
     return cursor.fetchall()
 
 def view_all_names(cursor):
@@ -50,18 +40,32 @@ def view_all_brands(cursor):
     brands.sort() #Alphabetizes items
     return brands 
 
-def add_tags(cursor, new_tags):
-    """
-    Adds new tags to the tag_table
-    Args:
-        cursor (cursor): Allows for connection to the database
-        new_tags (list[str]): A list of tags to add
-    Returns:
-        cursor: The result of the queries
-    """
-    for i in new_tags:
-        cursor.execute(f'INSERT INTO tag_table VALUES ("{i.title()}")')
-    print(view_all_tags(cursor))
+# Returns all tags in tag_table, whether they're currently connected to an item or not
+def view_all_tags(cursor):
+    cursor.execute('SELECT * FROM tag_table')
+    return cursor.fetchall()
+
+# Returns all tags that are currently associated with an item
+def view_item_tags(cursor):
+    cursor.execute('SELECT id FROM main_table WHERE NOT quantity == \'0\'') #All of the items actually present in the pantry
+    ids = [x[0] for x in cursor.fetchall()] #Saves all items to a list
+    ids_list = ", ".join(str(t) for t in ids) #Formatting list so SQL can read it
+    cursor.execute(f'SELECT * FROM junction_table WHERE id IN ({ids_list})') #junction_table is the table that connects items to tags. 
+    return cursor.fetchall()
+
+#Gets the filepath of an image. Returns [] if image is not in table
+def view_image(cursor, id):
+    param = (id,)
+    cursor.execute('SELECT image FROM main_table WHERE id == ?', param)
+    path = cursor.fetchall()
+    print(len(path))
+    if len(path) > 0:
+        path = path[0][0]
+    return path
+
+#------------------------------
+# ADDING METHODS
+#------------------------------
 
 def add_new_item(cursor, name, brand, id, quantity, image, tags):
     """
@@ -94,12 +98,47 @@ def update_item(cursor, id, quantity):
         cursor: The result of the queries
     """
     cursor.execute(f'SELECT quantity FROM main_table WHERE id == {id}')
-    old_quantity = cursor.fetchall()[0][0]
-    new_quantity = int(old_quantity) + quantity
-    cursor.execute(f'UPDATE main_table SET quantity =={new_quantity} WHERE id == {id}')
-    print(view_table(cursor))
+    if len(quantity) > 0: #If the id is in the database
+        old_quantity = cursor.fetchall()[0][0]
+        new_quantity = int(old_quantity) + quantity
+        if new_quantity >= 0:
+            cursor.execute(f'UPDATE main_table SET quantity =={new_quantity} WHERE id == {id}')
+        #TODO: What to do if quantiy becomes negative?
 
-def get_item_by_tag(cursor, tag):
+
+def add_tags(cursor, new_tags):
+    """
+    Adds new tags to the tag_table
+    Args:
+        cursor (cursor): Allows for connection to the database
+        new_tags (list[str]): A list of tags to add
+    Returns:
+        cursor: The result of the queries
+    """
+    for i in new_tags:
+        cursor.execute(f'INSERT INTO tag_table VALUES ("{i.title()}")')
+    print(view_all_tags(cursor))
+
+#------------------------------
+# SEARCHING METHODS
+#------------------------------
+#TODO: I think these need to function differently on admin vs user end- I feel like only admin can see items of quantity 0.
+#Checks if the name is in the database and returns all item info. Returns empty brackets when item isn't found
+def search_by_name(cursor, name):
+    cursor.execute(f'SELECT * FROM main_table WHERE name == \'{name.title()}\'')
+    return cursor.fetchall()
+
+#Checks if the brand is in the database and returns all item info. Returns empty brackets when item isn't found
+def search_by_brand(cursor, brand):
+    cursor.execute(f'SELECT * FROM main_table WHERE brand == \'{brand.title()}\'')
+    return cursor.fetchall()
+
+#Checks if the id is in the database and returns all item info. Returns empty brackets when item isn't found
+def search_by_id(cursor, id):
+    cursor.execute(f'SELECT * FROM main_table WHERE id == \'{id}\'')
+    return cursor.fetchall()
+
+def search_by_tag(cursor, tag):
     """
     Returns all the items associated with desired tag
     Args:
@@ -114,31 +153,18 @@ def get_item_by_tag(cursor, tag):
     cursor.execute(f'SELECT * FROM main_table WHERE id IN ({id_list})') 
     return cursor.fetchall()
 
-#Checks if the id is in the database and returns all item info. Returns empty brackets when item isn't found
-def search_by_id(cursor, id):
-    cursor.execute(f'SELECT * FROM main_table WHERE id == \'{id}\'')
-    return cursor.fetchall()
-
-#Checks if the name is in the database and returns all item info. Returns empty brackets when item isn't found
-def search_by_name(cursor, name):
-    cursor.execute(f'SELECT * FROM main_table WHERE name == \'{name.title()}\'')
-    return cursor.fetchall()
-
-#Checks if the brand is in the database and returns all item info. Returns empty brackets when item isn't found
-def search_by_brand(cursor, brand):
-    cursor.execute(f'SELECT * FROM main_table WHERE brand == \'{brand.title()}\'')
-    return cursor.fetchall()
-
-#Checks if the tag is in the database and returns the id. Returns empty brackets when an item isn't found
-def search_by_tag(cursor, tag):
-    cursor.execute(f'SELECT * FROM junction_table WHERE tag == \'{tag.title()}\'')
-    #TODO: Ask if the id or all item info should be returned
-    return cursor.fetchall()
+#------------------------------
+# SAVING METHODS
+#------------------------------
 
 #Saves the changes to the database
 def save(connection):
     connection.commit()
     #cursor.execute(f'UPDATE main_table SET quantity =={new_quantity} WHERE id == {id}')
+
+#------------------------------
+# NEEDS FIXING
+#------------------------------
 
 #Set image. 
 # TODO: This still needs a way to get the actual image info from the user
@@ -146,16 +172,6 @@ def set_image(cursor, id, image):
     image_path = f'/workspaces/Pirate-Pantry-Inventory-Tracking/images/{id}.jpg'
     to_insert = {"path" : image_path , "id" : id}
     cursor.execute('UPDATE main_table SET image == (:path) WHERE id == :id', to_insert) 
-
-#Gets the filepath of an image. Returns [] if image is not in table
-def view_image(cursor, id):
-    param = (id,)
-    cursor.execute('SELECT image FROM main_table WHERE id == ?', param)
-    path = cursor.fetchall()
-    print(len(path))
-    if len(path) > 0:
-        path = path[0][0]
-    return path
 
 #TODO: create db with user permission status
 
@@ -166,9 +182,9 @@ def main():
     #print(view_inventory(cursor))
     #print(view_item_tags(cursor))
     #print(view_all_tags(cursor))
-    #print(add_new_item(cursor, 'Peanut Butter', 'HEB', 2222, 9, 'None', ['Carbs'])) #Capitlization is weird to replicate user error
+    print(add_new_item(cursor, 'Peanut Butter', 'HEB', 2222, 9, 'None', ['Carbs'])) #Capitlization is weird to replicate user error. I also think types should be checked before getting to database
     #print(view_table(cursor))
-    #update_item(cursor, 1234, 5)
+    #update_item(cursor, 134, 5)
     #print(get_item_by_tag(cursor, 'carbs'))
     #add_tags(cursor, ['Contains dairy', 'Chips', 'Candy', 'pasta'])
     #print(view_all_names(cursor))
