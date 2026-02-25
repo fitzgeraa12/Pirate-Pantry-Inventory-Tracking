@@ -1,4 +1,5 @@
 import sqlite3
+from PIL import Image
 
 # Returns info for all items in the main table
 def view_table(cursor):    
@@ -137,8 +138,25 @@ def search_by_tag(cursor, tag):
 #Saves the changes to the database
 def save(connection):
     connection.commit()
+    #cursor.execute(f'UPDATE main_table SET quantity =={new_quantity} WHERE id == {id}')
 
-#TODO: image?
+#Set image. 
+# TODO: This still needs a way to get the actual image info from the user
+def set_image(cursor, id, image):
+    image_path = f'/workspaces/Pirate-Pantry-Inventory-Tracking/images/{id}.jpg'
+    to_insert = {"path" : image_path , "id" : id}
+    cursor.execute('UPDATE main_table SET image == (:path) WHERE id == :id', to_insert) 
+
+#Gets the filepath of an image. Returns [] if image is not in table
+def view_image(cursor, id):
+    param = (id,)
+    cursor.execute('SELECT image FROM main_table WHERE id == ?', param)
+    path = cursor.fetchall()
+    print(len(path))
+    if len(path) > 0:
+        path = path[0][0]
+    return path
+
 #TODO: create db with user permission status
 
 def main():
@@ -147,7 +165,7 @@ def main():
     #print(view_table(cursor))
     #print(view_inventory(cursor))
     #print(view_item_tags(cursor))
-    print(view_all_tags(cursor))
+    #print(view_all_tags(cursor))
     #print(add_new_item(cursor, 'Peanut Butter', 'HEB', 2222, 9, 'None', ['Carbs'])) #Capitlization is weird to replicate user error
     #print(view_table(cursor))
     #update_item(cursor, 1234, 5)
@@ -159,6 +177,8 @@ def main():
     #print(search_by_name(cursor, 'Peanut Butter'))
     #print(search_by_brand(cursor, 'Jiffy'))
     #print(search_by_tag(cursor, 'carbs'))
+    #set_image(cursor, 5555)
+    #print(view_image(cursor, 5555))
     #save(connection)
     cursor.close()
     connection.close()
