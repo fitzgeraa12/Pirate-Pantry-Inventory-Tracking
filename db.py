@@ -1,46 +1,22 @@
 import sqlite3
 
-def view_table(cursor):
-    """
-    Returns info for all items in the main table
-    Args:
-        cursor (cursor): Allows for connection to the database
-    Returns:
-        cursor: The result of the queries
-    """
+# Returns info for all items in the main table
+def view_table(cursor):    
     cursor.execute('SELECT * FROM main_table')
     return cursor.fetchall()
 
+# Returns the info for all items with a quantity > 0
 def view_inventory(cursor):
-    """
-    Returns the info for all items with a quantity > 0
-    Args:
-        cursor (cursor): Allows for connection to the database
-    Returns:
-        cursor: The result of the queries
-    """
     cursor.execute('SELECT * FROM main_table WHERE NOT quantity == \'0\'')
     return cursor.fetchall()
 
+# Returns all tags in tag_table, whether they're currently connected to an item or not
 def view_all_tags(cursor):
-    """
-    Returns all tags in tag_table, whether they're currently connected to an item or not
-    Args:
-        cursor (cursor): Allows for connection to the database
-    Returns:
-        cursor: The result of the queries
-    """
     cursor.execute('SELECT * FROM tag_table')
     return cursor.fetchall()
 
+# Returns all tags that are currently associated with an item
 def view_item_tags(cursor):
-    """
-    Returns all tags that are currently associated with an item
-    Args:
-        cursor (cursor): Allows for connection to the database
-    Returns:
-        cursor: The result of the queries
-    """
     cursor.execute('SELECT id FROM main_table WHERE NOT quantity == \'0\'') #All of the items actually present in the pantry
     ids = [x[0] for x in cursor.fetchall()] #Saves all items to a list
     ids_list = ", ".join(str(t) for t in ids) #Formatting list so SQL can read it
@@ -137,23 +113,55 @@ def get_item_by_tag(cursor, tag):
     cursor.execute(f'SELECT * FROM main_table WHERE id IN ({id_list})') 
     return cursor.fetchall()
 
+#Checks if the id is in the database and returns all item info. Returns empty brackets when item isn't found
+def search_by_id(cursor, id):
+    cursor.execute(f'SELECT * FROM main_table WHERE id == \'{id}\'')
+    return cursor.fetchall()
+
+#Checks if the name is in the database and returns all item info. Returns empty brackets when item isn't found
+def search_by_name(cursor, name):
+    cursor.execute(f'SELECT * FROM main_table WHERE name == \'{name.title()}\'')
+    return cursor.fetchall()
+
+#Checks if the brand is in the database and returns all item info. Returns empty brackets when item isn't found
+def search_by_brand(cursor, brand):
+    cursor.execute(f'SELECT * FROM main_table WHERE brand == \'{brand.title()}\'')
+    return cursor.fetchall()
+
+#Checks if the tag is in the database and returns the id. Returns empty brackets when an item isn't found
+def search_by_tag(cursor, tag):
+    cursor.execute(f'SELECT * FROM junction_table WHERE tag == \'{tag.title()}\'')
+    #TODO: Ask if the id or all item info should be returned
+    return cursor.fetchall()
+
+#Saves the changes to the database
+def save(connection):
+    connection.commit()
+
+#TODO: image?
+#TODO: create db with user permission status
+
 def main():
-    connect = sqlite3.connect('/workspaces/Pirate-Pantry-Inventory-Tracking/Test_Junction.db')
-    cursor = connect.cursor()
+    connection = sqlite3.connect('/workspaces/Pirate-Pantry-Inventory-Tracking/Test_Junction.db')
+    cursor = connection.cursor()
     #print(view_table(cursor))
     #print(view_inventory(cursor))
     #print(view_item_tags(cursor))
-    #print(view_all_tags(cursor))
-    print(add_new_item(cursor, 'potato soUp', 'Campbell\'s', 39393, 9, 'None', ['vegEtaBle', 'CaRbS'])) #Capitlization is weird to replicate user error
-    print(add_new_item(cursor, 'Peanut Butter', 'HEB', 2222, 9, 'None', ['Carbs'])) #Capitlization is weird to replicate user error
+    print(view_all_tags(cursor))
+    #print(add_new_item(cursor, 'Peanut Butter', 'HEB', 2222, 9, 'None', ['Carbs'])) #Capitlization is weird to replicate user error
     #print(view_table(cursor))
     #update_item(cursor, 1234, 5)
-    get_item_by_tag(cursor, 'carbs')
+    #print(get_item_by_tag(cursor, 'carbs'))
     #add_tags(cursor, ['Contains dairy', 'Chips', 'Candy', 'pasta'])
     #print(view_all_names(cursor))
     #print(view_all_brands(cursor))
+    #print(search_by_id(cursor, 1234))
+    #print(search_by_name(cursor, 'Peanut Butter'))
+    #print(search_by_brand(cursor, 'Jiffy'))
+    #print(search_by_tag(cursor, 'carbs'))
+    #save(connection)
     cursor.close()
-    connect.close()
+    connection.close()
 
 if __name__ == "__main__":
     main()
