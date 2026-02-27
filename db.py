@@ -40,14 +40,6 @@ def view_all_tags(cursor):
     cursor.execute('SELECT * FROM tag_table')
     return cursor.fetchall()
 
-#Gets the filepath of an image. Returns [] if image is not in table
-def view_image(cursor, id):
-    param = (id,)
-    cursor.execute('SELECT image FROM main_table WHERE id == ?', param)
-    path = cursor.fetchall()
-    if len(path) > 0:
-        path = path[0][0]
-    return path
 
 #------------------------------
 # Viewing items currently in the pantry (quantity > 0)
@@ -70,7 +62,7 @@ def view_pantry_brands(cursor):
     brands.sort() #Alphabetizes items
     return brands 
 
-# Returns all tags that are currently associated with an item
+# Returns all tags connected to items in the pantry
 def view_pantry_tags(cursor):
     cursor.execute('SELECT id FROM main_table WHERE quantity > 0') #All of the items actually present in the pantry
     ids = [x[0] for x in cursor.fetchall()] #Saves all items to a list
@@ -80,13 +72,12 @@ def view_pantry_tags(cursor):
     return cursor.fetchall()
 
 #------------------------------
-# ADDING METHODS
+# Updating methods
 #------------------------------
 
-#TODO: extra** more
-def add_item(cursor, name, brand, id, quantity, image, tags):
+def add_item(cursor, name, brand, id, quantity, image, *tags):
     """
-    Adds a brand new item to the table. No new tags were created
+    Adds a brand new item to the table
     Args:
         cursor (cursor): Allows for connection to the database
         name (str): The item's name
@@ -94,15 +85,17 @@ def add_item(cursor, name, brand, id, quantity, image, tags):
         id (int): The barcode id of the item
         quantity (int): The number of items being added
         image (str): The file path to a picture of the item
-        tags (list[str]): A list of tags the item is associated with
+        tags (list[str]): A list of tags the item is associated with. An item doesn't have to be added with tags
     Returns:
         cursor: The result of the queries
     """
-    if search_table_by_id(cursor, id): #If the item is already saved in the table, update item instead of trying to add a new one
+    if in_table(cursor, id): #If the item is already saved in the table, update item instead of trying to add a new one
         update_item(cursor, id, quantity)
     else:
         cursor.execute('INSERT INTO main_table VALUES (?, ?, ?, ?, ?)', (name.title(), brand.title(), id, quantity, image)) #.title() converts spelling to title case
         for i in tags: #Connects all tags to their item in title table
+            cursor.execute('INSERT INTO tag_table (tag) VALUES (?) ON CONFLICT (tag) DO NOTHING', (i.title(), )) #adds the tag to the table if it's not already in there
+            #TODO: I'm not sure if users can create a new tag when adding an item?
             cursor.execute('INSERT INTO junction_table VALUES (?, ?)', (id, i.title()))
         cursor.execute('SELECT * FROM junction_table')
         
@@ -125,7 +118,7 @@ def update_item(cursor, id, quantity):
         if new_quantity >= 0:
             cursor.execute('UPDATE main_table SET quantity == ? WHERE id == ?', (new_quantity, id))
 
-def add_tags(cursor, new_tags):
+def add_tags_to_table(cursor, new_tags):
     """
     Adds new tags to the tag_table
     Args:
@@ -135,24 +128,35 @@ def add_tags(cursor, new_tags):
         cursor: The result of the queries
     """
     for i in new_tags:
-        cursor.execute('INSERT INTO tag_table VALUES (?)', (i.title(), ))
-
+        cursor.execute('INSERT INTO tag_table(tag) VALUES (?) ON CONFLICT (tag) DO NOTHING', (i.title(), )) 
 
 #------------------------------
 # Searching the entire table
 #------------------------------
 
-#Searches table by id
-def search_table_by_id(cursor, id):
+#Returns true if the item is in the table
+def in_table(cursor, id):
+    if len(search_pantry_by_id(cursor, id)) > 0:
+        return True
+    return False
+
+#Returns all info for an item, including tags
+def get_all_info(cursor, id):
     cursor.execute('SELECT * FROM main_table WHERE id == ?', (id, ))
-    return cursor.fetchall()
+    i = cursor.fetchall()
+    if len(i) > 0:
+        item = list(i)[0]
+        tags = get_tags_for_item(cursor, id)
+        item.extend(tags)
+        return item
+    return []
 
 #------------------------------
 # Searching pantry (items with quantity > 0)
-#TODO: These methods should also return tag info
 #------------------------------
-#TODO: I think searching the pantry and table should be separate methods- there are times when an admin would only want to see items currently in the pantry
+#TODO- Ask team: I think searching the pantry and table should be separate methods- there are times when an admin would only want to see items currently in the pantry
 # I can add another check in my search_table_by_x to see if the user is admin?
+
 #Checks if the name is in the pantry and returns all item info. Returns empty brackets when item isn't found
 def search_pantry_by_name(cursor, name):
     cursor.execute('SELECT * FROM main_table WHERE quantity > 0 AND name == ?', (name.title(), ))
@@ -185,6 +189,40 @@ def search_pantry_by_tag(cursor, tag):
     return cursor.fetchall()
 
 #------------------------------
+# Getting item info
+#------------------------------
+
+#Returns all of the tags associated with an item
+def get_tags_for_item(cursor, id):
+    cursor.execute('SELECT * FROM junction_table WHERE id == ?', (id, ))
+    tags = [x[1] for x in cursor.fetchall()]
+    return tags
+
+#Gets the filepath of an image. Returns [] if image is not in table
+def view_image(cursor, id):
+    cursor.execute('SELECT image FROM main_table WHERE id == ?', (id, ))
+    path = cursor.fetchall()
+    if len(path) > 0:
+        path = path[0][0]
+    return path
+
+#------------------------------
+# Removing methods
+#------------------------------
+
+#Completely removes an item and associated tags from a table
+def delete_item(cursor, id, admin):
+    if(admin):
+            cursor.execute('DELETE FROM main_table WHERE id == ?', (id, ))
+            cursor.execute('DELETE FROM junction_table WHERE id == ?', (id, ))
+
+#Completely removes a tag from the table
+def delete_tag(cursor, tag, admin):
+    if(admin):
+        cursor.execute('DELETE FROM junction_table WHERE tag == ?', (tag, ))
+        cursor.execute('DELETE FROM tag_table WHERE tag == ?', (tag, ))
+
+#------------------------------
 # SAVING METHODS
 #------------------------------
 
@@ -201,37 +239,3 @@ def save(connection):
 def set_image(cursor, id):
     image_path = f'/workspaces/Pirate-Pantry-Inventory-Tracking/images/{id}.jpg'
     cursor.execute('UPDATE main_table SET image == ? WHERE id == ?', (image_path, id)) 
-
-
-def main():
-    connection = sqlite3.connect('/workspaces/Pirate-Pantry-Inventory-Tracking/Test_Junction.db')
-    cursor = connection.cursor()
-    #print(view_table(cursor))
-    #print(view_all_names(cursor))
-    #print(view_all_brands(cursor))
-    #print(view_pantry_names(cursor))
-    #print(view_pantry_brands(cursor))
-    print(view_pantry_tags(cursor))
-
-    #print(view_inventory(cursor))
-    #print(view_all_tags(cursor))
-    #print(view_all_tags(cursor))
-    #add_item(cursor, 'peanuT butter', 'HEB', 555, 9, 'None', ['Carbs']) #Capitlization is weird to replicate user error. I also think types should be checked before getting to database
-    #print(view_table(cursor))
-    #update_item(cursor, 1234, 5)
-    #print(view_table(cursor))
-    #print(get_item_by_tag(cursor, 'carbs'))
-    #add_tags(cursor, ['Contains dairy', 'Chips', 'Candy', 'pasta'])
-    #print(view_pantry_names(cursor))
-    #print(search_pantry_by_id(cursor, 1234))
-    #print(search_pantry_by_name(cursor, 'potato soup'))
-    #print(search_pantry_by_brand(cursor, 'green giant'))
-    #print(search_pantry_by_tag(cursor, 'carbs'))
-    #set_image(cursor, 5555)
-    #print(view_image(cursor, 5555))
-    #save(connection)
-    cursor.close()
-    connection.close()
-
-if __name__ == "__main__":
-    main()
