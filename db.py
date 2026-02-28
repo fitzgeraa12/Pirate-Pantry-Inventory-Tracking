@@ -40,7 +40,6 @@ def view_all_tags(cursor):
     cursor.execute('SELECT * FROM tag_table')
     return cursor.fetchall()
 
-
 #------------------------------
 # Viewing items currently in the pantry (quantity > 0)
 #------------------------------
@@ -50,19 +49,21 @@ def view__pantry_inventory(cursor):
     cursor.execute('SELECT * FROM main_table WHERE quantity > 0')
     return cursor.fetchall()
 
+# Returns the names of all items currently in the pantry (quantity > 0)
 def view_pantry_names(cursor):
-    cursor.execute('SELECT DISTINCT name FROM main_table WHERE quantity > 0') #Only unique elements are stored
+    cursor.execute('SELECT DISTINCT name FROM main_table WHERE quantity > 0') #Only unique elements returned
     names = [x[0] for x in cursor.fetchall()] 
     names.sort() #Alphabetizes items
     return names 
 
+# Returns all of the brands currently in the pantry (quantity > 0)
 def view_pantry_brands(cursor):
     cursor.execute('SELECT DISTINCT brand FROM main_table WHERE NOT brand == "''" AND quantity > 0') #Only unique elements are stored and brands with a null field aren't saved
     brands = [x[0] for x in cursor.fetchall()] 
     brands.sort() #Alphabetizes items
     return brands 
 
-# Returns all tags connected to items in the pantry
+# Returns all tags currently connected to items in the pantry
 def view_pantry_tags(cursor):
     cursor.execute('SELECT id FROM main_table WHERE quantity > 0') #All of the items actually present in the pantry
     ids = [x[0] for x in cursor.fetchall()] #Saves all items to a list
@@ -77,7 +78,7 @@ def view_pantry_tags(cursor):
 
 def add_item(cursor, name, brand, id, quantity, image, *tags):
     """
-    Adds a brand new item to the table
+    Adds an item to the table
     Args:
         cursor (cursor): Allows for connection to the database
         name (str): The item's name
@@ -94,8 +95,7 @@ def add_item(cursor, name, brand, id, quantity, image, *tags):
     else:
         cursor.execute('INSERT INTO main_table VALUES (?, ?, ?, ?, ?)', (name.title(), brand.title(), id, quantity, image)) #.title() converts spelling to title case
         for i in tags: #Connects all tags to their item in title table
-            cursor.execute('INSERT INTO tag_table (tag) VALUES (?) ON CONFLICT (tag) DO NOTHING', (i.title(), )) #adds the tag to the table if it's not already in there
-            #TODO: I'm not sure if users can create a new tag when adding an item?
+            cursor.execute('INSERT INTO tag_table (tag) VALUES (?) ON CONFLICT (tag) DO NOTHING', (i.title(), )) #Adds the tag to the tag table if it's not already in there
             cursor.execute('INSERT INTO junction_table VALUES (?, ?)', (id, i.title()))
         cursor.execute('SELECT * FROM junction_table')
         
