@@ -86,37 +86,53 @@ def add_item(cursor, name, brand, id, quantity, image, *tags):
         id (int): The barcode id of the item
         quantity (int): The number of items being added
         image (str): The file path to a picture of the item
-        tags (list[str]): A list of tags the item is associated with. An item doesn't have to be added with tags
+        tags (str): Tags the item is associated with. An item doesn't have to be added with tags
     Returns:
         cursor: The result of the queries
     """
-    if in_table(cursor, id): #If the item is already saved in the table, update item instead of trying to add a new one
-        update_item(cursor, id, quantity)
-    else:
-        cursor.execute('INSERT INTO main_table VALUES (?, ?, ?, ?, ?)', (name.title(), brand.title(), id, quantity, image)) #.title() converts spelling to title case
-        for i in tags: #Connects all tags to their item in title table
-            cursor.execute('INSERT INTO tag_table (tag) VALUES (?) ON CONFLICT (tag) DO NOTHING', (i.title(), )) #Adds the tag to the tag table if it's not already in there
-            cursor.execute('INSERT INTO junction_table VALUES (?, ?)', (id, i.title()))
-        cursor.execute('SELECT * FROM junction_table')
+    cursor.execute('INSERT INTO main_table VALUES (?, ?, ?, ?, ?)', (name.title(), brand.title(), id, quantity, image)) #.title() converts spelling to title case
+    for i in tags: #Connects all tags to their item in title table
+        cursor.execute('INSERT INTO tag_table (tag) VALUES (?) ON CONFLICT (tag) DO NOTHING', (i.title(), )) #Adds the tag to the tag table if it's not already in there
+        cursor.execute('INSERT INTO junction_table VALUES (?, ?)', (id, i.title()))
         
-
-def update_item(cursor, id, quantity):
+def update_item(cursor, name, brand, id, quantity, image, *tags):
     """
-    Updates the quantity of an item in the table. Makes no other changes
+    Updates item info
     Args:
         cursor (cursor): Allows for connection to the database
-        id (int): The barcode id of the item
+        name (str): The name of the item
+        brand (str): The item's brand
+        id (int): The barcode id of the item. Can't be changed
         quantity (int): The number of items being added
+        brand (str): The path to the image
+        tags (str): Tags the item is associated with. An item doesn't have to be added with tags
     Returns:
         cursor: The result of the queries
     """
-    cursor.execute('SELECT quantity FROM main_table WHERE id == ?', (id, )) 
-    result = cursor.fetchall()
-    if len(result) > 0: #If the id is in the database
-        old_quantity = result[0][0]
-        new_quantity = int(old_quantity) + quantity
-        if new_quantity >= 0:
-            cursor.execute('UPDATE main_table SET quantity == ? WHERE id == ?', (new_quantity, id))
+    if quantity >= 0:
+        cursor.execute('SELECT * FROM main_table WHERE id == ?', (id, )) 
+        result = cursor.fetchall()
+        if len(result) > 0: #If the id is in the database
+            old_quantity = result[0][3] 
+            new_quantity = int(old_quantity) + quantity #TODO: Unsure about this...would update item be used anywhere other than the add section? If so, this needs to change
+            cursor.execute('UPDATE main_table SET name == ?, brand == ?, quantity == ?, image == ? WHERE id == ?', (name.title(), brand.title(), new_quantity, image, id))
+            for i in tags: #Connects all tags to their item in title table
+                cursor.execute('INSERT INTO tag_table (tag) VALUES (?) ON CONFLICT (tag) DO NOTHING', (i.title(), )) #Adds the tag to the tag table if it's not already in there
+                cursor.execute('INSERT INTO junction_table (id, tag) VALUES (?, ?) ON CONFLICT (id, tag) DO NOTHING', (id, i.title())) #Adds the connection between the item and tag to junction table if it's not there already
+    else:
+        return "Invalid quantity"
+    
+#TODO: API should check if item is in pantry first?
+#Checks out an item from the pantry. Returns error message if quantity is greater than the number of items available
+def checkout_item(cursor, id, quantity):
+    cursor.execute('SELECT quantity FROM main_table WHERE id == ?', (id, ))
+    old_quantity = cursor.fetchall()[0][0]
+    new_quantity = old_quantity - quantity
+    if new_quantity >= 0:
+        cursor.execute('UPDATE main_table SET quantity == ?', (new_quantity, ))
+    else:
+        return "Invalid quantity"
+
 
 def add_tags_to_table(cursor, new_tags):
     """
@@ -145,8 +161,9 @@ def get_all_info(cursor, id):
     cursor.execute('SELECT * FROM main_table WHERE id == ?', (id, ))
     i = cursor.fetchall()
     if len(i) > 0:
-        item = list(i)[0]
+        item = list(i[0])
         tags = get_tags_for_item(cursor, id)
+        print(tags)
         item.extend(tags)
         return item
     return []
@@ -154,8 +171,6 @@ def get_all_info(cursor, id):
 #------------------------------
 # Searching pantry (items with quantity > 0)
 #------------------------------
-#TODO- Ask team: I think searching the pantry and table should be separate methods- there are times when an admin would only want to see items currently in the pantry
-# I can add another check in my search_table_by_x to see if the user is admin?
 
 #Checks if the name is in the pantry and returns all item info. Returns empty brackets when item isn't found
 def search_pantry_by_name(cursor, name):
@@ -239,3 +254,4 @@ def save(connection):
 def set_image(cursor, id):
     image_path = f'/workspaces/Pirate-Pantry-Inventory-Tracking/images/{id}.jpg'
     cursor.execute('UPDATE main_table SET image == ? WHERE id == ?', (image_path, id)) 
+
