@@ -144,11 +144,13 @@ def add_item():
         Returns:
             Response (JSON): Message confirming new item added with item
     '''
+    # Get JSON body from frontend request
     data = request.get_json()
 
     if not data:
         return jsonify({'error': 'Invalid JSON'})
     
+    # Extract information from JSON body
     id = data.get('id', type=int)    
     name = data.get('name')
     brand = data.get('brand', '')
@@ -180,11 +182,13 @@ def add_tags_to_table():
         Returns:
             Response (JSON): New tags added to tag_table
     '''
+    # Get JSON body from frontend request
     data = request.get_json()
 
     if not data:
         return jsonify({'error': 'Invalid JSON'})
     
+    # Extract tag information from JSON body
     new_tag = [t.strip() for t in data.get('tags', '').split(',') if t.strip()]
     
     connection, cursor = get_cursor()
@@ -238,29 +242,40 @@ def add_tags_to_table():
 # --------------------------------------------------
 # DELETE method (checkout)
 # --------------------------------------------------
-@app.route('/api/inventory/checkout/<int:id>', methods=['DELETE'])
+@app.route('/api/inventory/checkout/<int:id>', methods=['PATCH'])
 @requires_roles('admin', 'trusted', 'user')
 def checkout_item():
+    ''' PATCH method to check item out (decrease item's quantity)
+
+        Returns:
+            Response (JSON): A list of checked out items.
+    '''
+    # Get JSON body from frontend request
     data = request.get_json()
 
     if not data:
         return jsonify({'error': 'Invalid JSON'})
     
+    # Extract information from JSON body
     id = data.get('id', type=int)
     quantity = data.get('quantity', type=int)
 
+    # Check for invalid (not type int) or missing ID and quantity
     if not id or not quantity:
         return jsonify({'error': 'Missing required fields: ID, Quantity.'}), 400
     
+    # Ensure that quantity > 0
     if quantity == 0:
         return jsonify({'error': 'Checkout quantity needs to be above 0.'}), 400
     
+    # Check if item is in the table
     connection, cursor = get_cursor()
     if not database.in_table(cursor, id):
         connection.close()
         return jsonify({'error': 'Item not found.'}), 400
     
     checkout = database.checkout_item(cursor, id, quantity)
+    # Handling invalid user input quantity
     if checkout == "Invalid quantity":
         connection.close()
         return jsonify({'error': 'New quantity can\'t be negative.'}), 400
