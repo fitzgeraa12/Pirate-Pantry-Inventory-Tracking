@@ -1,9 +1,9 @@
 from flask import Flask, request, jsonify # pip install flask in terminal
-from flask.typing import ResponseReturnValue
+from flask_cors import CORS
 
 import sqlite3
 import database
-from auth import require_role
+from auth import requires_roles
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -25,8 +25,8 @@ def get_cursor():
 # --------------------------------------------------
 # GET methods (from database)
 # --------------------------------------------------
-@app.route('https://piratepantry.com/pantry', methods=['GET'])
-# @require_role('trusted', 'admin')
+@app.route('/api/table', methods=['GET'])
+@requires_roles('trusted', 'admin')
 def get_table():
     ''' GET method to retrieve the pantry table
 
@@ -38,8 +38,8 @@ def get_table():
     connection.close()
     return jsonify(pantry)
 
-@app.route('https://piratepantry.com/pantry/names', methods=['GET'])
-# @require_role('trusted', 'admin')
+@app.route('/api/table/all_names', methods=['GET'])
+@requires_roles('trusted', 'admin')
 def get_all_names():
     ''' GET method to retrieve all names 
 
@@ -51,8 +51,8 @@ def get_all_names():
     connection.close()
     return jsonify(names)
 
-@app.route('https://piratepantry.com/pantry/brands', methods=['GET'])
-# @require_role('trusted', 'admin')
+@app.route('/api/table/all_brands', methods=['GET'])
+@requires_roles('trusted', 'admin')
 def get_all_brands():
     ''' GET method to retrieve all brands 
 
@@ -64,8 +64,8 @@ def get_all_brands():
     connection.close()
     return jsonify(brands)
 
-@app.route('https://piratepantry.com/pantry/tags', methods=['GET'])
-# @require_role('trusted', 'admin')
+@app.route('/api/table/all_tags', methods=['GET'])
+@requires_roles('trusted', 'admin')
 def get_all_tags():
     ''' GET method to retrieve all tags 
 
@@ -81,8 +81,8 @@ def get_all_tags():
 # GET methods (from inventory)
 # --------------------------------------------------
 
-@app.route('https://piratepantry.com/pantry_inventory', methods=['GET'])
-# @require_role('trusted', 'admin', 'user')
+@app.route('/api/inventory', methods=['GET'])
+@requires_roles('trusted', 'admin', 'user')
 def get_pantry_inventory():
     ''' GET method to retrieve the pantry inventory with quantity > 0
 
@@ -94,8 +94,8 @@ def get_pantry_inventory():
     connection.close()
     return jsonify(inventory)
 
-@app.route('https://piratepantry.com/pantry_inventory/available_names', methods=['GET'])
-# @require_role('trusted', 'admin', 'user')
+@app.route('/api/inventory/names', methods=['GET'])
+@requires_roles('trusted', 'admin', 'user')
 def get_pantry_names():
     ''' GET method to retrieve available names in pantry
 
@@ -107,8 +107,8 @@ def get_pantry_names():
     connection.close()
     return jsonify(current_tags)
 
-@app.route('https://piratepantry.com/pantry_inventory/available_brands', methods=['GET'])
-# @require_role('trusted', 'admin', 'user')
+@app.route('/api/inventory/brands', methods=['GET'])
+@requires_roles('trusted', 'admin', 'user')
 def get_pantry_brands():
     ''' GET method to retrieve available brands in pantry
 
@@ -120,8 +120,8 @@ def get_pantry_brands():
     connection.close()
     return jsonify(current_tags)
 
-@app.route('https://piratepantry.com/pantry_inventory/available_tags', methods=['GET'])
-# @require_role('trusted', 'admin', 'user')
+@app.route('/api/inventory/tags', methods=['GET'])
+@requires_roles('trusted', 'admin', 'user')
 def get_pantry_tags():
     ''' GET method to retrieve currently used tags 
 
@@ -136,8 +136,8 @@ def get_pantry_tags():
 # --------------------------------------------------
 # POST methods
 # --------------------------------------------------
-@app.route('https://piratepantry.com/pantry/add_item', methods=['POST'])
-# @require_role('trusted', 'admin')
+@app.route('/api/table/add/item', methods=['POST'])
+@requires_roles('trusted', 'admin')
 def add_item():
     ''' Add new item to the inventory
 
@@ -171,8 +171,8 @@ def add_item():
     finally:
         connection.close()
 
-@app.route('https://piratepantry.com/pantry/add_tags', methods=['POST'])
-# @require_role('trusted', 'admin')
+@app.route('/api/table/add/tags', methods=['POST'])
+@requires_roles('trusted', 'admin')
 def add_tags_to_table():
     '''
     Add new tags to the table
@@ -202,39 +202,44 @@ def add_tags_to_table():
 # --------------------------------------------------
 # PATCH method (update items)
 # --------------------------------------------------
-@app.route('https://piratepantry.com/pantry/update/<int:id>', methods=['PATCH'])
-# @require_role('trusted', 'admin', 'user')
-def update_item():
-    data = request.get_json()
+# @app.route('/api/table/update/<int:id>', methods=['PATCH'])
+# # @require_role('trusted', 'admin', 'user')
+# def update_item():
+#     data = request.get_json()
 
-    if not data:
-        return jsonify({'error': 'Invalid JSON'})
+#     if not data:
+#         return jsonify({'error': 'Invalid JSON'})
     
-    # TODO: check with Camile for this method
-    id = data.get('id', type=int)
-    quantity = data.get('quantity', type=int)
+#     # TODO: check with Camile for this method
+#     id = data.get('id', type=int)
+#     quantity = data.get('quantity', type=int)
 
-    if not id or not quantity:
-        return jsonify({'error': 'Missing required fields: ID, Name.' })
+#     if not id or not quantity:
+#         return jsonify({'error': 'Missing required fields: ID, Name.' })
 
-    if quantity == 0:
-        return jsonify({'error': 'Updated quantity needs to be above 0.'}), 400
+#     if quantity == 0:
+#         return jsonify({'error': 'Updated quantity needs to be above 0.'}), 400
     
-    connection, cursor = get_cursor()
-    if not database.in_table(cursor, id):
-        connection.close()
-        return jsonify({'error': 'Item not found.'}), 400
+#     connection, cursor = get_cursor()
+#     if not database.in_table(cursor, id):
+#         connection.close()
+#         return jsonify({'error': 'Item not found.'}), 400
     
-    updated_item = database.update_item(cursor, id, quantity)
+#     updated_item = database.update_item(cursor, id, quantity)
     
-    if updated_item == "Invalid quanity":
-        connection.close()
-        return jsonify({'error': 'New quantity can\'t be negative.'}), 400
+#     if updated_item == "Invalid quanity":
+#         connection.close()
+#         return jsonify({'error': 'New quantity can\'t be negative.'}), 400
 
-    database.save(connection)
-    connection.close()
-    return jsonify({'message': 'Item updated!', 'New quantity': updated_item}), 201
+#     database.save(connection)
+#     connection.close()
+#     return jsonify({'message': 'Item updated!', 'New quantity': updated_item}), 201
 
+# --------------------------------------------------
+# DELETE method (checkout)
+# --------------------------------------------------
+@app.route('/api/inventory/checkout/<int:id>', methods=['DELETE'])
+@requires_roles('admin', 'trusted', 'user')
 def checkout_item():
     data = request.get_json()
 
@@ -268,7 +273,8 @@ def checkout_item():
 # GET methods (item search)
 # --------------------------------------------------
 
-@app.route('https://piratepantry.com/pantry/item_information/<int:id>', methods=['GET'])
+@app.route('/api/pantry/item_information/<int:id>', methods=['GET'])
+@requires_roles('trusted', 'admin', 'user')
 def get_all_info(id : int):
     ''' GET method to retrieve all info for an item
 
@@ -280,10 +286,10 @@ def get_all_info(id : int):
     connection.close()
     return jsonify(info)
 
-@app.route('https://piratepantry.com/pantry/item/<string:name>', methods=['GET'])
-@require_role('trusted', 'admin', 'user')
+@app.route('/api/inventory/search/name/<string:name>', methods=['GET'])
+@requires_roles('trusted', 'admin', 'user')
 def get_item_by_name(name : str):
-    ''' GET method to retrieve items with specific name
+    ''' GET method to retrieve items with specific name in inventory
 
         Returns:
             Response (JSON): Items with desired name 
@@ -293,10 +299,10 @@ def get_item_by_name(name : str):
     connection.close()
     return jsonify(item)
 
-@app.route('https://piratepantry.com/pantry/item/<string:brand>', methods=['GET'])
-@require_role('trusted', 'admin', 'user')
+@app.route('/api/inventory/search/brand/<string:brand>', methods=['GET'])
+@requires_roles('trusted', 'admin', 'user')
 def get_item_by_brand(brand : str):
-    ''' GET method to retrieve items with specific brand
+    ''' GET method to retrieve items with specific brand in inventory
 
         Returns:
             Response (JSON): Items with desired brand 
@@ -306,8 +312,8 @@ def get_item_by_brand(brand : str):
     connection.close()
     return jsonify(item)
 
-@app.route('https://piratepantry.com/pantry/item/<int:id>', methods=['GET'])
-@require_role('trusted', 'admin', 'user')
+@app.route('/api/inventory/search/id/<int:id>', methods=['GET'])
+@requires_roles('trusted', 'admin', 'user')
 def get_item_by_id(id : int):
     ''' GET method to retrieve items with specific id
 
@@ -319,8 +325,8 @@ def get_item_by_id(id : int):
     connection.close()
     return jsonify(item)
 
-@app.route('https://piratepantry.com/pantry/item/<string:tag>', methods=['GET'])
-@require_role('trusted', 'admin', 'user')
+@app.route('/api/inventory/search/tags/<string:tag>', methods=['GET'])
+@requires_roles('trusted', 'admin', 'user')
 def get_item_by_tag(tag : str):
     ''' GET method to retrieve items with specific tag
 
@@ -335,8 +341,8 @@ def get_item_by_tag(tag : str):
 # --------------------------------------------------
 # DELETE methods (item removal)
 # --------------------------------------------------
-@app.route('https://piratepantry.com/pantry/delete/<int:id>', methods=['DELETE'])
-@require_role('trusted', 'admin')
+@app.route('/api/table//delete/item/<int:id>', methods=['DELETE'])
+@requires_roles('trusted', 'admin')
 def delete_item(id : int):
     ''' DELETE method to remove an item from the pantry (permanently)
 
@@ -348,8 +354,8 @@ def delete_item(id : int):
     connection.close()
     return jsonify(deleted_item)
 
-@app.route('https://piratepantry.com/pantry/delete/<string:tag>', methods=['DELETE'])
-@require_role('trusted', 'admin')
+@app.route('/api/table//delete/tag/<string:tag>', methods=['DELETE'])
+@requires_roles('trusted', 'admin')
 def delete_tag(tag : str):
     ''' DELETE method to remove a tag from the pantry (permanently)
 
@@ -361,6 +367,6 @@ def delete_tag(tag : str):
     connection.close()
     return jsonify(deleted_tag)
 
-
 if __name__ == '__main__':
     app.run(debug=True)
+    CORS(app)
