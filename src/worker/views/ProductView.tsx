@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import View from "./View";
 import { getCoreRowModel, getSortedRowModel, useReactTable, type ColumnDef, type SortingState } from "@tanstack/react-table";
-
+import { useCart } from "../../misc/CartContext";
 interface ProductTableEntry {
     id: number,
     name: string,
@@ -11,6 +11,7 @@ interface ProductTableEntry {
 }
 
 function ProductView() {
+    const { addToCart, removeFromCart} = useCart(); 
     const columns = useMemo<ColumnDef<ProductTableEntry>[]>(() => {
         return [
             {
@@ -35,10 +36,12 @@ function ProductView() {
             },
             {
                 id: "actions",
-                cell: (_cell_ctx) => (
+                cell: ({row}) => (
                     <>
-                        <button className="table-entry-button">Edit</button>
-                        <button className="table-entry-button">Delete</button>
+                        <button className="table-entry-button"
+                        onClick={()=> addToCart(row.original.id)}>Add</button>
+                        <button className="table-entry-button"
+                        onClick={()=>removeFromCart(row.original.id)}>Remove</button>
                     </>
                 ),
             },
@@ -86,8 +89,6 @@ function ProductView() {
     return (
         <View id="view" tbl={tbl} header_children={
             <>
-                <button id="add-item" className="body-header-button">Add Item</button>
-                <button id="export-to-xls" className="body-header-button">Export to XLS</button>
             </>
         } />
     );

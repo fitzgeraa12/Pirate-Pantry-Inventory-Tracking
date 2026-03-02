@@ -5,17 +5,20 @@ import Auth from './auth/Auth'
 import API from './api/API'
 import { BrowserRouter } from 'react-router-dom'
 import Perms from './auth/perms/Perms'
+import { CartProvider } from './misc/CartContext'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
-      <Auth>
-        <API>
-          <Perms>
-            <App />
-          </Perms>
-        </API>
-      </Auth>
+      <CartProvider>
+        <Auth>
+          <API>
+            <Perms>
+              <App />
+            </Perms>
+          </API>
+        </Auth>
+      </CartProvider>
     </BrowserRouter>
   </StrictMode>
 )
