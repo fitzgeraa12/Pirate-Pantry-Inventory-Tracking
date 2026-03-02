@@ -48,7 +48,7 @@ function ProductView() {
         ]
     }, []);
 
-    const [product_table_entries, set_product_table_entries] = useState<Array<ProductTableEntry>>([
+    const [product_table_entries, _set_product_table_entries] = useState<Array<ProductTableEntry>>([
         {
             id: 2,
             name: "TEST2",
