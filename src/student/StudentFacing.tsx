@@ -14,10 +14,10 @@ function StudentFacing() {
 
     return (
         <Titled title="Checkout"> 
-            <div id= "container">
-                <div id ="header">
+            <div id= "container"> 
+                <div id ="header"> 
                     <div id = "title"> Pirate Pantry Checkout</div>                              
-                    <input
+                    <input // search bar
                         type="text"
                         placeholder="Search for items..."
                         value={searchTerm}

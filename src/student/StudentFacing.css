@@ -47,7 +47,7 @@
 .header-button {
     height: 100%;
     font-size: 0.65em;
-    color: var(--su-yellow);
+        color: var(--su-yellow);
 }
 
 #user-view, #log-out {
