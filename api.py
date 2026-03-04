@@ -173,7 +173,7 @@ def add_item():
     finally:
         connection.close()
 
-@app.route('/api/table/add/tags', methods=['POST'])
+@app.route('/api/table/add/item/tags', methods=['POST'])
 @requires_roles('trusted', 'admin')
 def add_tags_to_table():
     '''
@@ -382,6 +382,9 @@ def delete_tag(tag : str):
     connection.close()
     return jsonify(deleted_tag)
 
+
 if __name__ == '__main__':
     app.run(debug=True)
-    CORS(app)
+    CORS(app, origins=['https://piratepantry.com'], supports_credentials=True)
+
+    

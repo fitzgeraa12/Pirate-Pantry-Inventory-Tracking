@@ -240,7 +240,6 @@ def delete_tag(cursor, tag, admin):
 #------------------------------
 # SAVING METHODS
 #------------------------------
-
 #Saves the changes to the database
 def save(connection):
     connection.commit()
