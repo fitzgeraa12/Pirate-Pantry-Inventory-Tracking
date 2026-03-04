@@ -29,16 +29,20 @@ def is_admin(cursor, email):
         return True
     return False
 
-#TODO: should the database be checking if the user is an admin, or should the API? Also should the API check type is either admin or trusted?
-#Adds a new user to the table
-def add_user(cursor, new_email, type, user_email):
-    if is_admin(cursor, user_email):
-        cursor.execute('INSERT INTO security_info VALUES (?, ?)', (new_email, type))
-        return True
-    return False
+#Returns the role of the user, [] if the user is not in the table
+def get_role(cursor, email):
+    cursor.execute('SELECT type FROM security_info WHERE email == ?', (email, ))
+    result = cursor.fetchall()
+    if len(result) > 0:
+        return result[0][0]
+    return []
+
+
+#Adds a new user to the table. Checks for if the user is an admin comes from the API
+def add_user(cursor, new_email, type):
+    cursor.execute('INSERT INTO security_info VALUES (?, ?)', (new_email, type))
 
 #Removes a user from the table. Admin users can only be removed if there's more than one admin remaining
-#TODO: Should we get special permissions? Also can a user remove themself?
 def remove_user(cursor, to_remove):
     if in_table(cursor, to_remove):
         if is_admin(cursor, to_remove): 

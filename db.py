@@ -115,6 +115,7 @@ def update_item(cursor, name, brand, id, quantity, image, *tags):
         if len(result) > 0: #If the id is in the database
             old_quantity = result[0][3] 
             new_quantity = int(old_quantity) + quantity #TODO: Unsure about this...would update item be used anywhere other than the add section? If so, this needs to change
+            #Update quantity method instead?
             cursor.execute('UPDATE main_table SET name == ?, brand == ?, quantity == ?, image == ? WHERE id == ?', (name.title(), brand.title(), new_quantity, image, id))
             for i in tags: #Connects all tags to their item in title table
                 cursor.execute('INSERT INTO tag_table (tag) VALUES (?) ON CONFLICT (tag) DO NOTHING', (i.title(), )) #Adds the tag to the tag table if it's not already in there
@@ -122,7 +123,6 @@ def update_item(cursor, name, brand, id, quantity, image, *tags):
     else:
         return "Invalid quantity"
     
-#TODO: API should check if item is in pantry first?
 #Checks out an item from the pantry. Returns error message if quantity is greater than the number of items available
 def checkout_item(cursor, id, quantity):
     cursor.execute('SELECT quantity FROM main_table WHERE id == ?', (id, ))
@@ -133,16 +133,8 @@ def checkout_item(cursor, id, quantity):
     else:
         return "Invalid quantity"
 
-
+#Adds new tags to the tag_table. These tags are not connected to an item yet
 def add_tags_to_table(cursor, new_tags):
-    """
-    Adds new tags to the tag_table
-    Args:
-        cursor (cursor): Allows for connection to the database
-        new_tags (list[str]): A list of tags to add
-    Returns:
-        cursor: The result of the queries
-    """
     for i in new_tags:
         cursor.execute('INSERT INTO tag_table(tag) VALUES (?) ON CONFLICT (tag) DO NOTHING', (i.title(), )) 
 
@@ -226,16 +218,14 @@ def view_image(cursor, id):
 #------------------------------
 
 #Completely removes an item and associated tags from a table
-def delete_item(cursor, id, admin):
-    if(admin):
-            cursor.execute('DELETE FROM main_table WHERE id == ?', (id, ))
-            cursor.execute('DELETE FROM junction_table WHERE id == ?', (id, ))
+def delete_item(cursor, id):
+        cursor.execute('DELETE FROM main_table WHERE id == ?', (id, ))
+        cursor.execute('DELETE FROM junction_table WHERE id == ?', (id, ))
 
 #Completely removes a tag from the table
-def delete_tag(cursor, tag, admin):
-    if(admin):
-        cursor.execute('DELETE FROM junction_table WHERE tag == ?', (tag, ))
-        cursor.execute('DELETE FROM tag_table WHERE tag == ?', (tag, ))
+def delete_tag(cursor, tag):
+    cursor.execute('DELETE FROM junction_table WHERE tag == ?', (tag, ))
+    cursor.execute('DELETE FROM tag_table WHERE tag == ?', (tag, ))
 
 #------------------------------
 # SAVING METHODS
