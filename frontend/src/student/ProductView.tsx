@@ -1,7 +1,8 @@
+
 import { useMemo, useState } from "react";
-import View from "./View";
+import View from "../worker/views/View";
 import { getCoreRowModel, getSortedRowModel, useReactTable, type ColumnDef, type SortingState } from "@tanstack/react-table";
-import { useCart } from "../../misc/CartContext";
+import { useCart } from "../misc/CartContext";
 interface ProductTableEntry {
     id: number,
     name: string,
@@ -75,8 +76,22 @@ function ProductView() {
         { id: "id", desc: false }
     ])
 
+    const [search, setSearch] = useState("");
+
+    const filtered_products = useMemo(() =>{
+        if (!search) return product_table_entries;
+
+        const lower = search.toLowerCase();
+
+        return product_table_entries.filter((product) =>
+            product.name.toLowerCase().includes(lower) ||
+            product.brand?.toLowerCase().includes(lower)||
+            product.tags.some(tag=>tag.toLowerCase().includes(lower))
+        );
+    }, [search, product_table_entries]);
+
     const tbl = useReactTable({
-        data: product_table_entries, 
+        data: filtered_products, 
         columns,
         getCoreRowModel: getCoreRowModel(),
         getSortedRowModel: getSortedRowModel(),
@@ -89,6 +104,12 @@ function ProductView() {
     return (
         <View id="view" tbl={tbl} header_children={
             <>
+                <input  
+                    type="text"
+                    placeholder="Search products..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                />
             </>
         } />
     );
