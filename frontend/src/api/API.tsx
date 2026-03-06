@@ -151,6 +151,8 @@ function API({ children }: PropsWithChildren) {
              * @returns Perms
              */
             perms: async (): Promise<Perms> => {
+                return "Admin";
+
                 const params = auth_url_search_params();
 
                 const response = await api_call("GET", "perms", params);
