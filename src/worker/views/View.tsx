@@ -13,38 +13,40 @@ function View<T>({ id, tbl, header_children }: ViewProps<T>) {
             <div id="body-header">
                 {header_children}
             </div>
-            <table id="database-view">
-                <thead>
-                    {tbl.getHeaderGroups().map(header_group => {
-                        return (
-                        <tr key={header_group.id}>
-                            {header_group.headers.map(header => (
-                            <th key={header.id} colSpan={header.colSpan}>
-                                {flexRender(
-                                    header.column.columnDef.header,
-                                    header.getContext()
-                                )}
-                            </th>
-                            ))}
-                        </tr>
-                        )
-                    })}
-                </thead>
-                <tbody>
-                    {tbl.getRowModel().rows.map(row => (
-                        <tr key={row.id}>
-                            {row.getVisibleCells().map(cell => (
-                                <td key={cell.id}>
+            <div className="table-container">
+                <table id="database-view">
+                    <thead>
+                        {tbl.getHeaderGroups().map(header_group => {
+                            return (
+                            <tr key={header_group.id}>
+                                {header_group.headers.map(header => (
+                                <th key={header.id} colSpan={header.colSpan}>
                                     {flexRender(
-                                        cell.column.columnDef.cell,
-                                        cell.getContext()
+                                        header.column.columnDef.header,
+                                        header.getContext()
                                     )}
-                                </td>
-                            ))}
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
+                                </th>
+                                ))}
+                            </tr>
+                            )
+                        })}
+                    </thead>
+                    <tbody>
+                        {tbl.getRowModel().rows.map(row => (
+                            <tr key={row.id}>
+                                {row.getVisibleCells().map(cell => (
+                                    <td key={cell.id}>
+                                        {flexRender(
+                                            cell.column.columnDef.cell,
+                                            cell.getContext()
+                                        )}
+                                    </td>
+                                ))}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>    
             <div id="page-navigation">TODO: Page Navigator</div>
             <div id="body-footer">
                 <div id="quick-statistics">TODO: Statistics</div>

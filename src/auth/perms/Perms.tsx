@@ -22,7 +22,7 @@ function Perms({ children }: PropsWithChildren) {
     useEffect(() => {
         if (!auth) return;
 
-        api!.get_perms().then((perms) => {
+        api!.perms().then((perms) => {
             set_perms(perms);
         }).catch(console.error);
     }, [auth])

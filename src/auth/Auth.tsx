@@ -1,4 +1,4 @@
-import { type CredentialResponse } from '@react-oauth/google';
+import { googleLogout, type CredentialResponse } from '@react-oauth/google';
 import { jwtDecode } from 'jwt-decode';
 import { useContext, useEffect, useState, type PropsWithChildren } from 'react';
 import { AuthContext } from './AuthContext';
@@ -52,10 +52,16 @@ function Auth({ children }: PropsWithChildren) {
         console.error("Authentication failed")
     }
 
+    const logout = () => {
+        googleLogout();
+        Cookies.remove("auth");
+        set_auth(null);
+    };
+
     return !auth ? (
-        <Login on_success={on_success} on_error={on_error}></Login>
+        <Login on_success={on_success} on_error={on_error}/>
     ) : (
-        <AuthContext value={auth}>
+        <AuthContext value={{token: auth, logout}}>
             {children}
         </AuthContext>
     );
