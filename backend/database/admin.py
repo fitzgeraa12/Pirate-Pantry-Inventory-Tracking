@@ -1,6 +1,7 @@
 # Returns all users in the table
 from typing import Optional
 
+from backend.api.auth import Role
 from backend.database.db import query, rows_to_list
 
 
@@ -10,12 +11,12 @@ def view_all():
 
 # Returns all admin users in the table
 def view_admins():
-    rows = query("SELECT * FROM perms WHERE type == 'admin'")
+    rows = query("SELECT * FROM perms WHERE type == ?", [Role.ADMIN])
     return rows_to_list(rows)
 
 # Returns all trusted users in the table
 def view_trusted():
-    rows = query("SELECT * FROM perms WHERE type == 'trusted'")
+    rows = query("SELECT * FROM perms WHERE type == ?", [Role.TRUSTED])
     return rows_to_list(rows)
 
 # Returns true if the email is a trusted or admin user
@@ -27,7 +28,7 @@ def in_table(email: str):
 
 # Returns true if the user is an admin, false if they're trusted
 def is_admin(email: str):
-    rows = query("SELECT * FROM perms WHERE email == ? AND type == 'admin'", [email])
+    rows = query("SELECT * FROM perms WHERE email == ? AND type == ?", [email, Role.ADMIN])
     if len(rows_to_list(rows)) > 0:
         return True
     return False

@@ -1,5 +1,6 @@
+from enum import Enum
 from functools import wraps
-from typing import Any, Callable
+from typing import Any, Callable, Optional, TypedDict
 from flask import request, jsonify
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_auth_requests
@@ -10,7 +11,21 @@ import os
 CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
 DEV_TOKEN = os.environ.get("DEV_TOKEN")
 
-ROLES = ['admin', 'trusted', 'user']
+class Role(str, Enum):
+    ADMIN = 'admin'
+    TRUSTED = 'trusted'
+    USER = 'user'
+
+    @classmethod
+    def from_str(cls, value: str) -> 'Optional[Role]':
+        try:
+            return cls(value)
+        except ValueError:
+            return None
+
+class User(TypedDict):
+    email: str
+    role: Role
 
 def get_permission(auth_token: str):
     ''' Verify auth_token and extract information from auth_token. 
@@ -30,19 +45,19 @@ def get_permission(auth_token: str):
 
     # Dev token bypass
     if DEV_TOKEN and token == DEV_TOKEN:
-        return 'dev', 'admin'
+        return 'dev', Role.ADMIN
 
     # Verify Google OAuth2 token
     # Source: https://google-auth.readthedocs.io/en/latest/reference/google.oauth2.id_token.html
     info = id_token.verify_oauth2_token(token, google_auth_requests.Request(), CLIENT_ID) # pyright: ignore[reportUnknownMemberType]
-    email = info.get('email', '')
+    email: str = info.get('email', '')
 
     # Look up role in D1
     result = d1_query('SELECT type FROM perms WHERE email = ?', [email])
-    role = result[0]['type'] if result else None
+    role = Role.from_str(result[0]['type'])
 
     if not role:
-        return email, 'user'
+        return email, Role.USER
     else:
         return email, role
 
@@ -74,7 +89,8 @@ def requires_roles(*auth_roles: str):
                 return jsonify({'error': 'Unauthorized user.'}), 403
             
             # Pass current user info to route parameters
-            kwargs['current_user'] = {'email': email, 'role': role}
+            user = User(email=email, role=Role.ADMIN) # pyright: ignore[reportUnusedVariable]
+            # kwargs['current_user'] = user
             
             return f(*args, **kwargs)
         return decorated
