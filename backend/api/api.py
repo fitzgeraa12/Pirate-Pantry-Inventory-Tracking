@@ -10,7 +10,7 @@ from database import db as database
 
 # Initialize Flask app
 app = Flask(__name__)
-CORS(app, origins=r'https://.*\.piratepantry\.com', supports_credentials=True)
+CORS(app, origins=['https://piratepantry.com', 'https://www.piratepantry.com', 'https://dev.piratepantry.com', 'http://localhost:5173'], supports_credentials=True)
 
 # Connect to database - path relative to this file
 DB = os.path.join(os.path.dirname(__file__), '..', 'database', 'pantry.db')
