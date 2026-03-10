@@ -16,7 +16,7 @@ interface ProductViewProps {
 }
 
 function ProductView({ searchTerm: externalSearchTerm }: ProductViewProps = {}) {
-    const { addToCart, removeFromCart} = useCart(); 
+    const { addToCart, removeFromCart} = useCart().unwrap(); 
     const columns = useMemo<ColumnDef<ProductTableEntry>[]>(() => {
         return [
             {

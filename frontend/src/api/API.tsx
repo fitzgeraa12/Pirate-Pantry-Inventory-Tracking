@@ -3,7 +3,7 @@ import { APIContext } from './APIContext';
 import { AuthContext } from '../auth/AuthContext';
 import axios, { type AxiosResponse } from 'axios';
 import z from 'zod';
-import type { Perms } from '../auth/perms/Perms';
+import { Option } from '../misc/misc';
 // import { unreachable } from '../misc/misc';
 
 // // Cache auth
@@ -14,10 +14,8 @@ import type { Perms } from '../auth/perms/Perms';
 
 // Perms
 // https://zod.dev/basics?id=inferring-types
-export const PermsSchema = z.enum(["User", "Trusted", "Admin"]);
-export const GetPermsResponse = z.object({
-    perms: PermsSchema,
-});
+export const PermsSchema = z.enum(["user", "trusted", "admin"]);
+export type Perms = z.infer<typeof PermsSchema>;
 
 // Product
 export const ProductSchema = z.object({
@@ -28,6 +26,7 @@ export const ProductSchema = z.object({
     image_link: z.nullable(z.string()),
     tags: z.array(z.string()).default([]),
 });
+
 export type Product = z.infer<typeof ProductSchema>;
 export const ProductResponse = z.object({
     product: z.optional(ProductSchema),
@@ -81,16 +80,16 @@ class NoAuthError extends Error {
 const API_URL = "https://fitzgeraa12.pythonanywhere.com";
 // type HttpMethod = "GET" | "POST";
 
-function API({ children }: PropsWithChildren) {
+function APIProvider({ children }: PropsWithChildren) {
     const auth = useContext(AuthContext);
 
     /**
      * @throws NoAuthError
      */
     const get_auth = useCallback((): string => {
-        if (!auth) throw new NoAuthError();
+        if (auth.is_none()) throw new NoAuthError();
 
-        return auth.token;
+        return auth.unwrap().token;
     }, [auth]);
 
     const api = useMemo<APIInterface>(() => {
@@ -126,6 +125,9 @@ function API({ children }: PropsWithChildren) {
 
         /**
          * Makes an authenticated GET request to the Flask API
+         * 
+         * @throws NoAuthError, AxiosError
+         * @returns AxiosResponse
          */
         const authenticated_get = async (endpoint: string): Promise<AxiosResponse> => {
             const token = get_auth();
@@ -142,16 +144,18 @@ function API({ children }: PropsWithChildren) {
              * @returns Array<Product>
              */
             inventory: async (): Promise<Array<Product>> => {
-                const response = await authenticated_get('/api/inventory');
+                const response = await authenticated_get('/inventory');
                 return z.array(ProductSchema).parseAsync(response.data);
             },
 
             cache_auth: async (): Promise<boolean> => {
-                return true;
+                const response = await authenticated_get('/cache_auth');
+                return response.data.success;
             },
 
             perms: async (): Promise<Perms> => {
-                return 'Admin'; // FIXME: Dev only
+                const response = await authenticated_get('/perms');
+                return PermsSchema.parseAsync(response.data.perms);
             },
 
         //     /**
@@ -282,10 +286,10 @@ function API({ children }: PropsWithChildren) {
     }, [auth]);
 
     return (
-        <APIContext value={api}>
+        <APIContext value={Option.some(api)}>
             {children}
         </APIContext>
     );
 }
 
-export default API;
+export default APIProvider;

@@ -1,8 +1,9 @@
 import { createContext } from "react";
+import { Option } from "../misc/misc";
 
 // https://react.dev/reference/react/createContext
 export interface AuthContextType{
     token: string;
     logout: () => void;
 }
-export const AuthContext = createContext<AuthContextType | null>(null);
+export const AuthContext = createContext<Option<AuthContextType>>(Option.none());
