@@ -17,10 +17,11 @@ function WorkerFacing() {
     // FIXME: API request test
     const api = useContext(APIContext);
     useEffect(() => {
-        api!.inventory()
+        if (!api) return;
+        api.inventory()
             .then(data => console.log('Inventory:', data))
             .catch(err => console.error('Inventory error:', err));
-    }, []);
+    }, [api]);
 
     const decide_view = useCallback((): ReactElement => {
         let view: ReactElement;
