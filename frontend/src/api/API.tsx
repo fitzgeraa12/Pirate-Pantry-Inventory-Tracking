@@ -78,7 +78,7 @@ class NoAuthError extends Error {
   }
 }
 
-const API_URL = "https://api.piratepantry.com";
+const API_URL = "https://fitzgeraa12.pythonanywhere.com";
 // type HttpMethod = "GET" | "POST";
 
 function API({ children }: PropsWithChildren) {
