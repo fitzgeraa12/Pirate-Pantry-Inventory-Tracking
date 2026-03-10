@@ -1,57 +1,55 @@
-import sqlite3
-
 # Returns all users in the table
-def view_all(cursor):
-    cursor.execute('SELECT * FROM perms')
-    return cursor.fetchall()
+from typing import Optional
+
+from backend.database.db import query, rows_to_list
+
+
+def view_all():
+    rows = query('SELECT * FROM perms')
+    return rows_to_list(rows)
 
 # Returns all admin users in the table
-def view_admins(cursor):
-    cursor.execute("SELECT * FROM perms WHERE type == 'admin'")
-    return cursor.fetchall()
+def view_admins():
+    rows = query("SELECT * FROM perms WHERE type == 'admin'")
+    return rows_to_list(rows)
 
 # Returns all trusted users in the table
-def view_trusted(cursor):
-    cursor.execute("SELECT * FROM perms WHERE type == 'trusted'")
-    return cursor.fetchall()
+def view_trusted():
+    rows = query("SELECT * FROM perms WHERE type == 'trusted'")
+    return rows_to_list(rows)
 
 # Returns true if the email is a trusted or admin user
-def in_table(cursor, email):
-    cursor.execute('SELECT * FROM perms WHERE email == ?', (email, ))
-    if len(cursor.fetchall()) > 0:
+def in_table(email: str):
+    rows = query('SELECT * FROM perms WHERE email == ?', [email])
+    if len(rows_to_list(rows)) > 0:
         return True
     return False
 
 # Returns true if the user is an admin, false if they're trusted
-def is_admin(cursor, email):
-    cursor.execute("SELECT * FROM perms WHERE email == ? AND type == 'admin'", (email, ))
-    if len(cursor.fetchall()) > 0:
+def is_admin(email: str):
+    rows = query("SELECT * FROM perms WHERE email == ? AND type == 'admin'", [email])
+    if len(rows_to_list(rows)) > 0:
         return True
     return False
 
 # Returns the role of the user, [] if the user is not in the table
-def get_role(cursor, email):
-    cursor.execute('SELECT type FROM perms WHERE email == ?', (email, ))
-    result = cursor.fetchall()
-    if len(result) > 0:
-        return result[0][0]
-    return []
+def get_role(email: str) -> Optional[str]:
+    rows = query('SELECT type FROM perms WHERE email == ?', [email])
+    if len(rows) > 0:
+        return rows_to_list(rows)[0][0]
+    return None
 
 # Adds a new user to the table. Checks for if the user is an admin comes from the API
-def add_user(cursor, new_email, type):
-    cursor.execute('INSERT INTO perms VALUES (?, ?)', (new_email, type))
+def add_user(new_email: str, ty: str):
+    query('INSERT INTO perms VALUES (?, ?)', [new_email, ty])
 
 # Removes a user from the table. Admin users can only be removed if there's more than one admin remaining
-def remove_user(cursor, to_remove):
-    if in_table(cursor, to_remove):
-        if is_admin(cursor, to_remove): 
-            if len(view_admins(cursor)) <= 1:
+def remove_user(email: str):
+    if in_table(email):
+        if is_admin(email): 
+            if len(view_admins()) <= 1:
                 return "Error: Must have at least one admin"
-        cursor.execute('DELETE FROM perms WHERE email == ?', (to_remove, ))
+        query('DELETE FROM perms WHERE email == ?', [email])
         return True
     else:
         return "User not found"
-
-# Saves all changes to database
-def save(connection):
-    connection.commit()

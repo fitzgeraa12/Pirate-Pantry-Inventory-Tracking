@@ -1,3 +1,5 @@
+from typing import Any, Optional
+
 import requests
 import os
 
@@ -8,7 +10,7 @@ API_TOKEN = os.environ.get('CLOUDFLARE_D1_API_TOKEN')
 
 API_URL = f'https://api.cloudflare.com/client/v4/accounts/{ACCOUNT_ID}/d1/database/{DATABASE_ID}/query'
 
-def query(sql, params=None):
+def query(sql: str, params: Optional[list[Any]]= None) -> list[Any]:
     ''' Execute a SQL query against the Cloudflare D1 REST API
 
         Args:
@@ -22,7 +24,7 @@ def query(sql, params=None):
         'Authorization': f'Bearer {API_TOKEN}',
         'Content-Type': 'application/json'
     }
-    body = {'sql': sql}
+    body: dict[str, Any] = {'sql': sql}
     if params:
         body['params'] = params
 
@@ -41,7 +43,7 @@ def query(sql, params=None):
     return results[0].get('results', [])
 
 
-def rows_to_list(rows):
+def rows_to_list(rows: list[Any]) -> list[list[Any]]:
     ''' Convert D1 result dicts to lists for backwards compatibility '''
     return [list(row.values()) for row in rows]
 
@@ -50,23 +52,23 @@ def rows_to_list(rows):
 # Viewing all items in database (including items with quantity 0)
 #------------------------------
 
-def view_table(cursor=None):
+def view_table():
     rows = query('SELECT * FROM products')
     return rows_to_list(rows)
 
-def view_all_names(cursor=None):
+def view_all_names():
     rows = query('SELECT DISTINCT name FROM products')
     names = [row['name'] for row in rows]
     names.sort()
     return names
 
-def view_all_brands(cursor=None):
+def view_all_brands():
     rows = query("SELECT DISTINCT brand FROM products WHERE brand != ''")
     brands = [row['brand'] for row in rows]
     brands.sort()
     return brands
 
-def view_all_tags(cursor=None):
+def view_all_tags():
     rows = query('SELECT * FROM tags')
     return rows_to_list(rows)
 
@@ -74,23 +76,23 @@ def view_all_tags(cursor=None):
 # Viewing items currently in the pantry (quantity > 0)
 #------------------------------
 
-def view_pantry_inventory(cursor=None):
+def view_pantry_inventory():
     rows = query('SELECT * FROM products WHERE quantity > 0')
     return rows_to_list(rows)
 
-def view_pantry_names(cursor=None):
+def view_pantry_names():
     rows = query('SELECT DISTINCT name FROM products WHERE quantity > 0')
     names = [row['name'] for row in rows]
     names.sort()
     return names
 
-def view_pantry_brands(cursor=None):
+def view_pantry_brands():
     rows = query("SELECT DISTINCT brand FROM products WHERE brand != '' AND quantity > 0")
     brands = [row['brand'] for row in rows]
     brands.sort()
     return brands
 
-def view_pantry_tags(cursor=None):
+def view_pantry_tags():
     rows = query('SELECT DISTINCT tag_label FROM product_tags pt JOIN products p ON pt.product_id = p.id WHERE p.quantity > 0')
     return [row['tag_label'] for row in rows]
 
@@ -98,14 +100,28 @@ def view_pantry_tags(cursor=None):
 # Updating methods
 #------------------------------
 
-def add_item(cursor=None, name='', brand='', id=None, quantity=0, image='', tags=None):
-    query('INSERT INTO products VALUES (?, ?, ?, ?, ?)', [id, name.title(), brand.title(), quantity, image])
+def add_item(
+        name: str = '',
+        brand: str = '',
+        id: Optional[int] = None,
+        quantity: int = 0,
+        image_link: str = '',
+        tags: Optional[list[str]] = None
+):
+    query('INSERT INTO products VALUES (?, ?, ?, ?, ?)', [id, name.title(), brand.title(), quantity, image_link])
     if tags:
         for tag in tags:
             query('INSERT INTO tags (label) VALUES (?) ON CONFLICT (label) DO NOTHING', [tag.title()])
             query('INSERT INTO product_tags VALUES (?, ?)', [id, tag.title()])
 
-def update_item(cursor=None, name='', brand='', id=None, quantity=0, image='', tags=None):
+def update_item(
+        name: str = '',
+        brand: str ='',
+        id: Optional[int] = None,
+        quantity: int = 0,
+        tags: Optional[list[str]] = None,
+        image_link: str = ''
+):
     result = query('SELECT quantity FROM products WHERE id = ?', [id])
     if not result:
         return "Invalid quantity"
@@ -113,7 +129,7 @@ def update_item(cursor=None, name='', brand='', id=None, quantity=0, image='', t
         old_quantity = result[0]['quantity']
         new_quantity = old_quantity + quantity
         query('UPDATE products SET name = ?, brand = ?, quantity = ?, image_link = ? WHERE id = ?',
-              [name.title(), brand.title(), new_quantity, image, id])
+              [name.title(), brand.title(), new_quantity, image_link, id])
         if tags:
             for tag in tags:
                 query('INSERT INTO tags (label) VALUES (?) ON CONFLICT (label) DO NOTHING', [tag.title()])
@@ -121,7 +137,7 @@ def update_item(cursor=None, name='', brand='', id=None, quantity=0, image='', t
     else:
         return "Invalid quantity"
 
-def checkout_item(cursor=None, id=None, quantity=0):
+def checkout_item(id: Optional[int] = None, quantity: int = 0):
     result = query('SELECT quantity FROM products WHERE id = ?', [id])
     if not result:
         return "Invalid quantity"
@@ -133,7 +149,7 @@ def checkout_item(cursor=None, id=None, quantity=0):
     else:
         return "Invalid quantity"
 
-def add_tags_to_table(cursor=None, new_tags=None):
+def add_tags_to_table(new_tags: Optional[list[str]] = None):
     if new_tags:
         for tag in new_tags:
             query('INSERT INTO tags (label) VALUES (?) ON CONFLICT (label) DO NOTHING', [tag.title()])
@@ -142,11 +158,11 @@ def add_tags_to_table(cursor=None, new_tags=None):
 # Searching the entire table
 #------------------------------
 
-def in_table(cursor=None, id=None):
+def in_table(id: Optional[int] = None):
     result = query('SELECT id FROM products WHERE id = ?', [id])
     return len(result) > 0
 
-def get_all_info(cursor=None, id=None):
+def get_all_info(id: Optional[int] = None) -> list[Any]:
     result = query('SELECT * FROM products WHERE id = ?', [id])
     if not result:
         return []
@@ -159,19 +175,19 @@ def get_all_info(cursor=None, id=None):
 # Searching pantry (items with quantity > 0)
 #------------------------------
 
-def search_pantry_by_name(cursor=None, name=''):
+def search_pantry_by_name(name: str = ''):
     rows = query('SELECT * FROM products WHERE quantity > 0 AND name = ?', [name.title()])
     return rows_to_list(rows)
 
-def search_pantry_by_brand(cursor=None, brand=''):
+def search_pantry_by_brand(brand: str = ''):
     rows = query('SELECT * FROM products WHERE quantity > 0 AND brand = ?', [brand.title()])
     return rows_to_list(rows)
 
-def search_pantry_by_id(cursor=None, id=None):
+def search_pantry_by_id(id: Optional[int] = None):
     rows = query('SELECT * FROM products WHERE quantity > 0 AND id = ?', [id])
     return rows_to_list(rows)
 
-def search_pantry_by_tag(cursor=None, tag=''):
+def search_pantry_by_tag(tag: str =''):
     rows = query('''
         SELECT p.* FROM products p
         JOIN product_tags pt ON p.id = pt.product_id
@@ -183,31 +199,24 @@ def search_pantry_by_tag(cursor=None, tag=''):
 # Getting item info
 #------------------------------
 
-def get_tags_for_item(cursor=None, id=None):
+def get_tags_for_item(id: Optional[int] = None):
     rows = query('SELECT tag_label FROM product_tags WHERE product_id = ?', [id])
     return [row['tag_label'] for row in rows]
 
-def view_image(cursor=None, id=None):
+def view_image(id: Optional[int] = None) -> Optional[str]:
     rows = query('SELECT image_link FROM products WHERE id = ?', [id])
     if rows:
         return rows[0]['image_link']
-    return []
+    return None
 
 #------------------------------
 # Removing methods
 #------------------------------
 
-def delete_item(cursor=None, id=None):
+def delete_item(id: Optional[int] = None):
     query('DELETE FROM products WHERE id = ?', [id])
     query('DELETE FROM product_tags WHERE product_id = ?', [id])
 
-def delete_tag(cursor=None, tag=''):
+def delete_tag(tag: str = ''):
     query('DELETE FROM product_tags WHERE tag_label = ?', [tag])
     query('DELETE FROM tags WHERE label = ?', [tag])
-
-#------------------------------
-# Saving methods (no-op for D1, commits are automatic)
-#------------------------------
-
-def save(connection=None):
-    pass

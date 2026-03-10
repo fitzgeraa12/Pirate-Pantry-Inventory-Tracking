@@ -1,4 +1,5 @@
 from functools import wraps
+from typing import Any, Callable
 from flask import request, jsonify
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_auth_requests
@@ -11,7 +12,7 @@ DEV_TOKEN = os.environ.get("DEV_TOKEN")
 
 ROLES = ['admin', 'trusted', 'user']
 
-def get_permission(auth_token):
+def get_permission(auth_token: str):
     ''' Verify auth_token and extract information from auth_token. 
         After, check for the role of the user
 
@@ -33,7 +34,7 @@ def get_permission(auth_token):
 
     # Verify Google OAuth2 token
     # Source: https://google-auth.readthedocs.io/en/latest/reference/google.oauth2.id_token.html
-    info = id_token.verify_oauth2_token(token, google_auth_requests.Request(), CLIENT_ID)
+    info = id_token.verify_oauth2_token(token, google_auth_requests.Request(), CLIENT_ID) # pyright: ignore[reportUnknownMemberType]
     email = info.get('email', '')
 
     # Look up role in D1
@@ -46,7 +47,7 @@ def get_permission(auth_token):
         return email, role
 
 
-def requires_roles(*auth_roles):
+def requires_roles(*auth_roles: str):
     ''' Decorator for role based access control
 
         Source: https://flask.palletsprojects.com/en/latest/patterns/viewdecorators/
@@ -54,9 +55,9 @@ def requires_roles(*auth_roles):
         Returns:
             decorator: RBAC decorator
     '''
-    def decorator(f):
+    def decorator(f: Callable[..., Any]):
         @wraps(f)
-        def decorated(*args, **kwargs):
+        def decorated(*args: Any, **kwargs: Any):
             # Get Authorization header from request
             token = request.headers.get("Authorization", None)
 
