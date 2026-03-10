@@ -17,6 +17,7 @@ function WorkerFacing() {
     // FIXME: API request test
     const api = useContext(APIContext);
     useEffect(() => {
+        console.log('api:', api);
         if (!api) return;
         api.inventory()
             .then(data => console.log('Inventory:', data))
