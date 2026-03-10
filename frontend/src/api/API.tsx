@@ -3,14 +3,14 @@ import { APIContext } from './APIContext';
 import { AuthContext } from '../auth/AuthContext';
 import axios, { type AxiosResponse } from 'axios';
 import z from 'zod';
-import { unreachable } from '../misc/misc';
 import type { Perms } from '../auth/perms/Perms';
+// import { unreachable } from '../misc/misc';
 
-// Cache auth
-// https://zod.dev/basics
-const CacheAuthResponse = z.object({
-  success: z.boolean(),
-});
+// // Cache auth
+// // https://zod.dev/basics
+// const CacheAuthResponse = z.object({
+//   success: z.boolean(),
+// });
 
 // Perms
 // https://zod.dev/basics?id=inferring-types
@@ -67,15 +67,8 @@ export const AllTagsResponse = z.object({
 
 export interface APIInterface {
     inventory: () => Promise<Array<Product>>,
-    // cache_auth: () => Promise<boolean>,
-    // perms: () => Promise<Perms>,
-    // product: (id: number) => Promise<Product | undefined>,
-    // query_products: (name?: string, brand?: string, tags?: Array<string>) => Promise<Array<Product>>,
-    // all_products: () => Promise<Array<Product>>,
-    // brand: (id: number) => Promise<Brand | undefined>,
-    // all_brands: () => Promise<Array<Brand>>,
-    // tag: (id: number) => Promise<Tag | undefined>,
-    // all_tags: () => Promise<Array<Tag>>,
+    cache_auth: () => Promise<boolean>,
+    perms: () => Promise<Perms>,
 }
 
 class NoAuthError extends Error {
@@ -108,28 +101,28 @@ function API({ children }: PropsWithChildren) {
             return `${API_URL}/${partial_endpoint}?${params.toString()}`;
         };
 
-        /**
-         * @returns URLSearchParams
-         */
-        const auth_url_search_params = (): URLSearchParams => {
-            return new URLSearchParams({ auth: get_auth() });
-        };
+        // /**
+        //  * @returns URLSearchParams
+        //  */
+        // const auth_url_search_params = (): URLSearchParams => {
+        //     return new URLSearchParams({ auth: get_auth() });
+        // };
 
-        /**
-         * https://www.npmjs.com/package/axios
-         */
-        const api_call = async (method: HttpMethod, partial_endpoint: string, params: URLSearchParams): Promise<AxiosResponse> => {
-            const endpoint = prepend_api_url(partial_endpoint, params);
+        // /**
+        //  * https://www.npmjs.com/package/axios
+        //  */
+        // const api_call = async (method: HttpMethod, partial_endpoint: string, params: URLSearchParams): Promise<AxiosResponse> => {
+        //     const endpoint = prepend_api_url(partial_endpoint, params);
             
-            switch (method) {
-                case "GET":
-                    return axios.get(endpoint);
-                case "POST":
-                    return axios.post(endpoint);
-                default:
-                    unreachable("Unrecognized HTTP method");
-            }
-        };
+        //     switch (method) {
+        //         case "GET":
+        //             return axios.get(endpoint);
+        //         case "POST":
+        //             return axios.post(endpoint);
+        //         default:
+        //             unreachable("Unrecognized HTTP method");
+        //     }
+        // };
 
         /**
          * Makes an authenticated GET request to the Flask API
@@ -150,6 +143,14 @@ function API({ children }: PropsWithChildren) {
             inventory: async (): Promise<Array<Product>> => {
                 const response = await authenticated_get('/api/inventory');
                 return z.array(ProductSchema).parseAsync(response.data);
+            },
+
+            cache_auth: async (): Promise<boolean> => {
+                return true;
+            },
+
+            perms: async (): Promise<Perms> => {
+                return 'Admin'; // FIXME: Dev only
             },
 
         //     /**
