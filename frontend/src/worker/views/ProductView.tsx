@@ -11,7 +11,11 @@ interface ProductTableEntry {
     quantity: number,
 }
 
-function ProductView() {
+interface ProductViewProps {
+    searchTerm?: string;
+}
+
+function ProductView({ searchTerm: externalSearchTerm }: ProductViewProps = {}) {
     const { addToCart, removeFromCart} = useCart(); 
     const columns = useMemo<ColumnDef<ProductTableEntry>[]>(() => {
         return [
@@ -76,7 +80,8 @@ function ProductView() {
         { id: "id", desc: false }
     ])
 
-    const [search, setSearch] = useState("");
+    const [internalSearch, setInternalSearch] = useState("");
+    const search = externalSearchTerm !== undefined ? externalSearchTerm : internalSearch;
 
     const filtered_products = useMemo(() =>{
         if (!search) return product_table_entries;
@@ -103,14 +108,14 @@ function ProductView() {
 
     return (
         <View id="view" tbl={tbl} header_children={
-            <>
+            externalSearchTerm === undefined ? (
                 <input  
                     type="text"
                     placeholder="Search products..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
+                    value={internalSearch}
+                    onChange={(e) => setInternalSearch(e.target.value)}
                 />
-            </>
+            ) : null
         } />
     );
 }

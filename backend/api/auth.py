@@ -2,7 +2,7 @@ from functools import wraps
 from flask import request, jsonify
 from google.oauth2 import id_token        # Add to README, need pip install google-auth
 from google.auth.transport import requests as google_auth_requests
-from backend.database.admin import get_role
+from database.admin import get_role
 import sqlite3
 import os
 

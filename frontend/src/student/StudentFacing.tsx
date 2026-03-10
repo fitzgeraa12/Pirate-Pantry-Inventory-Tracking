@@ -30,7 +30,7 @@ function StudentFacing() {
 
                         <button id="checkout" className="header-button">Checkout</button>
                         <button id= "log-out" className="header-button"
-                            onClick={(auth.logout)}>Log Out</button>
+                            onClick={auth.logout}>Log Out</button>
                     </div>
                 </div>
                 <div id= "body-header">

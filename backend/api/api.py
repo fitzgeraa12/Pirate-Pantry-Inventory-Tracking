@@ -1,9 +1,12 @@
 from flask import Flask, request, jsonify # pip install flask in terminal
 from flask_cors import CORS
-
+import sys
 import sqlite3
-from database import admin
 from auth import requires_roles
+import os
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from database import admin
 
 # Initialize Flask app
 app = Flask(__name__)

@@ -96,7 +96,7 @@ function API({ children }: PropsWithChildren) {
     const get_auth = useCallback((): string => {
         if (!auth) throw new NoAuthError();
 
-        return auth;
+        return auth.token;
     }, [auth]);
 
     const api = useMemo<APIInterface>(() => {

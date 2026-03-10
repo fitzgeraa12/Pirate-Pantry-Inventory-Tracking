@@ -25,4 +25,5 @@ dist-ssr
 
 .env
 /tunnel
-/__pycache__
+**/__pycache__
+/.wrangler
