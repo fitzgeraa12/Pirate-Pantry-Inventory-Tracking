@@ -55,11 +55,11 @@ jobs:
             https://www.pythonanywhere.com/api/v0/user/$PYTHONANYWHERE_USERNAME/webapps/$PYTHONANYWHERE_USERNAME.pythonanywhere.com/
 
       - name: Apply D1 migrations
+        continue-on-error: true
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_WORKERS_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: backend
+          wranglerVersion: "4.1.0"
           command: d1 migrations apply pirate-pantry-db --remote
-        env:
-          WRANGLER_LOG: debug
