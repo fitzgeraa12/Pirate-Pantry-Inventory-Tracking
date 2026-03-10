@@ -4,7 +4,7 @@ import os
 # Cloudflare D1 REST API
 ACCOUNT_ID = os.environ.get('CLOUDFLARE_ACCOUNT_ID')
 DATABASE_ID = os.environ.get('CLOUDFLARE_D1_DATABASE_ID')
-API_TOKEN = os.environ.get('CLOUDFLARE_API_TOKEN')
+API_TOKEN = os.environ.get('CLOUDFLARE_D1_API_TOKEN')
 
 API_URL = f'https://api.cloudflare.com/client/v4/accounts/{ACCOUNT_ID}/d1/database/{DATABASE_ID}/query'
 
