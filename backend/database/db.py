@@ -26,6 +26,7 @@ def query(sql, params=None):
     if params:
         body['params'] = params
 
+    print(f"TOKEN: '{API_TOKEN}'", flush=True)
     response = requests.post(API_URL, headers=headers, json=body)
     response.raise_for_status()
     data = response.json()
