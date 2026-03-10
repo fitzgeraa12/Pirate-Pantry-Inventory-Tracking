@@ -17,7 +17,7 @@ function App() {
           <WorkerFacing />
         </ProtectedRoute>
       } />
-      <Route path="adminpanel" element={
+      <Route path="/adminpanel" element={
         <ProtectedRoute required_perms={["Admin"]}>
           <AdminFacing />
         </ProtectedRoute>
