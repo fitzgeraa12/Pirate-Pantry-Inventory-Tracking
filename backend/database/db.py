@@ -220,3 +220,12 @@ def delete_item(id: Optional[int] = None):
 def delete_tag(tag: str = ''):
     query('DELETE FROM product_tags WHERE tag_label = ?', [tag])
     query('DELETE FROM tags WHERE label = ?', [tag])
+
+#------------------------------
+# Auth
+#------------------------------
+
+def cache_auth(token: str) -> bool:
+    result = query('INSERT INTO auth_cache (token) VALUES (?) ON CONFLICT (token) DO NOTHING RETURNING token', [token])
+    return len(result) > 0
+
