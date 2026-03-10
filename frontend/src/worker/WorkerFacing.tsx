@@ -1,17 +1,26 @@
 import './WorkerFacing.css'
 import Titled from '../misc/Titled';
-import { useCallback, type ReactElement } from 'react';
+import { useCallback, useContext, useEffect, type ReactElement } from 'react';
 import ProductView from './views/ProductView';
 import { useSearchParams } from 'react-router-dom';
 import BrandView from './views/BrandView';
 import TagsView from './views/TagsView';
 import ErrorView from './views/ErrorView';
+import { APIContext } from '../api/APIContext';
 
 // https://tanstack.com/table/latest/docs/guide/tables
 // https://tanstack.com/table/latest/docs/guide/column-defs
 // https://stackoverflow.com/questions/76157947/border-radius-doesnt-round-the-borders-of-my-table-but-the-background-color
 function WorkerFacing() {
     const [search_params, set_search_params] = useSearchParams();
+
+    // FIXME: API request test
+    const api = useContext(APIContext);
+    useEffect(() => {
+        api!.inventory()
+            .then(data => console.log('Inventory:', data))
+            .catch(err => console.error('Inventory error:', err));
+    }, []);
 
     const decide_view = useCallback((): ReactElement => {
         let view: ReactElement;
