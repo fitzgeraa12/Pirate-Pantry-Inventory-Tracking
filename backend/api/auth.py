@@ -72,8 +72,8 @@ def requires_roles(*auth_roles):
             
             try:
                 email, role = get_permission(token)
-            except Exception:
-                return jsonify({'error': 'Invalid or expired token.'}), 401
+            except Exception as e:
+                return jsonify({'error': str(e)}), 401
 
             # Check for roles
             if role not in auth_roles:
