@@ -62,3 +62,5 @@ jobs:
           workingDirectory: backend
           wranglerVersion: "4.1.0"
           command: d1 migrations apply pirate-pantry-db --remote
+        env:
+          WRANGLER_LOG: debug
