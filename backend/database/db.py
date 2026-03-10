@@ -1,245 +1,212 @@
-import sqlite3
+import requests
+import os
+
+# Cloudflare D1 REST API
+ACCOUNT_ID = os.environ.get('CLOUDFLARE_ACCOUNT_ID')
+DATABASE_ID = os.environ.get('CLOUDFLARE_D1_DATABASE_ID')
+API_TOKEN = os.environ.get('CLOUDFLARE_API_TOKEN')
+
+API_URL = f'https://api.cloudflare.com/client/v4/accounts/{ACCOUNT_ID}/d1/database/{DATABASE_ID}/query'
+
+def query(sql, params=None):
+    ''' Execute a SQL query against the Cloudflare D1 REST API
+
+        Args:
+            sql (str): SQL query to execute
+            params (list): Optional list of parameters for the query
+
+        Returns:
+            list: Rows returned by the query
+    '''
+    headers = {
+        'Authorization': f'Bearer {API_TOKEN}',
+        'Content-Type': 'application/json'
+    }
+    body = {'sql': sql}
+    if params:
+        body['params'] = params
+
+    response = requests.post(API_URL, headers=headers, json=body)
+    response.raise_for_status()
+    data = response.json()
+
+    if not data.get('success'):
+        raise Exception(f'D1 query failed: {data.get("errors")}')
+
+    results = data.get('result', [])
+    if not results:
+        return []
+
+    return results[0].get('results', [])
+
+
+def rows_to_list(rows):
+    ''' Convert D1 result dicts to lists for backwards compatibility '''
+    return [list(row.values()) for row in rows]
+
 
 #------------------------------
 # Viewing all items in database (including items with quantity 0)
 #------------------------------
 
-# Returns info for all items in the products table
-def view_table(cursor):    
-    cursor.execute('SELECT * FROM products')
-    return cursor.fetchall()
+def view_table(cursor=None):
+    rows = query('SELECT * FROM products')
+    return rows_to_list(rows)
 
-def view_all_names(cursor):
-    """
-    Views all item names in products table
-    Args:
-        cursor (cursor): Allows for connection to the database
-    Returns:
-        names (list[str]): All of the item names in the database
-    """
-    cursor.execute('SELECT DISTINCT name FROM products')
-    names = [x[0] for x in cursor.fetchall()] 
+def view_all_names(cursor=None):
+    rows = query('SELECT DISTINCT name FROM products')
+    names = [row['name'] for row in rows]
     names.sort()
-    return names 
+    return names
 
-def view_all_brands(cursor):
-    """
-    Views all brands in products table
-    Args:
-        cursor (cursor): Allows for connection to the database
-    Returns:
-        brands (list[str]): All of the item brands in the database
-    """
-    cursor.execute('SELECT DISTINCT brand FROM products WHERE NOT brand == ""')
-    brands = [x[0] for x in cursor.fetchall()] 
+def view_all_brands(cursor=None):
+    rows = query("SELECT DISTINCT brand FROM products WHERE brand != ''")
+    brands = [row['brand'] for row in rows]
     brands.sort()
-    return brands 
+    return brands
 
-# Returns all tags in tags table, whether they're currently connected to an item or not
-def view_all_tags(cursor):
-    cursor.execute('SELECT * FROM tags')
-    return cursor.fetchall()
+def view_all_tags(cursor=None):
+    rows = query('SELECT * FROM tags')
+    return rows_to_list(rows)
 
 #------------------------------
 # Viewing items currently in the pantry (quantity > 0)
 #------------------------------
 
-# Returns the info for all items currently in the pantry (quantity > 0)
-def view_pantry_inventory(cursor):
-    cursor.execute('SELECT * FROM products WHERE quantity > 0')
-    return cursor.fetchall()
+def view_pantry_inventory(cursor=None):
+    rows = query('SELECT * FROM products WHERE quantity > 0')
+    return rows_to_list(rows)
 
-# Returns the names of all items currently in the pantry (quantity > 0)
-def view_pantry_names(cursor):
-    cursor.execute('SELECT DISTINCT name FROM products WHERE quantity > 0')
-    names = [x[0] for x in cursor.fetchall()] 
+def view_pantry_names(cursor=None):
+    rows = query('SELECT DISTINCT name FROM products WHERE quantity > 0')
+    names = [row['name'] for row in rows]
     names.sort()
-    return names 
+    return names
 
-# Returns all of the brands currently in the pantry (quantity > 0)
-def view_pantry_brands(cursor):
-    cursor.execute('SELECT DISTINCT brand FROM products WHERE NOT brand == "" AND quantity > 0')
-    brands = [x[0] for x in cursor.fetchall()] 
+def view_pantry_brands(cursor=None):
+    rows = query("SELECT DISTINCT brand FROM products WHERE brand != '' AND quantity > 0")
+    brands = [row['brand'] for row in rows]
     brands.sort()
-    return brands 
+    return brands
 
-# Returns all tags currently connected to items in the pantry
-def view_pantry_tags(cursor):
-    cursor.execute('SELECT id FROM products WHERE quantity > 0')
-    ids = [x[0] for x in cursor.fetchall()]
-    placeholder_list = ", ".join("?" for t in ids) 
-    query = f'SELECT * FROM product_tags WHERE product_id IN ({placeholder_list})'
-    cursor.execute(query, ids)
-    return cursor.fetchall()
+def view_pantry_tags(cursor=None):
+    rows = query('SELECT DISTINCT tag_label FROM product_tags pt JOIN products p ON pt.product_id = p.id WHERE p.quantity > 0')
+    return [row['tag_label'] for row in rows]
 
 #------------------------------
 # Updating methods
 #------------------------------
 
-def add_item(cursor, name, brand, id, quantity, image, *tags):
-    """
-    Adds an item to the table
-    Args:
-        cursor (cursor): Allows for connection to the database
-        name (str): The item's name
-        brand (str): The item's brand
-        id (int): The barcode id of the item
-        quantity (int): The number of items being added
-        image (str): The file path to a picture of the item
-        tags (str): Tags the item is associated with. An item doesn't have to be added with tags
-    Returns:
-        cursor: The result of the queries
-    """
-    cursor.execute('INSERT INTO products VALUES (?, ?, ?, ?, ?)', (name.title(), brand.title(), id, quantity, image))
-    for i in tags:
-        cursor.execute('INSERT INTO tags (label) VALUES (?) ON CONFLICT (label) DO NOTHING', (i.title(), ))
-        cursor.execute('INSERT INTO product_tags VALUES (?, ?)', (id, i.title()))
-        
-def update_item(cursor, name, brand, id, quantity, image, *tags):
-    """
-    Updates item info
-    Args:
-        cursor (cursor): Allows for connection to the database
-        name (str): The name of the item
-        brand (str): The item's brand
-        id (int): The barcode id of the item. Can't be changed
-        quantity (int): The number of items being added
-        image (str): The path to the image
-        tags (str): Tags the item is associated with. An item doesn't have to be added with tags
-    Returns:
-        cursor: The result of the queries
-    """
-    if quantity >= 0:
-        cursor.execute('SELECT * FROM products WHERE id == ?', (id, )) 
-        result = cursor.fetchall()
-        if len(result) > 0:
-            old_quantity = result[0][3] 
-            new_quantity = int(old_quantity) + quantity
-            cursor.execute('UPDATE products SET name == ?, brand == ?, quantity == ?, image_link == ? WHERE id == ?', (name.title(), brand.title(), new_quantity, image, id))
-            for i in tags:
-                cursor.execute('INSERT INTO tags (label) VALUES (?) ON CONFLICT (label) DO NOTHING', (i.title(), ))
-                cursor.execute('INSERT INTO product_tags (product_id, tag_label) VALUES (?, ?) ON CONFLICT (product_id, tag_label) DO NOTHING', (id, i.title()))
-    else:
+def add_item(cursor=None, name='', brand='', id=None, quantity=0, image='', tags=None):
+    query('INSERT INTO products VALUES (?, ?, ?, ?, ?)', [id, name.title(), brand.title(), quantity, image])
+    if tags:
+        for tag in tags:
+            query('INSERT INTO tags (label) VALUES (?) ON CONFLICT (label) DO NOTHING', [tag.title()])
+            query('INSERT INTO product_tags VALUES (?, ?)', [id, tag.title()])
+
+def update_item(cursor=None, name='', brand='', id=None, quantity=0, image='', tags=None):
+    result = query('SELECT quantity FROM products WHERE id = ?', [id])
+    if not result:
         return "Invalid quantity"
-    
-# Checks out an item from the pantry. Returns error message if quantity is greater than the number of items available
-def checkout_item(cursor, id, quantity):
-    cursor.execute('SELECT quantity FROM products WHERE id == ?', (id, ))
-    old_quantity = cursor.fetchall()[0][0]
-    new_quantity = old_quantity - quantity
-    if new_quantity >= 0:
-        cursor.execute('UPDATE products SET quantity == ?', (new_quantity, ))
+    if quantity >= 0:
+        old_quantity = result[0]['quantity']
+        new_quantity = old_quantity + quantity
+        query('UPDATE products SET name = ?, brand = ?, quantity = ?, image_link = ? WHERE id = ?',
+              [name.title(), brand.title(), new_quantity, image, id])
+        if tags:
+            for tag in tags:
+                query('INSERT INTO tags (label) VALUES (?) ON CONFLICT (label) DO NOTHING', [tag.title()])
+                query('INSERT INTO product_tags (product_id, tag_label) VALUES (?, ?) ON CONFLICT (product_id, tag_label) DO NOTHING', [id, tag.title()])
     else:
         return "Invalid quantity"
 
-# Adds new tags to the tags table. These tags are not connected to an item yet
-def add_tags_to_table(cursor, new_tags):
-    for i in new_tags:
-        cursor.execute('INSERT INTO tags (label) VALUES (?) ON CONFLICT (label) DO NOTHING', (i.title(), )) 
+def checkout_item(cursor=None, id=None, quantity=0):
+    result = query('SELECT quantity FROM products WHERE id = ?', [id])
+    if not result:
+        return "Invalid quantity"
+    old_quantity = result[0]['quantity']
+    new_quantity = old_quantity - quantity
+    if new_quantity >= 0:
+        query('UPDATE products SET quantity = ? WHERE id = ?', [new_quantity, id])
+        return new_quantity
+    else:
+        return "Invalid quantity"
+
+def add_tags_to_table(cursor=None, new_tags=None):
+    if new_tags:
+        for tag in new_tags:
+            query('INSERT INTO tags (label) VALUES (?) ON CONFLICT (label) DO NOTHING', [tag.title()])
 
 #------------------------------
 # Searching the entire table
 #------------------------------
 
-# Returns true if the item is in the table
-def in_table(cursor, id):
-    if len(search_pantry_by_id(cursor, id)) > 0:
-        return True
-    return False
+def in_table(cursor=None, id=None):
+    result = query('SELECT id FROM products WHERE id = ?', [id])
+    return len(result) > 0
 
-# Returns all info for an item, including tags
-def get_all_info(cursor, id):
-    cursor.execute('SELECT * FROM products WHERE id == ?', (id, ))
-    i = cursor.fetchall()
-    if len(i) > 0:
-        item = list(i[0])
-        tags = get_tags_for_item(cursor, id)
-        print(tags)
-        item.extend(tags)
-        return item
-    return []
+def get_all_info(cursor=None, id=None):
+    result = query('SELECT * FROM products WHERE id = ?', [id])
+    if not result:
+        return []
+    item = list(result[0].values())
+    tags = get_tags_for_item(id=id)
+    item.extend(tags)
+    return item
 
 #------------------------------
 # Searching pantry (items with quantity > 0)
 #------------------------------
 
-# Checks if the name is in the pantry and returns all item info. Returns empty brackets when item isn't found
-def search_pantry_by_name(cursor, name):
-    cursor.execute('SELECT * FROM products WHERE quantity > 0 AND name == ?', (name.title(), ))
-    return cursor.fetchall()
+def search_pantry_by_name(cursor=None, name=''):
+    rows = query('SELECT * FROM products WHERE quantity > 0 AND name = ?', [name.title()])
+    return rows_to_list(rows)
 
-# Checks if the brand is in the pantry and returns all item info. Returns empty brackets when item isn't found
-def search_pantry_by_brand(cursor, brand):
-    cursor.execute('SELECT * FROM products WHERE quantity > 0 AND brand == ?', (brand.title(), ))
-    return cursor.fetchall()
+def search_pantry_by_brand(cursor=None, brand=''):
+    rows = query('SELECT * FROM products WHERE quantity > 0 AND brand = ?', [brand.title()])
+    return rows_to_list(rows)
 
-# Checks if the id is in the pantry and returns all item info. Returns empty brackets when item isn't found
-def search_pantry_by_id(cursor, id):
-    cursor.execute('SELECT * FROM products WHERE quantity > 0 AND id == ?', (id, ))
-    return cursor.fetchall()
+def search_pantry_by_id(cursor=None, id=None):
+    rows = query('SELECT * FROM products WHERE quantity > 0 AND id = ?', [id])
+    return rows_to_list(rows)
 
-def search_pantry_by_tag(cursor, tag):
-    """
-    Returns all the items associated with desired tag
-    Args:
-        cursor (cursor): Allows for connection to the database
-        tag (str): The tag of an item
-    Returns:
-        cursor: The result of the queries
-    """
-    cursor.execute('SELECT product_id FROM product_tags WHERE tag_label == ?', (tag.title(), ))
-    ids = [x[0] for x in cursor.fetchall()]
-    placeholder_list = ", ".join("?" for t in ids)
-    query = f'SELECT * FROM products WHERE quantity > 0 AND id IN ({placeholder_list})'
-    cursor.execute(query, ids) 
-    return cursor.fetchall()
+def search_pantry_by_tag(cursor=None, tag=''):
+    rows = query('''
+        SELECT p.* FROM products p
+        JOIN product_tags pt ON p.id = pt.product_id
+        WHERE p.quantity > 0 AND pt.tag_label = ?
+    ''', [tag.title()])
+    return rows_to_list(rows)
 
 #------------------------------
 # Getting item info
 #------------------------------
 
-# Returns all of the tags associated with an item
-def get_tags_for_item(cursor, id):
-    cursor.execute('SELECT * FROM product_tags WHERE product_id == ?', (id, ))
-    tags = [x[1] for x in cursor.fetchall()]
-    return tags
+def get_tags_for_item(cursor=None, id=None):
+    rows = query('SELECT tag_label FROM product_tags WHERE product_id = ?', [id])
+    return [row['tag_label'] for row in rows]
 
-# Gets the filepath of an image. Returns [] if image is not in table
-def view_image(cursor, id):
-    cursor.execute('SELECT image_link FROM products WHERE id == ?', (id, ))
-    path = cursor.fetchall()
-    if len(path) > 0:
-        path = path[0][0]
-    return path
+def view_image(cursor=None, id=None):
+    rows = query('SELECT image_link FROM products WHERE id = ?', [id])
+    if rows:
+        return rows[0]['image_link']
+    return []
 
 #------------------------------
 # Removing methods
 #------------------------------
 
-# Completely removes an item and associated tags from the table
-def delete_item(cursor, id):
-    cursor.execute('DELETE FROM products WHERE id == ?', (id, ))
-    cursor.execute('DELETE FROM product_tags WHERE product_id == ?', (id, ))
+def delete_item(cursor=None, id=None):
+    query('DELETE FROM products WHERE id = ?', [id])
+    query('DELETE FROM product_tags WHERE product_id = ?', [id])
 
-# Completely removes a tag from the table
-def delete_tag(cursor, tag):
-    cursor.execute('DELETE FROM product_tags WHERE tag_label == ?', (tag, ))
-    cursor.execute('DELETE FROM tags WHERE label == ?', (tag, ))
+def delete_tag(cursor=None, tag=''):
+    query('DELETE FROM product_tags WHERE tag_label = ?', [tag])
+    query('DELETE FROM tags WHERE label = ?', [tag])
 
 #------------------------------
-# Saving methods
+# Saving methods (no-op for D1, commits are automatic)
 #------------------------------
 
-# Saves the changes to the database
-def save(connection):
-    connection.commit()
-
-#------------------------------
-# Needs fixing
-#------------------------------
-
-# Set image.
-# TODO: This still needs a way to get the actual image info from the user
-def set_image(cursor, id):
-    image_path = f'/workspaces/Pirate-Pantry-Inventory-Tracking/images/{id}.jpg'
-    cursor.execute('UPDATE products SET image_link == ? WHERE id == ?', (image_path, id))
+def save(connection=None):
+    pass
