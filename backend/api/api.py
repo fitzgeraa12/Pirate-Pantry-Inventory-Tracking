@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify # pip install flask in terminal
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 import sys
 import sqlite3
@@ -6,13 +6,14 @@ from auth import requires_roles
 import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from database import admin
+from database import database
 
 # Initialize Flask app
 app = Flask(__name__)
+CORS(app, origins=r'https://.*\.piratepantry\.com', supports_credentials=True)
 
-# Connect to database table
-DB = '/workspaces/Pirate-Pantry-Inventory-Tracking/Test_Junction.db'
+# Connect to database - path relative to this file
+DB = os.path.join(os.path.dirname(__file__), '..', 'database', 'pantry.db')
 
 def get_cursor(): 
     ''' Create a new connection and cursor for each API request
@@ -34,7 +35,7 @@ def get_table():
     ''' GET method to retrieve the pantry table
 
         Returns:
-            Response (JSON): A list of all pantry items stored in main_table.
+            Response (JSON): A list of all pantry items stored in products.
     '''
     connection, cursor = get_cursor()
     pantry = database.view_table(cursor)
@@ -47,7 +48,7 @@ def get_all_names():
     ''' GET method to retrieve all names 
 
         Returns:
-            Response (JSON): A list of all names stored in main_table.
+            Response (JSON): A list of all names stored in products.
     '''
     connection, cursor = get_cursor()
     names = database.view_all_names(cursor)
@@ -60,7 +61,7 @@ def get_all_brands():
     ''' GET method to retrieve all brands 
 
         Returns:
-            Response (JSON): A list of all brands stored in main_table.
+            Response (JSON): A list of all brands stored in products.
     '''
     connection, cursor = get_cursor()
     brands = database.view_all_brands(cursor)
@@ -73,7 +74,7 @@ def get_all_tags():
     ''' GET method to retrieve all tags 
 
         Returns:
-            Response (JSON): A list of all tags stored in tag_table.
+            Response (JSON): A list of all tags stored in tags.
     '''
     connection, cursor = get_cursor()
     tags = database.view_all_tags(cursor)
@@ -90,7 +91,7 @@ def get_pantry_inventory():
     ''' GET method to retrieve the pantry inventory with quantity > 0
 
         Returns:
-            Response (JSON): A list of all pantry items in main_table with quantity > 0.
+            Response (JSON): A list of all pantry items in products with quantity > 0.
     '''
     connection, cursor = get_cursor()
     inventory = database.view_pantry_inventory(cursor)
@@ -103,12 +104,12 @@ def get_pantry_names():
     ''' GET method to retrieve available names in pantry
 
         Returns:
-            Response (JSON): A list of names stored in main_table.
+            Response (JSON): A list of names stored in products.
     '''
     connection, cursor = get_cursor()
-    current_tags = database.view_pantry_names(cursor)
+    names = database.view_pantry_names(cursor)
     connection.close()
-    return jsonify(current_tags)
+    return jsonify(names)
 
 @app.route('/api/inventory/brands', methods=['GET'])
 @requires_roles('trusted', 'admin', 'user')
@@ -116,12 +117,12 @@ def get_pantry_brands():
     ''' GET method to retrieve available brands in pantry
 
         Returns:
-            Response (JSON): A list of brands stored in main_table.
+            Response (JSON): A list of brands stored in products.
     '''
     connection, cursor = get_cursor()
-    current_tags = database.view_pantry_brands(cursor)
+    brands = database.view_pantry_brands(cursor)
     connection.close()
-    return jsonify(current_tags)
+    return jsonify(brands)
 
 @app.route('/api/inventory/tags', methods=['GET'])
 @requires_roles('trusted', 'admin', 'user')
@@ -129,7 +130,7 @@ def get_pantry_tags():
     ''' GET method to retrieve currently used tags 
 
         Returns:
-            Response (JSON): A list of item tags stored in junction_table.
+            Response (JSON): A list of item tags stored in product_tags.
     '''
     connection, cursor = get_cursor()
     current_tags = database.view_pantry_tags(cursor)
@@ -147,13 +148,11 @@ def add_item():
         Returns:
             Response (JSON): Message confirming new item added with item
     '''
-    # Get JSON body from frontend request
     data = request.get_json()
 
     if not data:
         return jsonify({'error': 'Invalid JSON'})
     
-    # Extract information from JSON body
     id = data.get('id', type=int)    
     name = data.get('name')
     brand = data.get('brand', '')
@@ -179,19 +178,16 @@ def add_item():
 @app.route('/api/table/add/item/tags', methods=['POST'])
 @requires_roles('trusted', 'admin')
 def add_tags_to_table():
-    '''
-    Add new tags to the table
+    ''' Add new tags to the table
 
         Returns:
-            Response (JSON): New tags added to tag_table
+            Response (JSON): New tags added to tags
     '''
-    # Get JSON body from frontend request
     data = request.get_json()
 
     if not data:
         return jsonify({'error': 'Invalid JSON'})
     
-    # Extract tag information from JSON body
     new_tag = [t.strip() for t in data.get('tags', '').split(',') if t.strip()]
     
     connection, cursor = get_cursor()
@@ -210,75 +206,68 @@ def add_tags_to_table():
 # PATCH method (update items)
 # --------------------------------------------------
 # @app.route('/api/table/update/<int:id>', methods=['PATCH'])
-# # @require_role('trusted', 'admin', 'user')
+# @requires_roles('trusted', 'admin', 'user')
 # def update_item():
 #     data = request.get_json()
-
+#
 #     if not data:
 #         return jsonify({'error': 'Invalid JSON'})
-    
+#
 #     # TODO: check with Camile for this method
 #     id = data.get('id', type=int)
 #     quantity = data.get('quantity', type=int)
-
+#
 #     if not id or not quantity:
 #         return jsonify({'error': 'Missing required fields: ID, Name.' })
-
+#
 #     if quantity == 0:
 #         return jsonify({'error': 'Updated quantity needs to be above 0.'}), 400
-    
+#
 #     connection, cursor = get_cursor()
 #     if not database.in_table(cursor, id):
 #         connection.close()
 #         return jsonify({'error': 'Item not found.'}), 400
-    
+#
 #     updated_item = database.update_item(cursor, id, quantity)
-    
-#     if updated_item == "Invalid quanity":
+#
+#     if updated_item == "Invalid quantity":
 #         connection.close()
 #         return jsonify({'error': 'New quantity can\'t be negative.'}), 400
-
+#
 #     database.save(connection)
 #     connection.close()
 #     return jsonify({'message': 'Item updated!', 'New quantity': updated_item}), 201
 
 # --------------------------------------------------
-# DELETE method (checkout)
+# PATCH method (checkout)
 # --------------------------------------------------
 @app.route('/api/inventory/checkout/<int:id>', methods=['PATCH'])
 @requires_roles('admin', 'trusted', 'user')
-def checkout_item():
+def checkout_item(id: int):
     ''' PATCH method to check item out (decrease item's quantity)
 
         Returns:
             Response (JSON): A list of checked out items.
     '''
-    # Get JSON body from frontend request
     data = request.get_json()
 
     if not data:
         return jsonify({'error': 'Invalid JSON'})
     
-    # Extract information from JSON body
-    id = data.get('id', type=int)
     quantity = data.get('quantity', type=int)
 
-    # Check for invalid (not type int) or missing ID and quantity
-    if not id or not quantity:
-        return jsonify({'error': 'Missing required fields: ID, Quantity.'}), 400
+    if not quantity:
+        return jsonify({'error': 'Missing required field: Quantity.'}), 400
     
-    # Ensure that quantity > 0
     if quantity == 0:
         return jsonify({'error': 'Checkout quantity needs to be above 0.'}), 400
     
-    # Check if item is in the table
     connection, cursor = get_cursor()
     if not database.in_table(cursor, id):
         connection.close()
         return jsonify({'error': 'Item not found.'}), 400
     
     checkout = database.checkout_item(cursor, id, quantity)
-    # Handling invalid user input quantity
     if checkout == "Invalid quantity":
         connection.close()
         return jsonify({'error': 'New quantity can\'t be negative.'}), 400
@@ -293,11 +282,11 @@ def checkout_item():
 
 @app.route('/api/pantry/item_information/<int:id>', methods=['GET'])
 @requires_roles('trusted', 'admin', 'user')
-def get_all_info(id : int):
+def get_all_info(id: int):
     ''' GET method to retrieve all info for an item
 
         Returns:
-            Response (JSON): Item with all its infomation
+            Response (JSON): Item with all its information
     '''
     connection, cursor = get_cursor()
     info = database.get_all_info(cursor, id)
@@ -306,7 +295,7 @@ def get_all_info(id : int):
 
 @app.route('/api/inventory/search/name/<string:name>', methods=['GET'])
 @requires_roles('trusted', 'admin', 'user')
-def get_item_by_name(name : str):
+def get_item_by_name(name: str):
     ''' GET method to retrieve items with specific name in inventory
 
         Returns:
@@ -319,7 +308,7 @@ def get_item_by_name(name : str):
 
 @app.route('/api/inventory/search/brand/<string:brand>', methods=['GET'])
 @requires_roles('trusted', 'admin', 'user')
-def get_item_by_brand(brand : str):
+def get_item_by_brand(brand: str):
     ''' GET method to retrieve items with specific brand in inventory
 
         Returns:
@@ -332,7 +321,7 @@ def get_item_by_brand(brand : str):
 
 @app.route('/api/inventory/search/id/<int:id>', methods=['GET'])
 @requires_roles('trusted', 'admin', 'user')
-def get_item_by_id(id : int):
+def get_item_by_id(id: int):
     ''' GET method to retrieve items with specific id
 
         Returns:
@@ -345,7 +334,7 @@ def get_item_by_id(id : int):
 
 @app.route('/api/inventory/search/tags/<string:tag>', methods=['GET'])
 @requires_roles('trusted', 'admin', 'user')
-def get_item_by_tag(tag : str):
+def get_item_by_tag(tag: str):
     ''' GET method to retrieve items with specific tag
 
         Returns:
@@ -359,9 +348,9 @@ def get_item_by_tag(tag : str):
 # --------------------------------------------------
 # DELETE methods (item removal)
 # --------------------------------------------------
-@app.route('/api/table//delete/item/<int:id>', methods=['DELETE'])
+@app.route('/api/table/delete/item/<int:id>', methods=['DELETE'])
 @requires_roles('trusted', 'admin')
-def delete_item(id : int):
+def delete_item(id: int):
     ''' DELETE method to remove an item from the pantry (permanently)
 
         Returns:
@@ -369,12 +358,13 @@ def delete_item(id : int):
     '''
     connection, cursor = get_cursor()
     deleted_item = database.delete_item(cursor, id)
+    database.save(connection)
     connection.close()
     return jsonify(deleted_item)
 
-@app.route('/api/table//delete/tag/<string:tag>', methods=['DELETE'])
+@app.route('/api/table/delete/tag/<string:tag>', methods=['DELETE'])
 @requires_roles('trusted', 'admin')
-def delete_tag(tag : str):
+def delete_tag(tag: str):
     ''' DELETE method to remove a tag from the pantry (permanently)
 
         Returns:
@@ -382,12 +372,10 @@ def delete_tag(tag : str):
     '''
     connection, cursor = get_cursor()
     deleted_tag = database.delete_tag(cursor, tag)
+    database.save(connection)
     connection.close()
     return jsonify(deleted_tag)
 
 
 if __name__ == '__main__':
     app.run(debug=True)
-    CORS(app, origins=['https://piratepantry.com'], supports_credentials=True)
-
-    
