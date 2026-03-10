@@ -129,7 +129,6 @@ function API({ children }: PropsWithChildren) {
          */
         const authenticated_get = async (endpoint: string): Promise<AxiosResponse> => {
             const token = get_auth();
-            console.log('Token:', token?.substring(0, 20));
             return axios.get(`${API_URL}${endpoint}`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
