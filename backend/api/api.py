@@ -6,7 +6,7 @@ from auth import requires_roles
 import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from database import database
+from database import db as database
 
 # Initialize Flask app
 app = Flask(__name__)
