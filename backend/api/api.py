@@ -31,7 +31,7 @@ def get_cursor():
 # --------------------------------------------------
 @app.route('/api/table', methods=['GET'])
 @requires_roles('trusted', 'admin')
-def get_table():
+def get_table(current_user=None):
     ''' GET method to retrieve the pantry table
 
         Returns:
@@ -44,7 +44,7 @@ def get_table():
 
 @app.route('/api/table/all_names', methods=['GET'])
 @requires_roles('trusted', 'admin')
-def get_all_names():
+def get_all_names(current_user=None):
     ''' GET method to retrieve all names 
 
         Returns:
@@ -57,7 +57,7 @@ def get_all_names():
 
 @app.route('/api/table/all_brands', methods=['GET'])
 @requires_roles('trusted', 'admin')
-def get_all_brands():
+def get_all_brands(current_user=None):
     ''' GET method to retrieve all brands 
 
         Returns:
@@ -70,7 +70,7 @@ def get_all_brands():
 
 @app.route('/api/table/all_tags', methods=['GET'])
 @requires_roles('trusted', 'admin')
-def get_all_tags():
+def get_all_tags(current_user=None):
     ''' GET method to retrieve all tags 
 
         Returns:
@@ -87,7 +87,7 @@ def get_all_tags():
 
 @app.route('/api/inventory', methods=['GET'])
 @requires_roles('trusted', 'admin', 'user')
-def get_pantry_inventory():
+def get_pantry_inventory(current_user=None):
     ''' GET method to retrieve the pantry inventory with quantity > 0
 
         Returns:
@@ -100,7 +100,7 @@ def get_pantry_inventory():
 
 @app.route('/api/inventory/names', methods=['GET'])
 @requires_roles('trusted', 'admin', 'user')
-def get_pantry_names():
+def get_pantry_names(current_user=None):
     ''' GET method to retrieve available names in pantry
 
         Returns:
@@ -113,7 +113,7 @@ def get_pantry_names():
 
 @app.route('/api/inventory/brands', methods=['GET'])
 @requires_roles('trusted', 'admin', 'user')
-def get_pantry_brands():
+def get_pantry_brands(current_user=None):
     ''' GET method to retrieve available brands in pantry
 
         Returns:
@@ -126,7 +126,7 @@ def get_pantry_brands():
 
 @app.route('/api/inventory/tags', methods=['GET'])
 @requires_roles('trusted', 'admin', 'user')
-def get_pantry_tags():
+def get_pantry_tags(current_user=None):
     ''' GET method to retrieve currently used tags 
 
         Returns:
@@ -142,7 +142,7 @@ def get_pantry_tags():
 # --------------------------------------------------
 @app.route('/api/table/add/item', methods=['POST'])
 @requires_roles('trusted', 'admin')
-def add_item():
+def add_item(current_user=None):
     ''' Add new item to the inventory
 
         Returns:
@@ -177,7 +177,7 @@ def add_item():
 
 @app.route('/api/table/add/item/tags', methods=['POST'])
 @requires_roles('trusted', 'admin')
-def add_tags_to_table():
+def add_tags_to_table(current_user=None):
     ''' Add new tags to the table
 
         Returns:
@@ -207,7 +207,7 @@ def add_tags_to_table():
 # --------------------------------------------------
 # @app.route('/api/table/update/<int:id>', methods=['PATCH'])
 # @requires_roles('trusted', 'admin', 'user')
-# def update_item():
+# def update_item(current_user=None):
 #     data = request.get_json()
 #
 #     if not data:
@@ -243,7 +243,7 @@ def add_tags_to_table():
 # --------------------------------------------------
 @app.route('/api/inventory/checkout/<int:id>', methods=['PATCH'])
 @requires_roles('admin', 'trusted', 'user')
-def checkout_item(id: int):
+def checkout_item(id: int, current_user=None):
     ''' PATCH method to check item out (decrease item's quantity)
 
         Returns:
@@ -282,7 +282,7 @@ def checkout_item(id: int):
 
 @app.route('/api/pantry/item_information/<int:id>', methods=['GET'])
 @requires_roles('trusted', 'admin', 'user')
-def get_all_info(id: int):
+def get_all_info(id: int, current_user=None):
     ''' GET method to retrieve all info for an item
 
         Returns:
@@ -295,7 +295,7 @@ def get_all_info(id: int):
 
 @app.route('/api/inventory/search/name/<string:name>', methods=['GET'])
 @requires_roles('trusted', 'admin', 'user')
-def get_item_by_name(name: str):
+def get_item_by_name(name: str, current_user=None):
     ''' GET method to retrieve items with specific name in inventory
 
         Returns:
@@ -308,7 +308,7 @@ def get_item_by_name(name: str):
 
 @app.route('/api/inventory/search/brand/<string:brand>', methods=['GET'])
 @requires_roles('trusted', 'admin', 'user')
-def get_item_by_brand(brand: str):
+def get_item_by_brand(brand: str, current_user=None):
     ''' GET method to retrieve items with specific brand in inventory
 
         Returns:
@@ -321,7 +321,7 @@ def get_item_by_brand(brand: str):
 
 @app.route('/api/inventory/search/id/<int:id>', methods=['GET'])
 @requires_roles('trusted', 'admin', 'user')
-def get_item_by_id(id: int):
+def get_item_by_id(id: int, current_user=None):
     ''' GET method to retrieve items with specific id
 
         Returns:
@@ -334,7 +334,7 @@ def get_item_by_id(id: int):
 
 @app.route('/api/inventory/search/tags/<string:tag>', methods=['GET'])
 @requires_roles('trusted', 'admin', 'user')
-def get_item_by_tag(tag: str):
+def get_item_by_tag(tag: str, current_user=None):
     ''' GET method to retrieve items with specific tag
 
         Returns:
@@ -350,7 +350,7 @@ def get_item_by_tag(tag: str):
 # --------------------------------------------------
 @app.route('/api/table/delete/item/<int:id>', methods=['DELETE'])
 @requires_roles('trusted', 'admin')
-def delete_item(id: int):
+def delete_item(id: int, current_user=None):
     ''' DELETE method to remove an item from the pantry (permanently)
 
         Returns:
@@ -364,7 +364,7 @@ def delete_item(id: int):
 
 @app.route('/api/table/delete/tag/<string:tag>', methods=['DELETE'])
 @requires_roles('trusted', 'admin')
-def delete_tag(tag: str):
+def delete_tag(tag: str, current_user=None):
     ''' DELETE method to remove a tag from the pantry (permanently)
 
         Returns:
