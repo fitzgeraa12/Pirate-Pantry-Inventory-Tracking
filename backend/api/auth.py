@@ -2,16 +2,12 @@ from functools import wraps
 from flask import request, jsonify
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_auth_requests
-from database.admin import get_role
-import sqlite3
+from database.db import query as d1_query
 import os
 
 # Google OAuth Client ID - set in environment variables
 CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
 DEV_TOKEN = os.environ.get("DEV_TOKEN")
-
-# Database - path relative to this file
-AUTH = os.path.join(os.path.dirname(__file__), '..', 'database', 'pantry.db')
 
 ROLES = ['admin', 'trusted', 'user']
 
@@ -40,14 +36,11 @@ def get_permission(auth_token):
     info = id_token.verify_oauth2_token(token, google_auth_requests.Request(), CLIENT_ID)
     email = info.get('email', '')
 
-    connection = sqlite3.connect(AUTH)
-    cursor = connection.cursor()
+    # Look up role in D1
+    result = d1_query('SELECT type FROM perms WHERE email = ?', [email])
+    role = result[0]['type'] if result else None
 
-    role = get_role(cursor, email)
-    connection.close()
-
-    # If user's email is not in authorized user table, they are just 'user'
-    if role == []:
+    if not role:
         return email, 'user'
     else:
         return email, role
