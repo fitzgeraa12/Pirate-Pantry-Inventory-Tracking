@@ -79,7 +79,7 @@ class NoAuthError extends Error {
 }
 
 const API_URL = "https://api.piratepantry.com";
-type HttpMethod = "GET" | "POST";
+// type HttpMethod = "GET" | "POST";
 
 function API({ children }: PropsWithChildren) {
     const auth = useContext(AuthContext);
@@ -94,12 +94,12 @@ function API({ children }: PropsWithChildren) {
     }, [auth]);
 
     const api = useMemo<APIInterface>(() => {
-        /**
-         * @returns string
-         */
-        const prepend_api_url = (partial_endpoint: string, params: URLSearchParams): string => {
-            return `${API_URL}/${partial_endpoint}?${params.toString()}`;
-        };
+        // /**
+        //  * @returns string
+        //  */
+        // const prepend_api_url = (partial_endpoint: string, params: URLSearchParams): string => {
+        //     return `${API_URL}/${partial_endpoint}?${params.toString()}`;
+        // };
 
         // /**
         //  * @returns URLSearchParams
