@@ -50,3 +50,5 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: backend
           command: d1 migrations apply pirate-pantry-db --remote
+        env:
+          WRANGLER_LOG: debug
