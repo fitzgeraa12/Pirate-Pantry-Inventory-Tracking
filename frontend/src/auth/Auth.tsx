@@ -24,10 +24,8 @@ function Auth({ children }: PropsWithChildren) {
     const [auth, set_auth] = useState<string | null>(() => {
         const cookie = Cookies.get("auth");
         if (typeof cookie !== "string") {
-            console.error("Invalid auth cookie");
             return null;
         }
-
         return cookie;
     });
 
