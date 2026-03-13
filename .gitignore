@@ -23,8 +23,12 @@ dist-ssr
 *.sln
 *.sw?
 
-.env
 /tunnel
 **/__pycache__
 **/.wrangler
 .pytest_cache
+
+**/.env
+**/.env.*
+**/.env.local
+**/.env.*.local

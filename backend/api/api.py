@@ -1,6 +1,7 @@
 from typing import Any, Optional, cast
 
 from flask import Flask, request, jsonify
+from flask.cli import load_dotenv
 from flask_cors import CORS
 import sys
 
@@ -11,6 +12,9 @@ import re
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from database import db as database
+
+# import .env
+load_dotenv()
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -654,4 +658,5 @@ def delete_tag(tag: str):
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()
+    
