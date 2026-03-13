@@ -7,7 +7,7 @@ import { useCart } from "../misc/CartContext";
 import { AuthContext } from '../auth/AuthContext';
 
 function StudentFacing() {
-    const [searchTerm, setSearchTerm] = useState<string>("");
+    const [searchTerm, _setSearchTerm] = useState<string>("");
     const {getCartCount} = useCart().unwrap();
     const auth = useContext(AuthContext);
     if (auth.is_none()) return null;
