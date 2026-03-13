@@ -29,15 +29,15 @@ function StudentFacing() {
                             onClick={(auth.expect("no augh in student facing").logout)}>Log Out
                         </button>
                     </div>
-                    <div id="body-header">
-                        <div className="cart-icon">
-                            🛒
-                            <span className="cart-badge">{getCartCount()}</span>
-                        </div>
+                </div>
+                <div id="body-header">
+                    <div className="cart-icon">
+                        🛒
+                        <span className="cart-badge">{getCartCount()}</span>
                     </div>
-                    <div id="body">
-                        <ProductView searchTerm={searchTerm}/>
-                    </div>
+                </div>
+                <div id="body">
+                    <ProductView searchTerm={searchTerm}/>
                 </div>
             </div>
         </Titled>

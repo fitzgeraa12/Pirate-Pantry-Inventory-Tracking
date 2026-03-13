@@ -16,7 +16,6 @@
 #header {
     border-bottom: 1px solid var(--su-yellow);
     display: flex;
-    flex-direction: row;
     justify-content: space-between;
     align-items: center;
     background-color: var(--su-mid-gray);
