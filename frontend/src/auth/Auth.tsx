@@ -60,7 +60,7 @@ function AuthProvider({ children }: PropsWithChildren) {
     return auth.into_inner() ? (
         <Login on_success={on_success} on_error={on_error}/>
     ) : (
-        <AuthContext value={Option.some({token: auth.unwrap(), logout})}>
+        <AuthContext value={Option.some({token: auth.expect("Failed to get auth token in 'Auth'"), logout})}>
             {children}
         </AuthContext>
     );

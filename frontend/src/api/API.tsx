@@ -89,7 +89,7 @@ function APIProvider({ children }: PropsWithChildren) {
     const get_auth = useCallback((): string => {
         if (auth.is_none()) throw new NoAuthError();
 
-        return auth.unwrap().token;
+        return auth.expect("Failed to get auth token in 'API'").token;
     }, [auth]);
 
     const api = useMemo<APIInterface>(() => {
