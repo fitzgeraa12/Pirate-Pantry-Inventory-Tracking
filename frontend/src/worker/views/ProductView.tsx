@@ -1,8 +1,8 @@
 
 import { useMemo, useState } from "react";
-import View from "../worker/views/View";
+import View from "./View";
 import { getCoreRowModel, getSortedRowModel, useReactTable, type ColumnDef, type SortingState } from "@tanstack/react-table";
-import { useCart } from "../misc/CartContext";
+import { useCart } from "../../misc/CartContext";
 interface ProductTableEntry {
     id: number,
     name: string,

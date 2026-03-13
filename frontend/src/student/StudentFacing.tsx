@@ -22,12 +22,8 @@ function StudentFacing() {
                         placeholder="Search for items..."
                         value={searchTerm}
                         onChange={(e)=> setSearchTerm(e.target.value)}
-                        />
-
-
-                             
+                        />  
                     <div id= "header-top-right">
-
                         <button id="checkout" className="header-button">Checkout</button>
                         <button id= "log-out" className="header-button"
                             onClick={(auth.logout)}>Log Out</button>
