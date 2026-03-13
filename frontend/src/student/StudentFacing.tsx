@@ -7,37 +7,69 @@ import { useCart } from "../misc/CartContext";
 import { AuthContext } from '../auth/AuthContext';
 
 function StudentFacing() {
-    const [searchTerm, _setSearchTerm] = useState<string>("");
+    const [searchTerm, setSearchTerm] = useState<string>("");
     const {getCartCount} = useCart().unwrap();
     const auth = useContext(AuthContext);
     if (auth.is_none()) return null;
 
     return (
-        <Titled title="Checkout"> 
-            <div id= "container"> 
-                <div id ="header"> 
-                    <div id = "title"> Pirate Pantry Checkout</div>                              
-        
-                             
+        <Titled title="Pirate Pantry Checkout">
+            <div id="container">
+                <div id = "header">
+                    <div id="title">Pirate Pantry Checkout</div>
+                    <input // search bar
+                        type="text"
+                        placeholder="Search for items..."
+                        value={searchTerm}
+                        onChange={(e)=> setSearchTerm(e.target.value)}
+                    />
                     <div id= "header-top-right">
-
                         <button id="checkout" className="header-button">Checkout</button>
                         <button id= "log-out" className="header-button"
-                            onClick={auth.unwrap().logout}>Log Out</button>
+                            onClick={(auth.expect("no augh in student facing").logout)}>Log Out
+                        </button>
                     </div>
-                </div>
-                <div id= "body-header">
-                    <div className= "cart-icon">
-                        🛒   
-                        <span className="cart-badge">{getCartCount()}</span>
+                    <div id="body-header">
+                        <div className="cart-icon">
+                            🛒
+                            <span className="cart-badge">{getCartCount()}</span>
+                        </div>
                     </div>
-                </div>
-                <div id="body">
-                    <ProductView searchTerm={searchTerm}/>
+                    <div id="body">
+                        <ProductView searchTerm={searchTerm}/>
+                    </div>
                 </div>
             </div>
         </Titled>
     );
+
+    // return (
+    //     <Titled title="Pirate Pantry Checkout">
+    //         <input // search bar
+    //             type="text"
+    //             placeholder="Search for items..."
+    //             value={searchTerm}
+    //             onChange={(e)=> setSearchTerm(e.target.value)}
+    //         />
+    //                 <div id= "header-top-right">
+
+    //                     <button id="checkout" className="header-button">Checkout</button>
+    //                     <button id= "log-out" className="header-button"
+    //                         onClick={(auth.logout)}>Log Out</button>
+    //                 </div>
+    //             </div>
+    //             <div id= "body-header">
+    //                 <div className= "cart-icon">
+    //                     🛒   
+    //                     <span className="cart-badge">{getCartCount()}</span>
+    //                 </div>
+    //             </div>
+    //             <div id="body">
+    //                 <ProductView searchTerm={searchTerm}/>
+    //             </div>
+    //         </div>
+    //     </Titled>
+    // );
 }
 
 export default StudentFacing;
