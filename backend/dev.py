@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'api'))
 import api  # now imports backend/api/api.py correctly
 
 # import .env
-load_dotenv()
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 
 if __name__ == '__main__':
     api.app.run(debug=True)
