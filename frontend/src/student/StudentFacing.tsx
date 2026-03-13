@@ -8,9 +8,9 @@ import { AuthContext } from '../auth/AuthContext';
 
 function StudentFacing() {
     const [searchTerm, setSearchTerm] = useState<string>("");
-    const {getCartCount} = useCart();
+    const {getCartCount} = useCart().unwrap();
     const auth = useContext(AuthContext);
-    if (!auth) return null;
+    if (auth.is_none()) return null;
 
     return (
         <Titled title="Checkout"> 
@@ -23,7 +23,7 @@ function StudentFacing() {
 
                         <button id="checkout" className="header-button">Checkout</button>
                         <button id= "log-out" className="header-button"
-                            onClick={(auth.logout)}>Log Out</button>
+                            onClick={auth.unwrap().logout}>Log Out</button>
                     </div>
                 </div>
                 <div id= "body-header">

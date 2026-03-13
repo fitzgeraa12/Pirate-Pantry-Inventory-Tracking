@@ -13,12 +13,12 @@ function App() {
     <Routes>
       <Route path="/" element={<StudentFacing />} />
       <Route path="/workpanel" element={
-        <ProtectedRoute required_perms={["Trusted", "Admin"]}>
+        <ProtectedRoute required_perms={["trusted", "admin"]}>
           <WorkerFacing />
         </ProtectedRoute>
       } />
-      <Route path="adminpanel" element={
-        <ProtectedRoute required_perms={["Admin"]}>
+      <Route path="/adminpanel" element={
+        <ProtectedRoute required_perms={["admin"]}>
           <AdminFacing />
         </ProtectedRoute>
       } />

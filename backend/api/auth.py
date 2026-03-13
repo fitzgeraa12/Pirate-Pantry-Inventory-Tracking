@@ -1,87 +1,96 @@
+from enum import Enum
 from functools import wraps
+from typing import Any, Callable, Optional, TypedDict
 from flask import request, jsonify
-from google.oauth2 import id_token        # Add to README, need pip install google-auth
+from google.oauth2 import id_token
 from google.auth.transport import requests as google_auth_requests
-from backend.database.admin import get_role
-import sqlite3
+from database.db import query as d1_query
 import os
 
-# Google OAuth Client ID (from frontend)
-CLIENT_ID = "391677624577-24ihed14clpj1d3ioumsq08aeagrj30n.apps.googleusercontent.com";
+# Google OAuth Client ID - set in environment variables
+CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
 DEV_TOKEN = os.environ.get("DEV_TOKEN")
 
-# Database
-AUTH = '/workspaces/Pirate-Pantry-Inventory-Tracking/Admin_Info.db'
+class Role(str, Enum):
+    ADMIN = 'admin'
+    TRUSTED = 'trusted'
+    USER = 'user'
 
-ROLES = ['admin', 'trusted', 'user']
-    
-def get_permission(auth_token):
+    @classmethod
+    def from_str(cls, value: str) -> 'Optional[Role]':
+        try:
+            return cls(value)
+        except ValueError:
+            return None
+
+class User(TypedDict):
+    email: str
+    role: Role
+
+def get_permission(auth_token: str):
     ''' Verify auth_token and extract information from auth_token. 
         After, check for the role of the user
 
         Returns:
-            email, role if valid
-            'user' if current user is not authorized for admin or trusted
+            (email, role) tuple if valid
+            ('dev', 'admin') if using dev token
+            ('', 'user') if current user is not authorized for admin or trusted
     '''
     # Check for token header
-    if not auth_token.startswith('Bearer '):
+    if not auth_token or not auth_token.startswith('Bearer '):
         raise ValueError('Invalid token format')
     
     # Extract token (removing header)
     token = auth_token.split(' ', 1)[1]
 
-    if token == DEV_TOKEN:
-        return 'admin'
-    else:
-        # Source: https://google-auth.readthedocs.io/en/latest/reference/google.oauth2.id_token.html#:~:text=To%20parse%20and%20verify%20an,is%20available%20as%20verify_token()%20.&text=Verifies%20an%20ID%20token%20and%20returns%20the%20decoded%20token.
-        # Verify an ID Token issued by Google’s OAuth 2.0 authorization
-        info = id_token.verify_oauth2_token(token, google_auth_requests.Request(), CLIENT_ID)
-        email = info.get('email', '')
+    # Dev token bypass
+    if DEV_TOKEN and token == DEV_TOKEN:
+        return 'dev', Role.ADMIN
 
-    connection = sqlite3.connect(AUTH)
-    cursor = connection.cursor()
+    # Verify Google OAuth2 token
+    # Source: https://google-auth.readthedocs.io/en/latest/reference/google.oauth2.id_token.html
+    info = id_token.verify_oauth2_token(token, google_auth_requests.Request(), CLIENT_ID) # pyright: ignore[reportUnknownMemberType]
+    email: str = info.get('email', '')
 
-    # Will need to confirm with database method
-    role = get_role(cursor, email) # Check for user roles from authorized user table
-    connection.close()
+    # Look up role in D1
+    result = d1_query('SELECT type FROM perms WHERE email = ?', [email])
+    role = Role.from_str(result[0]['type'])
 
-    # If user's email is not in authorized user table, they are just 'user'
-    if role is []:
-        return 'user'
+    if not role:
+        return email, Role.USER
     else:
         return email, role
 
 
-def requires_roles(*auth_roles):
-    def decorator(f):
-        ''' Decorator for role base access control
+def requires_roles(*auth_roles: str):
+    ''' Decorator for role based access control
 
-            Source: https://flask.palletsprojects.com/en/latest/patterns/viewdecorators/ 
+        Source: https://flask.palletsprojects.com/en/latest/patterns/viewdecorators/
 
-            Returns:
-                decorator: RBAC decorator
-        '''
+        Returns:
+            decorator: RBAC decorator
+    '''
+    def decorator(f: Callable[..., Any]):
         @wraps(f)
-        def decorated(*args, **kwargs):
+        def decorated(*args: Any, **kwargs: Any):
             # Get Authorization header from request
             token = request.headers.get("Authorization", None)
 
-            # No token means unauthorized
-            # if not token:
-            #     return jsonify({'error': 'No Token Found or Invalid or expired token.'}), 401
+            if not token:
+                return jsonify({'error': 'No token found.'}), 401
             
             try:
-                # Verify token and get user email and role
                 email, role = get_permission(token)
-            except Exception:
-                return jsonify({'error': 'Invalid or expired token.'}), 401
+            except Exception as e:
+                return jsonify({'error': str(e)}), 401
 
             # Check for roles
             if role not in auth_roles:
-                return jsonify({'error': 'Unauthorized User.'}), 403
+                return jsonify({'error': 'Unauthorized user.'}), 403
             
-            # Put current user info to route parameters
-            kwargs['current_user'] = {'email': email, 'role': role}
+            # Pass current user info to route parameters
+            user = User(email=email, role=Role.ADMIN) # pyright: ignore[reportUnusedVariable]
+            # kwargs['current_user'] = user
             
             return f(*args, **kwargs)
         return decorated
