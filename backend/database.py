@@ -198,8 +198,8 @@ class Database(ABC):
         name: Optional[str],
         quantity: Optional[int],
         tags: Optional[list[str]],
-        brand: Optional[str] = "",
-        image_link: Optional[str] = ""
+        brand: Optional[str],
+        image_link: Optional[str]
     ) -> Product:
         with self.transaction():
             fields: list[str] = []
