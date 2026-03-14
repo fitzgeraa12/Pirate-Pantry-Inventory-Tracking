@@ -90,7 +90,7 @@ def define_routes(app: Flask, db: Database):
 
     @app.route('/products', methods=['GET'])
     @requires_roles(AccessLevel.TRUSTED, AccessLevel.ADMIN)
-    def query_products():
+    def query_products(): # pyright: ignore[reportUnusedFunction]
         ''' GET method to retrieve products, optionally filtered by query parameters.
             All filters are combined with AND logic.
 
@@ -177,7 +177,7 @@ def define_routes(app: Flask, db: Database):
 
     @app.route('/products', methods=['POST'])
     @requires_roles(AccessLevel.TRUSTED, AccessLevel.ADMIN)
-    def post_products():
+    def post_products(): # pyright: ignore[reportUnusedFunction]
         class PostProductSchema(BaseModel):
             id: Optional[int] = None
             name: Optional[str] = None
