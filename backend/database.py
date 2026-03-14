@@ -1,0 +1,527 @@
+from abc import ABC, abstractmethod
+from contextlib import contextmanager
+from enum import Enum
+import os
+import time
+from typing import Any, Callable, Optional, TypeVar
+from pydantic import BaseModel
+from misc import env_get
+import requests
+import sqlite3
+
+# --------------------------------------------------
+# Util
+# --------------------------------------------------
+
+QueryRow = dict[str, Any]
+QueryParams = list[Any]
+
+class NotFoundError(Exception):
+    def __init__(self, object: str, field: str, val: Any):
+        super().__init__(f"{object} with {field} `{val}` not found")
+
+class ProductNotFoundError(NotFoundError):
+    def __init__(self, id: int):
+        super().__init__("Product", "id", id)
+
+class BrandNotFoundError(NotFoundError):
+    def __init__(self, name: str):
+        super().__init__("Brand", "name", name)
+
+class TagNotFoundError(NotFoundError):
+    def __init__(self, label: str):
+        super().__init__("Tag", "label", label)
+
+class InvalidQuantityError(Exception):
+    def __init__(self, quantity: int):
+        super().__init__(f"Invalid quantity `{quantity}`")
+
+# --------------------------------------------------
+# Schema
+# --------------------------------------------------
+
+class Product(BaseModel):
+    id: int
+    name: str
+    brand: Optional[str]
+    quantity: int
+    image_link: Optional[str]
+    tags: list[str] = []
+    
+    @staticmethod
+    def from_row(row: QueryRow) -> "Product":
+        return Product(
+            **{k: v for k, v in row.items() if k != "tags"},
+            tags=[t for t in row["tags"].split(",")] if row["tags"] else []
+        )
+    
+    @staticmethod
+    def query_and_include_tags(db: "Database", sql: str, params: QueryParams = []) -> list["Product"]:
+        return db.query_and_map_rows(f"""
+                SELECT p.*, GROUP_CONCAT(pt.tag_label) as tags
+                FROM ({sql}) p
+                LEFT JOIN product_tags pt ON p.id = pt.product_id
+                GROUP BY p.id
+            """,
+            lambda row: Product.from_row(row),
+            params
+        )
+
+class AccessLevel(str, Enum):
+    VISITOR = "visitor"
+    TRUSTED = "trusted"
+    ADMIN = "admin"
+
+class User(BaseModel):
+    email: str
+    access_level: AccessLevel
+
+class AuthSession(BaseModel):
+    access_token: str
+    refresh_token: str
+    email: Optional[str]
+    expires_at: int
+
+# --------------------------------------------------
+# Database
+# --------------------------------------------------
+
+T = TypeVar("T")
+class Database(ABC):
+    @abstractmethod
+    def query(self, sql: str, params: QueryParams = []) -> list[QueryRow]:
+        pass
+    
+    @abstractmethod
+    @contextmanager
+    def transaction(self):
+        yield
+    
+    def query_and_map_rows(self, sql: str, map_fn: Callable[[QueryRow], T], params: QueryParams = []) -> list[T]:
+        return [map_fn(row) for row in self.query(sql, params)]
+    
+    E = TypeVar("E", bound=Exception)
+    def query_and_map_single(
+        self,
+        sql: str,
+        map_fn: Callable[[dict[str, Any]], T],
+        map_index_err: Optional[Callable[[IndexError], E]] = None,
+        params: QueryParams = []
+    ) -> T:
+        try:
+            return map_fn(self.query(sql, params)[0])
+        except IndexError as index_err:
+            raise map_index_err(index_err) if map_index_err else index_err
+
+    #------------------------------
+    # Viewing all items in database (including items with quantity 0)
+    #------------------------------
+
+    def all_products(self) -> list[Product]:
+        return Product.query_and_include_tags(self, "SELECT * FROM products")
+    
+    def all_product_names(self) -> list[str]:
+        return self.query_and_map_rows("SELECT name FROM products", lambda row: str(row["name"]))
+    
+    def all_product_brands(self) -> list[str]:
+        return self.query_and_map_rows("SELECT name FROM brands", lambda row: str(row["name"]))
+    
+    def all_product_tags(self) -> list[str]:
+        return self.query_and_map_rows(
+            "SELECT DISTINCT tag_label FROM product_tags pt JOIN products p ON pt.product_id = p.id WHERE p.quantity > 0",
+            lambda row: str(row["tag_label"])
+        )
+    
+    #------------------------------
+    # Viewing items currently in the pantry (quantity > 0)
+    #------------------------------
+
+    def available_products(self) -> list[Product]:
+        return Product.query_and_include_tags(self, "SELECT * FROM products WHERE quantity > 0")
+    
+    def available_product_names(self) -> list[str]:
+        return self.query_and_map_rows("SELECT name FROM products WHERE quantity > 0", lambda row: str(row["name"]))
+    
+    def available_product_brands(self) -> list[str]:
+        return self.query_and_map_rows(
+            "SELECT DISTINCT brand FROM products WHERE brand IS NOT NULL AND quantity > 0",
+            lambda row: str(row["brand"])
+        )
+    
+    def available_product_tags(self) -> list[str]:
+        return self.query_and_map_rows(
+            "SELECT DISTINCT tag_label FROM product_tags pt JOIN products p ON pt.product_id = p.id WHERE p.quantity > 0",
+            lambda row: str(row["tag_label"])
+        )
+    
+    #------------------------------
+    # Updating methods
+    #------------------------------
+
+    def add_product(
+        self,
+        id: Optional[int],
+        name: str,
+        brand: Optional[str],
+        quantity: Optional[int],
+        image_link: Optional[str],
+        tags: Optional[list[str]]
+    ) -> Product:
+        with self.transaction():
+            # Insert brand and image link first
+            if brand:
+                self.query("INSERT OR IGNORE INTO brands (name) VALUES (?)", [brand])
+            if image_link:
+                self.query("INSERT OR IGNORE INTO image_links (path) VALUES (?)", [image_link])
+
+            self.query(
+                "INSERT INTO products (id, name, brand, quantity, image_link) VALUES (?, ?, ?, ?, ?)",
+                [id, name, brand, quantity, image_link]
+            )
+
+            product_id = self.query("SELECT last_insert_rowid() as id")[0]["id"]
+            if tags:
+                for tag in tags:
+                    self.query("INSERT OR IGNORE INTO tags (label) VALUES (?)", [tag])
+                    self.query(
+                        "INSERT INTO product_tags (product_id, tag_label) VALUES (?, ?)",
+                        [product_id, tag]
+                    )
+            
+            product = self.product_from_id(product_id)
+
+            return product
+
+    def update_product(
+        self,
+        id: int,
+        name: Optional[str],
+        quantity: Optional[int],
+        tags: Optional[list[str]],
+        brand: Optional[str] = "",
+        image_link: Optional[str] = ""
+    ) -> Product:
+        with self.transaction():
+            fields: list[str] = []
+            params: QueryParams = []
+
+            if name is not None:
+                fields.append("name = ?")
+                params.append(name)
+
+            if brand is not None:
+                fields.append("brand = ?")
+                params.append(brand)
+
+            if quantity is not None:
+                fields.append("quantity = ?")
+                params.append(quantity)
+
+            if image_link is not None:
+                fields.append("image_link = ?")
+                params.append(image_link)
+
+            if fields:
+                params.append(id)
+                self.query(f"UPDATE products SET {', '.join(fields)} WHERE id = ?", params)
+
+            if tags is not None:
+                self.query("DELETE FROM product_tags WHERE product_id = ?", [id])
+                for tag in tags:
+                    self.query(
+                        "INSERT INTO product_tags (product_id, tag_label) VALUES (?, ?)",
+                        [id, tag]
+                    )
+
+            product = self.product_from_id(id)
+            return product
+    
+    def checkout_product(self, id: int, amount: int) -> int:
+        """
+        Check out a specific quantity of a product given its ID.
+
+        Raises:
+            ProductNotFoundError: If no product with the given ID exists.
+        """
+        with self.transaction():
+            # Get old quantity
+            old_quantity = self.query_and_map_single(
+                "SELECT quantity FROM products WHERE id = ?",
+                lambda row: int(row["quantity"]),
+                lambda _: ProductNotFoundError(id),
+                [id],
+            )
+            
+            # Calculate new quantity after amount is taken away
+            new_quantity = old_quantity - amount
+            if new_quantity < 0:
+                raise InvalidQuantityError(new_quantity)
+
+            # Update quantity in database
+            self.query("UPDATE products SET quantity = ? WHERE id = ?", [new_quantity, id])
+
+            return new_quantity
+    
+    def add_tags(self, tags: list[str]) -> list[str]:
+        """
+        Add a list of tags to the database. The tags do not have to be unique.
+
+        Returns:
+            The list of tags that were newly added
+        """
+        with self.transaction():
+            existing_tags = self.query_and_map_rows(
+                f"SELECT label FROM tags WHERE label IN ({','.join('?' * len(tags))})",
+                lambda row: str(row["label"]),
+                tags
+            )
+
+            # Attempt to add all tags
+            for tag in tags:
+                self.query("INSERT OR IGNORE INTO tags (label) VALUES (?)", [tag])
+
+            # Return only the newly added tags
+            newly_added_tags = [tag for tag in tags if tag not in existing_tags]
+
+            return newly_added_tags
+            
+    #------------------------------
+    # Viewing singles
+    #------------------------------
+
+    def product_from_id(self, id: int) -> Product:
+        """
+        Fetch a product by its ID.
+
+        Raises:
+            ProductNotFoundError: If no product with the given ID exists.
+        """
+        return self.query_and_map_single("""
+                SELECT p.*, GROUP_CONCAT(pt.tag_label) as tags
+                FROM products p
+                LEFT JOIN product_tags pt ON p.id = pt.product_id
+                WHERE p.id = ?
+                GROUP BY p.id
+            """,
+            lambda row: Product.from_row(row),
+            lambda _: ProductNotFoundError(id),
+            [id]
+        )
+    
+    def products_from_name(self, name: str) -> list[Product]:
+        """
+        Fetch a list of product by a name. The name can contain the wildcard
+        `%` on one or both sides of the name to get general matches, or the 
+        wildcard `_` any number of times (`_` acts like `%` but only applies
+        to one character). Names are always unique and case insensitive, so 
+        without wildcards this function will always return an array containing 
+        a single product.
+
+        Returns:
+            A list of products with the provided name query (list of one 
+            product for an exact name match).
+        """
+        return Product.query_and_include_tags(self, "SELECT * FROM products WHERE name LIKE ?", [name])
+    
+    def products_from_brand(self, name: str) -> list[Product]:
+        """
+        Fetch a list of product by a brand. The brand can contain the wildcard
+        `%` on one or both sides of the name to get general matches, or the 
+        wildcard `_` any number of times (`_` acts like `%` but only applies
+        to one character).
+
+        Returns:
+            A list of products with the provided brand query.
+        """
+        return Product.query_and_include_tags(self, "SELECT * FROM products WHERE brand LIKE ?", [name])
+    
+    def products_from_matching_tags(self, tags: list[str]) -> list[Product]:
+        """
+        Fetch a list of product by a list of matching tags. Each tag can contain the wildcard
+        `%` on one or both sides to get general matches, or the 
+        wildcard `_` any number of times (`_` acts like `%` but only applies
+        to one character).
+
+        Returns:
+            A list of products with matching tags.
+        """
+        placeholders = ",".join("?" * len(tags))
+        return self.query_and_map_rows(f"""
+                SELECT p.*, GROUP_CONCAT(pt2.tag_label) as tags
+                FROM products p
+                JOIN product_tags pt ON p.id = pt.product_id
+                LEFT JOIN product_tags pt2 ON p.id = pt2.product_id
+                WHERE pt.tag_label IN ({placeholders})
+                GROUP BY p.id
+                HAVING COUNT(DISTINCT pt.tag_label) = {len(tags)}
+            """,
+            lambda row: Product.from_row(row),
+            tags
+        )
+    
+    #------------------------------
+    # Deleting methods
+    #------------------------------
+
+    def remove_product(self, id: int):
+        with self.transaction():
+            rows = self.query("SELECT id FROM products WHERE id = ?", [id])
+            if not rows:
+                raise ProductNotFoundError(id)
+            
+            self.query("DELETE FROM products WHERE id = ?", [id])
+
+    def remove_brand(self, brand: str):
+        rows = self.query("SELECT name FROM brands WHERE name = ?", [brand])
+        if not rows:
+            raise BrandNotFoundError(brand)
+        
+        self.query("DELETE FROM brands WHERE name = ?", [brand])
+
+    def remove_tag(self, tag: str):
+        rows = self.query("SELECT label FROM tags WHERE label = ?", [tag])
+        if not rows:
+            raise TagNotFoundError(tag)
+        
+        self.query("DELETE FROM tags WHERE label = ?", [tag])
+
+    #------------------------------
+    # Auth
+    #------------------------------
+
+    def get_or_insert_auth_session(self, access_token: str) -> AuthSession:
+        with self.transaction():
+            existing_auth_session_result = self.query(
+                "SELECT * FROM auth_sessions WHERE access_token = ?",
+                [access_token]
+            )
+            existing_auth_session = AuthSession(**existing_auth_session_result[0]) if existing_auth_session_result else None
+
+            if existing_auth_session:
+                if time.time() > existing_auth_session.expires_at:
+                    # get new access token
+                    pass # update access token
+
+                return existing_auth_session
+            
+            raise Exception("not implemented") # TODO: Get refresh token and create new AuthSession
+
+    def get_user(self, access_token: str) -> Optional[User]:
+        with self.transaction():
+            try:
+                auth_session = self.query_and_map_single(
+                    "SELECT * FROM auth_sessions WHERE access_token = ?",
+                    lambda row: AuthSession(**row),
+                    None,
+                    [access_token]
+                )
+
+                if auth_session.email is not None:
+                    return self.query_and_map_single(
+                        "SELECT * FROM users WHERE email = ?",
+                        lambda row: User(**row),
+                        None,
+                        [auth_session.email]
+                    )
+            except IndexError:
+                pass
+
+            return None
+
+def connect(locally: bool) -> Database:
+    if locally:
+        return LocalDatabase()
+    return RemoteDatabase()
+
+class RemoteDatabase(Database):
+    def __init__(self):
+        account_id = env_get("CLOUDFLARE_ACCOUNT_ID")
+        db_id = env_get("CLOUDFLARE_D1_DATABASE_ID")
+        d1_api_token = env_get("CLOUDFLARE_D1_API_TOKEN")
+
+        self.query_url = f"https://api.cloudflare.com/client/v4/accounts/{account_id}/d1/database/{db_id}/query"
+        self.headers = {
+            "Authorization": f"Bearer {d1_api_token}",
+            "Content-Type": "application/json"
+        }
+
+    def query(self, sql: str, params: QueryParams = []) -> list[Any]:
+        body: dict[str, Any] = {"sql": sql}
+        if params:
+            body["params"] = params
+
+        response = requests.post(self.query_url, headers=self.headers, json=body)
+        response.raise_for_status()
+        data = response.json()
+
+        if not data.get("success"):
+            raise Exception(f"D1 query failed: {data.get('errors')}")
+
+        results = data.get("result", [])
+        if not results:
+            return []
+
+        return results[0].get("results", [])
+    
+    @contextmanager
+    def transaction(self):
+        self.query("BEGIN TRANSACTION")
+        try:
+            yield
+            self.query("COMMIT")
+        except Exception:
+            self.query("ROLLBACK")
+            raise
+    
+class LocalDatabase(Database):
+    LOCAL_DATABASE_PATH = os.path.join(os.path.dirname(__file__), "__local__", "local_db.sqlite3")
+    MIGRATIONS_PATH = os.path.join(os.path.dirname(__file__), "migrations")
+
+    def __init__(self):
+        os.makedirs(os.path.dirname(self.LOCAL_DATABASE_PATH), exist_ok=True)
+        self.conn = sqlite3.connect(self.LOCAL_DATABASE_PATH, check_same_thread=False)
+        self.conn.row_factory = sqlite3.Row
+        self.conn.execute("PRAGMA journal_mode=WAL")
+        self.conn.execute("PRAGMA foreign_keys = ON")
+        self._run_migrations()
+
+    def _run_migrations(self):
+        self.conn.executescript("""
+            CREATE TABLE IF NOT EXISTS migrations (
+                filename TEXT PRIMARY KEY,
+                applied_at INTEGER NOT NULL
+            )
+        """)
+
+        migration_files = sorted(os.listdir(self.MIGRATIONS_PATH))
+        for filename in migration_files:
+            if not filename.endswith(".sql"):
+                continue
+
+            already_applied = self.conn.execute(
+                "SELECT 1 FROM migrations WHERE filename = ?", (filename,)
+            ).fetchone()
+
+            if already_applied:
+                continue
+
+            path = os.path.join(self.MIGRATIONS_PATH, filename)
+            with open(path, "r") as f:
+                self.conn.executescript(f.read())
+
+            self.conn.execute(
+                "INSERT INTO migrations (filename, applied_at) VALUES (?, ?)",
+                (filename, int(time.time()))
+            )
+            self.conn.commit()
+            print(f"Applied migration: {filename}")
+
+    def query(self, sql: str, params: QueryParams = []) -> list[Any]:
+        cursor = self.conn.execute(sql, params)
+        self.conn.commit()
+        return [dict(row) for row in cursor.fetchall()]
+    
+    @contextmanager
+    def transaction(self):
+        with self.conn:
+            yield
