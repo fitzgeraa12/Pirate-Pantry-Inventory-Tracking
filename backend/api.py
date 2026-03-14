@@ -88,6 +88,7 @@ def define_routes(app: Flask, db: Database):
     def get_pantry_tags(): # pyright: ignore[reportUnusedFunction]
         return jsonify(db.available_product_tags())
 
+    # FIXME: remove custom wildcard behavior in name and brand
     @app.route('/products', methods=['GET'])
     @requires_roles(AccessLevel.TRUSTED, AccessLevel.ADMIN)
     def query_products(): # pyright: ignore[reportUnusedFunction]
