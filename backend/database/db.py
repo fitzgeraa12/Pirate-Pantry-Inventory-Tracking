@@ -1,12 +1,21 @@
 from typing import Any, Optional
 
+from dotenv import load_dotenv, dotenv_values #Loads info as env variables or a dictionary
+
+import sqlite3
+
 import requests
 import os
 
+
+load_dotenv()
+
+
 # Cloudflare D1 REST API
-ACCOUNT_ID = os.environ.get('CLOUDFLARE_ACCOUNT_ID')
+ACCOUNT_ID = os.environ.get('CLOUDFLARE_ACCOUNT_ID') #Returning none
 DATABASE_ID = os.environ.get('CLOUDFLARE_D1_DATABASE_ID')
 API_TOKEN = os.environ.get('CLOUDFLARE_D1_API_TOKEN')
+
 
 API_URL = f'https://api.cloudflare.com/client/v4/accounts/{ACCOUNT_ID}/d1/database/{DATABASE_ID}/query'
 
@@ -19,7 +28,7 @@ def query(sql: str, params: Optional[list[Any]]= None) -> list[Any]:
 
         Returns:
             list: Rows returned by the query
-    '''
+    ''
     headers = {
         'Authorization': f'Bearer {API_TOKEN}',
         'Content-Type': 'application/json'
@@ -35,13 +44,23 @@ def query(sql: str, params: Optional[list[Any]]= None) -> list[Any]:
 
     if not data.get('success'):
         raise Exception(f'D1 query failed: {data.get("errors")}')
-
-    results = data.get('result', [])
+    '''
+    connection = sqlite3.connect('/workspaces/Pirate-Pantry-Inventory-Tracking/backend/database/db_test.db')
+    cursor_t = connection.cursor()
+    if params:
+        cursor_t.execute(sql, params)
+        print(sql, params)
+    else:
+        cursor_t.execute(sql)
+    #results = data.get('result', [])
+    results = cursor_t.fetchall()
+    connection.commit()
+    connection.close()
     if not results:
         return []
 
-    return results[0].get('results', [])
-
+    
+    return results #results[0].get('results', [])
 
 def rows_to_list(rows: list[Any]) -> list[list[Any]]:
     ''' Convert D1 result dicts to lists for backwards compatibility '''
@@ -54,7 +73,7 @@ def rows_to_list(rows: list[Any]) -> list[list[Any]]:
 
 def view_table():
     rows = query('SELECT * FROM products')
-    return rows_to_list(rows)
+    return rows
 
 def view_all_names():
     rows = query('SELECT DISTINCT name FROM products')
@@ -102,13 +121,18 @@ def view_pantry_tags():
 
 def add_item(
         name: str = '',
-        brand: str = '',
+        brand: Optional[str] = None,
         id: Optional[int] = None,
         quantity: int = 0,
         image_link: str = '',
         tags: Optional[list[str]] = None
 ):
-    query('INSERT INTO products VALUES (?, ?, ?, ?, ?)', [id, name.title(), brand.title(), quantity, image_link])
+
+    if brand is None:
+        brand = ''
+    else:
+        brand = brand.title()
+    query('INSERT INTO products VALUES (?, ?, ?, ?, ?)', [id, name.title(), brand, quantity, image_link])
     if tags:
         for tag in tags:
             query('INSERT INTO tags (label) VALUES (?) ON CONFLICT (label) DO NOTHING', [tag.title()])
@@ -228,4 +252,3 @@ def delete_tag(tag: str = ''):
 def cache_auth(token: str) -> bool:
     result = query('INSERT INTO auth_cache (token) VALUES (?) ON CONFLICT (token) DO NOTHING RETURNING token', [token])
     return len(result) > 0
-
