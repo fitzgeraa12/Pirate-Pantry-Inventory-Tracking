@@ -1,9 +1,9 @@
 CREATE TABLE IF NOT EXISTS products (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    name       TEXT    NOT NULL UNIQUE COLLATE NOCASE,
-    brand      TEXT    NOT NULL DEFAULT '' REFERENCES brands(name) ON DELETE SET DEFAULT,
+    name       TEXT    NOT NULL COLLATE NOCASE,
+    brand      TEXT    DEFAULT NULL REFERENCES brands(name) ON DELETE SET NULL,
     quantity   INTEGER NOT NULL DEFAULT 0 CHECK(quantity >= 0),
-    image_link TEXT    NOT NULL DEFAULT '' REFERENCES image_links(path) ON DELETE SET DEFAULT
+    image_link TEXT    DEFAULT NULL REFERENCES image_links(path) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS tags (
@@ -25,13 +25,22 @@ CREATE TABLE IF NOT EXISTS product_tags (
 );
 
 CREATE TABLE IF NOT EXISTS users (
-    email        TEXT PRIMARY KEY,
-    access_level TEXT NOT NULL CHECK(access_level IN ('visitor', 'trusted', 'admin'))
+    id           TEXT PRIMARY KEY,
+    email        TEXT UNIQUE NOT NULL,
+    access_level TEXT NOT NULL CHECK(access_level IN ('trusted', 'admin'))
 );
 
 CREATE TABLE IF NOT EXISTS auth_sessions (
-    access_token  TEXT    PRIMARY KEY,
-    refresh_token TEXT    NOT NULL,
-    email         TEXT, -- NULL for visitors
-    expires_at    INTEGER NOT NULL -- Unix timestamp
+    id            TEXT PRIMARY KEY,
+    user_id       TEXT REFERENCES users(id) ON DELETE CASCADE,
+    google_sub    TEXT NOT NULL,
+    refresh_token TEXT NOT NULL,
+    expires_at    INTEGER NOT NULL,
+    created_at    INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS auth_codes (
+    code       TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    expires_at INTEGER NOT NULL
 );

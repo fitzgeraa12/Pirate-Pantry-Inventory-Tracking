@@ -3,11 +3,15 @@ from contextlib import contextmanager
 from enum import Enum
 import os
 import time
-from typing import Any, Callable, Optional, TypeVar
+from typing import Any, Callable, Optional, TypeVar, ClassVar, Union
+import uuid
 from pydantic import BaseModel
+from backend.common import UNSET, Unset
 from misc import env_get
 import requests
 import sqlite3
+
+SESSION_EXPIRY_IN_DAYS = 30
 
 # --------------------------------------------------
 # Util
@@ -35,6 +39,14 @@ class TagNotFoundError(NotFoundError):
 class InvalidQuantityError(Exception):
     def __init__(self, quantity: int):
         super().__init__(f"Invalid quantity `{quantity}`")
+
+class UserNotFoundError(NotFoundError):
+    def __init__(self, id: str):
+        super().__init__("User", "id", id)
+
+class UserAlreadyExistsError(Exception):
+    def __init__(self, id: str):
+        super().__init__(f"User with id `{id}` already exists")
 
 # --------------------------------------------------
 # Schema
@@ -68,18 +80,39 @@ class Product(BaseModel):
         )
 
 class AccessLevel(str, Enum):
-    VISITOR = "visitor"
-    TRUSTED = "trusted"
-    ADMIN = "admin"
+    TRUSTED = ("trusted", 1)
+    ADMIN   = ("admin",   2)
+
+    level: int
+
+    def __new__(cls, str_value: str, int_value: int):
+        obj = str.__new__(cls, str_value)
+        obj._value_ = str_value
+        obj.level = int_value
+        return obj
+
+    def at_least(self, other: "AccessLevel") -> bool:
+        return self.level >= other.level
 
 class User(BaseModel):
+    id: str
     email: str
     access_level: AccessLevel
 
+    DEV: ClassVar["User"]
+User.DEV = User(id="dev", email="dev@piratepantry.com", access_level=AccessLevel.ADMIN)
+
 class AuthSession(BaseModel):
-    access_token: str
+    id: str
+    user_id: Optional[str]
+    google_sub: str
     refresh_token: str
-    email: Optional[str]
+    expires_at: int
+    created_at: int
+
+class AuthCode(BaseModel):
+    code: str
+    session_id: str
     expires_at: int
 
 # --------------------------------------------------
@@ -112,6 +145,17 @@ class Database(ABC):
             return map_fn(self.query(sql, params)[0])
         except IndexError as index_err:
             raise map_index_err(index_err) if map_index_err else index_err
+    
+    def try_query_and_map_single(
+        self,
+        sql: str,
+        map_fn: Callable[[dict[str, Any]], T],
+        params: QueryParams = []
+    ) -> Optional[T]:
+        try:
+            return self.query_and_map_single(sql, map_fn, None, params)
+        except IndexError:
+            return None
 
     #------------------------------
     # Viewing all items in database (including items with quantity 0)
@@ -195,46 +239,52 @@ class Database(ABC):
     def update_product(
         self,
         id: int,
-        name: Optional[str],
-        quantity: Optional[int],
-        tags: Optional[list[str]],
-        brand: Optional[str],
-        image_link: Optional[str]
+        name: Union[str, None, Unset] = UNSET,
+        brand: Union[str, None, Unset] = UNSET,
+        quantity: Union[int, Unset] = UNSET,
+        image_link: Union[str, None, Unset] = UNSET,
+        tags: Union[list[str], None, Unset] = UNSET,
     ) -> Product:
         with self.transaction():
             fields: list[str] = []
             params: QueryParams = []
 
-            if name is not None:
+            # --- scalar fields ---
+            if name is not UNSET:
                 fields.append("name = ?")
                 params.append(name)
 
-            if brand is not None:
+            if brand is not UNSET:
                 fields.append("brand = ?")
                 params.append(brand)
 
-            if quantity is not None:
+            if quantity is not UNSET:
                 fields.append("quantity = ?")
                 params.append(quantity)
 
-            if image_link is not None:
+            if image_link is not UNSET:
                 fields.append("image_link = ?")
                 params.append(image_link)
 
             if fields:
                 params.append(id)
-                self.query(f"UPDATE products SET {', '.join(fields)} WHERE id = ?", params)
+                self.query(
+                    f"UPDATE products SET {', '.join(fields)} WHERE id = ?",
+                    params
+                )
 
-            if tags is not None:
-                self.query("DELETE FROM product_tags WHERE product_id = ?", [id])
-                for tag in tags:
-                    self.query(
-                        "INSERT INTO product_tags (product_id, tag_label) VALUES (?, ?)",
-                        [id, tag]
-                    )
+            if tags is not UNSET:
+                if isinstance(tags, list):
+                    # [] = clear, [...] = replace
+                    self.query("DELETE FROM product_tags WHERE product_id = ?", [id])
 
-            product = self.product_from_id(id)
-            return product
+                    for tag in tags:
+                        self.query(
+                            "INSERT INTO product_tags (product_id, tag_label) VALUES (?, ?)",
+                            [id, tag]
+                        )
+
+            return self.product_from_id(id)
     
     def checkout_product(self, id: int, amount: int) -> int:
         """
@@ -372,66 +422,110 @@ class Database(ABC):
             self.query("DELETE FROM products WHERE id = ?", [id])
 
     def remove_brand(self, brand: str):
-        rows = self.query("SELECT name FROM brands WHERE name = ?", [brand])
-        if not rows:
-            raise BrandNotFoundError(brand)
-        
-        self.query("DELETE FROM brands WHERE name = ?", [brand])
+        with self.transaction():
+            rows = self.query("SELECT name FROM brands WHERE name = ?", [brand])
+            if not rows:
+                raise BrandNotFoundError(brand)
+            
+            self.query("DELETE FROM brands WHERE name = ?", [brand])
 
     def remove_tag(self, tag: str):
-        rows = self.query("SELECT label FROM tags WHERE label = ?", [tag])
-        if not rows:
-            raise TagNotFoundError(tag)
-        
-        self.query("DELETE FROM tags WHERE label = ?", [tag])
+        with self.transaction():
+            rows = self.query("SELECT label FROM tags WHERE label = ?", [tag])
+            if not rows:
+                raise TagNotFoundError(tag)
+            
+            self.query("DELETE FROM tags WHERE label = ?", [tag])
 
     #------------------------------
     # Auth
     #------------------------------
 
-    def get_or_insert_auth_session(self, access_token: str) -> AuthSession:
+    def store_auth_code(self, code: str, session_id: str):
+        expires_at = int(time.time()) + 60
+        self.query(
+            "INSERT INTO auth_codes (code, session_id, expires_at) VALUES (?, ?, ?)",
+            [code, session_id, expires_at]
+        )
+    
+    def consume_auth_code(self, code: str) -> Optional[str]:
         with self.transaction():
-            existing_auth_session_result = self.query(
-                "SELECT * FROM auth_sessions WHERE access_token = ?",
-                [access_token]
+            auth_code = self.try_query_and_map_single(
+                "SELECT * FROM auth_codes WHERE code = ?",
+                lambda row: AuthCode(**row),
+                [code],
             )
-            existing_auth_session = AuthSession(**existing_auth_session_result[0]) if existing_auth_session_result else None
-
-            if existing_auth_session:
-                if time.time() > existing_auth_session.expires_at:
-                    # get new access token
-                    pass # update access token
-
-                return existing_auth_session
             
-            raise Exception("not implemented") # TODO: Get refresh token and create new AuthSession
+            if not auth_code:
+                return None
+            
+            self.query('DELETE FROM auth_codes WHERE code = ?', [code])
 
-    def get_user(self, access_token: str) -> Optional[User]:
+            if int(time.time()) > auth_code.expires_at:
+                return None
+            
+            return auth_code.session_id
+        
+    def create_auth_session(self, user_id: Optional[str], google_sub: str, refresh_token: str) -> AuthSession:
+        session_id = str(uuid.uuid4())
+        created_at = int(time.time())
+        expires_at = created_at + 60 * 60 * 24 * SESSION_EXPIRY_IN_DAYS  # calculate expiry date
+
+        self.query(
+            "INSERT INTO auth_sessions (id, user_id, google_sub, refresh_token, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)",
+            [session_id, user_id, google_sub, refresh_token, created_at, expires_at]
+        )
+
+        return AuthSession(id=session_id, user_id=user_id, google_sub=google_sub, refresh_token=refresh_token, created_at=created_at, expires_at=expires_at)
+    
+    def get_auth_session(self, session_id: str) -> Optional[AuthSession]:
+        session = self.try_query_and_map_single(
+            "SELECT * FROM auth_sessions WHERE id = ?",
+            lambda row: AuthSession(**row),
+            [session_id]
+        )
+
+        if not session:
+            return None
+
+        # is this session expired?
+        if session.expires_at and int(time.time()) > session.expires_at:
+            self.query("DELETE FROM auth_sessions WHERE id = ?", [session_id])
+            return None
+        
+        return session
+
+    def get_user(self, id: str) -> Optional[User]:
+        return self.try_query_and_map_single(
+            "SELECT * FROM users WHERE id = ?",
+            lambda row: User(**row),
+            [id]
+        )
+    
+    def add_user(self, id: str, email: str, access_level: AccessLevel):
         with self.transaction():
             try:
-                auth_session = self.query_and_map_single(
-                    "SELECT * FROM auth_sessions WHERE access_token = ?",
-                    lambda row: AuthSession(**row),
-                    None,
-                    [access_token]
+                self.query(
+                    "INSERT INTO users (id, email, access_level) VALUES (?, ?, ?)",
+                    [id, email, access_level]
                 )
-
-                if auth_session.email is not None:
-                    return self.query_and_map_single(
-                        "SELECT * FROM users WHERE email = ?",
-                        lambda row: User(**row),
-                        None,
-                        [auth_session.email]
-                    )
-            except IndexError:
-                pass
-
-            return None
+                # update any existing visitor sessions for this user
+                self.query(
+                    "UPDATE auth_sessions SET user_id = ? WHERE google_sub = ? AND user_id IS NULL",
+                    [id, id]  # google_sub == user id (both are the sub)
+                )
+                return User(id=id, email=email, access_level=access_level)
+            except sqlite3.IntegrityError:
+                raise UserAlreadyExistsError(id)
 
 def connect(locally: bool) -> Database:
     if locally:
         return LocalDatabase()
     return RemoteDatabase()
+
+class RemoteQueryError(Exception):
+    def __init__(self, data: Any):
+        super().__init__(f"D1 query failed: {data.get('errors')}")
 
 class RemoteDatabase(Database):
     def __init__(self):
@@ -455,7 +549,7 @@ class RemoteDatabase(Database):
         data = response.json()
 
         if not data.get("success"):
-            raise Exception(f"D1 query failed: {data.get('errors')}")
+            raise RemoteQueryError(data)
 
         results = data.get("result", [])
         if not results:

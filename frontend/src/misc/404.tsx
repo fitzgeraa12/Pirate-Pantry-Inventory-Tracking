@@ -1,13 +1,11 @@
 import Titled from "./Titled";
 
-function Unauthorized() {
+export default function _404_(): React.ReactNode {
     return (
-        <Titled title="Unauthorized">
+        <Titled title="Pirate Pantry - 404">
             <div style={{ color: "white", fontWeight: "bold", justifySelf: "center" }}>
-                UNAUTHORIZED
+                404 - NOT FOUND
             </div>
         </Titled>
     );
 }
-
-export default Unauthorized;

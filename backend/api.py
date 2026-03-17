@@ -1,112 +1,244 @@
 from functools import wraps
+import os
 import re
+import secrets
 from typing import Any, Callable, Optional, cast
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, redirect, request, g, session as flask_session
 from flask_cors import CORS
 from pydantic import BaseModel, ValidationError, field_validator
+from backend.common import UNSET
 from misc import env_get
-from database import AccessLevel, Database, Product, ProductNotFoundError
+from database import AccessLevel, Database, Product, ProductNotFoundError, User, UserAlreadyExistsError
+from google_auth_oauthlib.flow import Flow # pyright: ignore[reportMissingTypeStubs]
+import jwt
+import requests
+
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+ALLOWED_ORIGINS = ['https://piratepantry.com', 'https://www.piratepantry.com', 'https://dev.piratepantry.com']
 
 def create_app(db: Database, is_local: bool) -> Flask:
     app = Flask(__name__)
-    if not is_local:
-        CORS(app, origins=['https://piratepantry.com', 'https://www.piratepantry.com', 'https://dev.piratepantry.com', 'http://localhost:5173'], supports_credentials=True)
     
+    origins = ['https://piratepantry.com', 'https://www.piratepantry.com', 'https://dev.piratepantry.com']
+    if is_local:
+        origins.append('http://localhost:5173')
+    
+    CORS(app, origins=origins, supports_credentials=True)
+    app.secret_key = env_get("FLASK_SECRET_KEY")
     define_routes(app, db)
     return app
 
 def host(db: Database, is_local: bool):
-    port = int(env_get("LOCAL_API_PORT"))
+    port = int(env_get("VITE_API_PORT")) if is_local else None
     app = create_app(db, is_local)
-    app.run(debug=is_local, port=port)
+    app.run(debug=is_local, port=port, host='0.0.0.0')
+
+def log(data: Any):
+    print(data)
+    pass # TODO: actual logging system
 
 def define_routes(app: Flask, db: Database):
     dev_token = env_get("DEV_TOKEN")
+    frontend_port = os.environ.get("WEBSITE_PORT")
+    frontend_url = f"{env_get('WEBSITE_URL')}:{frontend_port}" if frontend_port else env_get('WEBSITE_URL')
+    backend_port = os.environ.get("VITE_API_PORT")
+    backend_url = f"{env_get('VITE_API_URL')}:{backend_port}" if backend_port else env_get('VITE_API_URL')
+    google_redirect_uri = f"{backend_url}/auth/google/callback"
+    google_client_id = env_get("VITE_GOOGLE_CLIENT_ID")
+    google_client_secret = env_get("GOOGLE_CLIENT_SECRET")
+    flow_config: dict[str, dict[str, Any]] = {
+        "web": {
+            "client_id": google_client_id,
+            "client_secret": google_client_secret,
+            "redirect_uris": [google_redirect_uri],
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token"
+        }
+    }
 
-    def requires_roles(*roles: AccessLevel):
+    def requires_at_least(required_access_level: Optional[AccessLevel]):
         def decorator(fn: Callable[..., Any]):
             @wraps(fn)
             def wrapper(*args: Any, **kwargs: Any):
-                access_token = request.headers.get("Authorization")
-                if not access_token:
+                token = request.headers.get("Authorization")
+                if not token:
                     return jsonify({'error': 'No token found.'}), 401
 
-                if access_token != dev_token:
-                    user = db.get_user(access_token)
-                    access_level = user.access_level if user else AccessLevel.VISITOR
-                    if access_level not in roles:
-                        return jsonify({"error": "Unauthorized"}), 403
-                
+                if token == dev_token:
+                    g.session = None
+                    g.user = User.DEV
+                    return fn(*args, **kwargs)
+
+                session = db.get_auth_session(token)
+                if not session:
+                    return jsonify({'error': 'Invalid session'}), 401
+
+                user = db.get_user(session.user_id) if session.user_id else None
+                access_level = user.access_level if user else None
+
+                if required_access_level and (not access_level or not access_level.at_least(required_access_level)):
+                    return jsonify({'error': 'Unauthorized'}), 403
+
+                g.session = session
+                g.user = user
                 return fn(*args, **kwargs)
             return wrapper
         return decorator
     
     @app.route('/products/all', methods=['GET'])
-    @requires_roles(AccessLevel.TRUSTED, AccessLevel.ADMIN)
+    @requires_at_least(AccessLevel.TRUSTED)
     def get_all_products(): # pyright: ignore[reportUnusedFunction]
         return jsonify(db.all_products())
 
 
     @app.route('/products/all/names', methods=['GET'])
-    @requires_roles(AccessLevel.TRUSTED, AccessLevel.ADMIN)
+    @requires_at_least(AccessLevel.TRUSTED)
     def get_all_product_names(): # pyright: ignore[reportUnusedFunction]
         return jsonify(db.all_product_names())
 
 
     @app.route('/products/all/brands', methods=['GET'])
-    @requires_roles(AccessLevel.TRUSTED, AccessLevel.ADMIN)
+    @requires_at_least(AccessLevel.TRUSTED)
     def get_all_product_brands(): # pyright: ignore[reportUnusedFunction]
         return jsonify(db.all_product_brands())
 
 
     @app.route('/products/all/tags', methods=['GET'])
-    @requires_roles(AccessLevel.TRUSTED, AccessLevel.ADMIN)
+    @requires_at_least(AccessLevel.TRUSTED)
     def get_all_product_tags(): # pyright: ignore[reportUnusedFunction]
         return jsonify(db.all_product_tags())
 
 
     @app.route('/products/available', methods=['GET'])
-    @requires_roles(AccessLevel.VISITOR, AccessLevel.TRUSTED, AccessLevel.ADMIN)
+    @requires_at_least(AccessLevel.TRUSTED)
     def get_pantry_inventory(): # pyright: ignore[reportUnusedFunction]
         return jsonify(db.available_products())
 
 
     @app.route('/products/available/names', methods=['GET'])
-    @requires_roles(AccessLevel.VISITOR, AccessLevel.TRUSTED, AccessLevel.ADMIN)
+    @requires_at_least(AccessLevel.TRUSTED)
     def get_pantry_names(): # pyright: ignore[reportUnusedFunction]
         return jsonify(db.available_product_names())
 
 
     @app.route('/products/available/brands', methods=['GET'])
-    @requires_roles(AccessLevel.VISITOR, AccessLevel.TRUSTED, AccessLevel.ADMIN)
+    @requires_at_least(AccessLevel.TRUSTED)
     def get_pantry_brands(): # pyright: ignore[reportUnusedFunction]
         return jsonify(db.available_product_brands())
 
-
     @app.route('/products/available/tags', methods=['GET'])
-    @requires_roles(AccessLevel.VISITOR, AccessLevel.TRUSTED, AccessLevel.ADMIN)
+    @requires_at_least(AccessLevel.TRUSTED)
     def get_pantry_tags(): # pyright: ignore[reportUnusedFunction]
         return jsonify(db.available_product_tags())
+    
+    @app.route('/auth/google')
+    def google_auth(): # pyright: ignore[reportUnusedFunction]
+        flow = Flow.from_client_config( # pyright: ignore[reportUnknownMemberType]
+            flow_config,
+            scopes=['openid', 'email', 'profile'],
+            redirect_uri=google_redirect_uri
+        )
+        
+        auth_url, _ = cast(tuple[str, str], flow.authorization_url( # pyright: ignore[reportUnknownMemberType]
+            access_type='offline',
+            prompt='consent',
+        ))
+
+        flask_session['code_verifier'] = flow.code_verifier # pyright: ignore[reportUnknownMemberType]
+
+        return redirect(auth_url)
+
+    @app.route('/auth/google/callback')
+    def google_auth_callback(): # pyright: ignore[reportUnusedFunction]
+        token_response = requests.post('https://oauth2.googleapis.com/token', data={
+            'code': request.args.get('code'),
+            'client_id': google_client_id,
+            'client_secret': google_client_secret,
+            'redirect_uri': google_redirect_uri,
+            'grant_type': 'authorization_code',
+            'code_verifier': flask_session.get('code_verifier'),
+        })
+        token_data = token_response.json()
+
+        raw_id_token: str = str(token_data.get('id_token'))
+        id_info = jwt.decode(raw_id_token, options={"verify_signature": False})
+
+        email = str(id_info['email'])
+        if not email.endswith('@southwestern.edu'):
+            return jsonify({'error': 'Unauthorized email domain'}), 403
+        
+        google_sub = str(id_info['sub'])
+        user = db.get_user(google_sub)
+
+        if not user:
+            local, domain = email.split('@')
+            redacted_email = f'{local[:2]}***@{domain}'
+            log(f'Visitor logged in: sub={google_sub} email={redacted_email}')
+        else:
+            log(f'User logged in: sub={google_sub} email={email} access_level={user.access_level}')
+
+        refresh_token = token_data.get('refresh_token')
+        if not refresh_token:
+            return jsonify({'error': 'Google did not provide the expected refresh token'}), 500
+
+        session = db.create_auth_session(
+            user_id=user.id if user else None,
+            google_sub=google_sub,
+            refresh_token=str(refresh_token)
+        )
+
+        auth_code = secrets.token_urlsafe(64)
+        db.store_auth_code(auth_code, session.id)
+
+        return redirect(f'{frontend_url}/auth/callback?code={auth_code}')
+
+    @app.route('/auth/exchange', methods=['POST'])
+    def auth_exchange(): # pyright: ignore[reportUnusedFunction]
+        code = request.json.get('code') # pyright: ignore[reportOptionalMemberAccess]
+        session_id = db.consume_auth_code(code)
+
+        if not session_id:
+            return jsonify({'error': 'Invalid or expired code'}), 401
+        
+        return jsonify({'session': session_id})
+
+    @app.route('/user', methods=['GET'])
+    @requires_at_least(None)
+    def get_user(): # pyright: ignore[reportUnusedFunction]
+        return jsonify(g.user.model_dump() if g.user else None)
+    
+    @app.route('/user', methods=['POST'])
+    @requires_at_least(AccessLevel.ADMIN)
+    def add_user(): # pyright: ignore[reportUnusedFunction]
+        try:
+            user = User.model_validate(request.args.to_dict())
+        except ValidationError as e:
+            return jsonify({'error': e.errors()}), 400
+        
+        try:
+            new_user = db.add_user(user.id, user.email, user.access_level)
+            return jsonify(new_user.model_dump()), 201
+        except UserAlreadyExistsError as e:
+            return jsonify({'error': str(e)}), 409
+
+    
+    @app.route('/auth/whoami', methods=['GET'])
+    @requires_at_least(None)
+    def whoami(): # pyright: ignore[reportUnusedFunction]
+        result = {'id': g.session.google_sub if g.session else None}
+        return jsonify(result)
 
     # FIXME: remove custom wildcard behavior in name and brand
     @app.route('/products', methods=['GET'])
-    @requires_roles(AccessLevel.TRUSTED, AccessLevel.ADMIN)
+    @requires_at_least(AccessLevel.TRUSTED)
     def query_products(): # pyright: ignore[reportUnusedFunction]
         ''' GET method to retrieve products, optionally filtered by query parameters.
             All filters are combined with AND logic.
 
             Query parameters (all optional):
                 - id (int): Exact product ID
-                - name (str): With wildcard support:
-                    name=Cheerios   -> exact match
-                    name=*Cheerios* -> contains
-                    name=Cheerios*  -> starts with
-                    name=*Cheerios  -> ends with
-                - brand (str): With wildcard support:
-                    brand=General Mills   -> exact match
-                    brand=*General Mills* -> contains
-                    brand=General Mills*  -> starts with
-                    brand=*General Mills  -> ends with
+                - name (str): Support for `%` (wildcard) and `_` (single-char wildcard)
+                - brand (str): Support for `%` (wildcard) and `_` (single-char wildcard)
                 - quantity (str): With range support:
                     quantity=7      -> exactly 7
                     quantity=5:10   -> between 5 and 10 inclusive
@@ -127,37 +259,35 @@ def define_routes(app: Flask, db: Database):
             tags: Optional[str] = None
 
         try:
-            query = GetProductsSchema.model_validate(request.args.to_dict())
+            products_query = GetProductsSchema.model_validate(request.args.to_dict())
         except ValidationError as e:
             return jsonify({'error': e.errors()}), 400
 
-        tag_list = [t.strip() for t in query.tags.split(',') if t.strip()] if query.tags else []
+        tag_list = [t.strip() for t in products_query.tags.split(',') if t.strip()] if products_query.tags else []
 
         conditions: list[str] = []
         params: list[Any] = []
 
         try:
-            if query.quantity:
-                q_conditions, q_params = parse_quantity_expr(query.quantity)
+            if products_query.quantity:
+                q_conditions, q_params = parse_quantity_expr(products_query.quantity)
                 conditions.extend(q_conditions)
                 params.extend(q_params)
-            if query.name:
-                condition, param = parse_symbol_expr(query.name, 'name', 'p')
-                conditions.append(condition)
-                params.append(param)
-            if query.brand:
-                condition, param = parse_symbol_expr(query.brand, 'brand', 'p')
-                conditions.append(condition)
-                params.append(param)
         except ValueError as e:
             return jsonify({'error': str(e)}), 400
 
-        if query.id:
+        if products_query.name:
+            conditions.append('p.name LIKE ?')
+            params.append(products_query.name)
+        if products_query.brand:
+            conditions.append('p.brand LIKE ?')
+            params.append(products_query.brand)
+        if products_query.id:
             conditions.append('p.id = ?')
-            params.append(query.id)
-        if query.image_link:
+            params.append(products_query.id)
+        if products_query.image_link:
             conditions.append('p.image_link = ?')
-            params.append(query.image_link)
+            params.append(products_query.image_link)
 
         where = ('WHERE ' + ' AND '.join(conditions)) if len(conditions) > 0 else ''
 
@@ -177,15 +307,15 @@ def define_routes(app: Flask, db: Database):
         return jsonify([p.model_dump() for p in products])
 
     @app.route('/products', methods=['POST'])
-    @requires_roles(AccessLevel.TRUSTED, AccessLevel.ADMIN)
-    def post_products(): # pyright: ignore[reportUnusedFunction]
+    @requires_at_least(AccessLevel.TRUSTED)
+    def post_products():  # pyright: ignore[reportUnusedFunction]
         class PostProductSchema(BaseModel):
             id: Optional[int] = None
             name: Optional[str] = None
-            brand: Optional[str] = None
+            brand: Optional[str] = None  # "" = set NULL
             quantity: Optional[int] = None
-            image_link: Optional[str] = None
-            tags: Optional[list[str]] = None
+            image_link: Optional[str] = None  # "" = set NULL
+            tags: Optional[list[str]] = None  # [] = Remove all tags
 
             @field_validator('name')
             @classmethod
@@ -218,80 +348,83 @@ def define_routes(app: Flask, db: Database):
         results: list[Any] = []
         errors: list[Any] = []
 
-        for raw_p in cast(list[Any], data):
+        for raw_products_query in cast(list[Any], data):
             try:
-                p = PostProductSchema.model_validate(raw_p)
+                products_query = PostProductSchema.model_validate(raw_products_query)
             except ValidationError as e:
-                errors.append({'error': e.errors(), 'item': raw_p})
+                errors.append({'error': e.errors(), 'item': raw_products_query})
                 continue
 
             try:
                 with db.transaction():
+                    fields_set = products_query.model_fields_set
+
                     existing: Optional[Product] = None
-                    if p.id:
+                    if products_query.id:
                         try:
-                            existing = db.product_from_id(p.id)
+                            existing = db.product_from_id(products_query.id)
                         except ProductNotFoundError:
                             existing = None
 
-                    if existing is None and not p.name:
-                        errors.append({'error': 'Name is required for new products', 'item': raw_p})
+                    if existing is None and not products_query.name:
+                        errors.append({'error': 'Name is required for new products', 'item': raw_products_query})
                         continue
 
-                    product = db.add_product(
-                        id=p.id,
-                        name=p.name if p.name is not None else (existing.name if existing else ""),
-                        brand=p.brand,
-                        quantity=p.quantity,
-                        image_link=p.image_link,
-                        tags=p.tags
-                    ) if existing is None else db.update_product(
-                        id=cast(int, p.id),
-                        name=p.name,
-                        brand=p.brand,
-                        quantity=p.quantity,
-                        image_link=p.image_link,
-                        tags=p.tags
+                    # --- normalize with "only if provided" semantics ---
+
+                    name = (
+                        products_query.name
+                        if 'name' in fields_set
+                        else UNSET
                     )
+
+                    brand = (
+                        None if products_query.brand == ""
+                        else products_query.brand
+                    ) if 'brand' in fields_set else UNSET
+
+                    quantity = (
+                        products_query.quantity
+                        if ('quantity' in fields_set and products_query.quantity is not None)
+                        else UNSET
+                    )
+
+                    image_link = (
+                        None if products_query.image_link == ""
+                        else products_query.image_link
+                    ) if 'image_link' in fields_set else UNSET
+
+                    tags = (
+                        products_query.tags  # [] = clear, list = replace
+                        if 'tags' in fields_set
+                        else UNSET
+                    )
+
+                    if existing is None:
+                        product = db.add_product(
+                            id=products_query.id,
+                            name=products_query.name if products_query.name is not None else "",
+                            brand=None if products_query.brand == "" else products_query.brand,
+                            quantity=products_query.quantity,
+                            image_link=None if products_query.image_link == "" else products_query.image_link,
+                            tags=products_query.tags
+                        )
+                    else:
+                        product = db.update_product(
+                            id=cast(int, products_query.id),
+                            name=name,
+                            brand=brand,
+                            quantity=quantity,
+                            image_link=image_link,
+                            tags=tags
+                        )
 
                     results.append(product.model_dump())
 
             except Exception as e:
-                errors.append({'error': str(e), 'item': raw_p})
+                errors.append({'error': str(e), 'item': raw_products_query})
 
         return jsonify({'added': results, 'errors': errors}), 201 if not errors else 207
-
-def parse_symbol_expr(raw: str, member_name: str, alias: Optional[str]) -> tuple[str, str]:
-    ''' Parse symbol expression string into SQL condition and param.
-        Uses table alias if provided (e.g. 'p' for 'p.name'), or no alias if None.
-
-        Supported syntax:
-            Cheerios   -> exact match
-            *Cheerios* -> contains
-            Cheerios*  -> starts with
-            *Cheerios  -> ends with
-
-        Returns:
-            tuple[str, str]: (SQL condition, param value)
-    '''
-    starts_wild = raw.startswith('*')
-    ends_wild = raw.endswith('*')
-    stripped = raw.strip('*')
-
-    if not stripped:
-        raise ValueError(f'Invalid symbol expression for {member_name}: must contain at least one valid character (not *)')
-
-    col = f'{alias}.{member_name}' if alias else member_name
-
-    if starts_wild and ends_wild:
-        return f'{col} LIKE ?', f'%{stripped}%'
-    elif ends_wild:
-        return f'{col} LIKE ?', f'{stripped}%'
-    elif starts_wild:
-        return f'{col} LIKE ?', f'%{stripped}'
-    else:
-        return f'{col} = ?', raw
-
 
 def parse_quantity_expr(raw: str) -> tuple[list[str], list[Any]]:
     ''' Parse quantity range string into SQL conditions and params.
@@ -336,8 +469,10 @@ def parse_quantity_expr(raw: str) -> tuple[list[str], list[Any]]:
 
 def validate_symbol(name: str, symbol_name: str) -> Optional[str]:
     ''' Validate a symbol. Returns an error string if invalid, None if valid. '''
-    if '*' in name:
-        return f'\'{symbol_name}\' cannot contain *'
+    if '%' in name:
+        return f'\'{symbol_name}\' cannot contain %'
+    if '_' in name:
+        return f'\'{symbol_name}\' cannot contain _'
     if not name.strip():
         return f'\'{symbol_name}\' cannot be whitespace'
     if '  ' in name:

@@ -1,13 +1,17 @@
-import { useEffect, type PropsWithChildren } from "react";
+import React from "react";
 
-function Titled({ title, children }: PropsWithChildren<{ title: string }>) {
-    useEffect(() => {
-        document.title = `Pirate Pantry - ${title}`;
+interface TitledProps {
+    title: string,
+}
+
+export default function Titled({ title, children }: React.PropsWithChildren<TitledProps>): React.ReactNode {
+    React.useEffect(() => {
+        document.title = title;
     }, [])
     
     return (
-        <>{children}</>
+        <>
+            {children}
+        </>
     );
 }
-
-export default Titled;

@@ -14,7 +14,7 @@ def main():
 
     is_local = "--local" in sys.argv
     if is_local:
-        env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "local.env")
+        env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env.local")
         dotenv.load_dotenv(env_path)
 
     db = database.connect(is_local)
