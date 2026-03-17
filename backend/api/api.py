@@ -10,8 +10,8 @@ import os
 import re
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from database import db as database
-
+import database.db as database
+from database.db import query 
 # Initialize Flask app
 app = Flask(__name__)
 CORS(app, origins=['https://piratepantry.com', 'https://www.piratepantry.com', 'https://dev.piratepantry.com', 'http://localhost:5173'], supports_credentials=True)
@@ -251,8 +251,7 @@ def post_products():
             continue
 
         try:
-            existing = database.query('SELECT * FROM products WHERE id = ?', [p.id]) if p.id else []
-
+            existing = database.in_table(p.id)
             if not existing and not p.name:
                 errors.append({'error': 'Name is required for new products', 'item': raw_p})
                 continue
@@ -273,29 +272,22 @@ def post_products():
                         image_link = excluded.image_link
                 ''', [p.id, new_name, new_brand, new_quantity, new_image_link])
 
-                result = database.query('SELECT * FROM products WHERE id = ?', [p.id])
+                result = database.get_all_info(p.id)
 
             else:
                 new_quantity = p.quantity if p.quantity is not None else 0
 
                 if p.id:
-                    database.query('''
-                        INSERT INTO products (id, name, brand, quantity, image_link)
-                        VALUES (?, ?, ?, ?, ?)
-                    ''', [p.id, p.name, p.brand, new_quantity, p.image_link])
-                    result = database.query('SELECT * FROM products WHERE id = ?', [p.id])
-                else:
-                    database.query('''
-                        INSERT INTO products (name, brand, quantity, image_link)
-                        VALUES (?, ?, ?, ?)
-                    ''', [p.name, p.brand, new_quantity, p.image_link])
+                    database.add_item(id=p.id, name=p.name, brand=p.brand, quantity=new_quantity, image_link=p.image_link)
+                    result = database.get_all_info(p.id)
+                    database.add_item(name=p.name, brand=p.brand, quantity=new_quantity, image_link=p.image_link)
                     result = database.query('SELECT * FROM products WHERE id = last_insert_rowid()')
 
             if p.tags is not None:
                 result_id = result[0]['id'] if result else p.id
                 database.query('DELETE FROM product_tags WHERE product_id = ?', [result_id])
                 for tag in p.tags:
-                    database.query('INSERT INTO tags (label) VALUES (?) ON CONFLICT (label) DO NOTHING', [tag])
+                    database.add_tags_to_table(tag)
                     database.query('INSERT INTO product_tags (product_id, tag_label) VALUES (?, ?)', [result_id, tag])
 
             if result:
@@ -341,8 +333,7 @@ def delete_products():
 
     for id in body.ids:
         try:
-            database.query('DELETE FROM product_tags WHERE product_id = ?', [id])
-            database.query('DELETE FROM products WHERE id = ?', [id])
+            database.delete_item(id)
             results.append(id)
         except Exception as e:
             errors.append({'error': str(e), 'id': id})
@@ -356,7 +347,6 @@ def delete_products():
 
 class GetTagsQuery(BaseModel):
     label: Optional[str] = None
-
 
 @app.route('/tags', methods=['GET'])
 @requires_roles('user', 'trusted', 'admin')
@@ -438,7 +428,7 @@ def post_tags():
 
     for label in body.labels:
         try:
-            database.query('INSERT INTO tags (label) VALUES (?) ON CONFLICT (label) DO NOTHING', [label])
+            database.add_tags_to_table(label)
             results.append(label)
         except Exception as e:
             errors.append({'error': str(e), 'label': label})
@@ -479,8 +469,7 @@ def delete_tags():
 
     for label in body.labels:
         try:
-            database.query('DELETE FROM product_tags WHERE tag_label = ?', [label])
-            database.query('DELETE FROM tags WHERE label = ?', [label])
+            database.delete_tag(label)
             results.append(label)
         except Exception as e:
             errors.append({'error': str(e), 'label': label})
