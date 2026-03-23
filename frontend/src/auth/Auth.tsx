@@ -5,30 +5,29 @@ import { AuthContext } from './AuthContext';
 import { Cookies } from 'typescript-cookie';
 import Login from './Login';
 import { APIContext } from '../api/APIContext';
+import { Option } from '../misc/misc';
 
 const SU_DOMAIN = "southwestern.edu"
 
 // https://www.npmjs.com/package/typescript-cookie
 // https://stackoverflow.com/questions/62426269/double-double-questionmarks-in-typescript
 // https://www.spguides.com/typescript-compare-strings/
-function Auth({ children }: PropsWithChildren) {
+function AuthProvider({ children }: PropsWithChildren) {
     const api = useContext(APIContext);
     useEffect(() => {
-        if (!api) return;
+        if (api.is_none()) return;
 
-        api!.cache_auth().then((cache_res) => {
+        api.unwrap().cache_auth().then((cache_res) => {
             if (!cache_res) console.error("Failed to cache auth token");
         }).catch(console.error);
     }, [api])
 
-    const [auth, set_auth] = useState<string | null>(() => {
+    const [auth, set_auth] = useState<Option<string>>(() => {
         const cookie = Cookies.get("auth");
         if (typeof cookie !== "string") {
-            console.error("Invalid auth cookie");
-            return null;
+            return Option.none();
         }
-
-        return cookie;
+        return Option.some(cookie);
     });
 
     const on_success = (res: CredentialResponse) => {
@@ -42,7 +41,7 @@ function Auth({ children }: PropsWithChildren) {
             }
 
             Cookies.set("auth", creds_encoded, { expires: 1 });
-            set_auth(creds_encoded);
+            set_auth(Option.some(creds_encoded));
         } catch (_) {
             console.error("Failed to parse credentials response");
         }
@@ -55,16 +54,16 @@ function Auth({ children }: PropsWithChildren) {
     const logout = () => {
         googleLogout();
         Cookies.remove("auth");
-        set_auth(null);
+        set_auth(Option.none());
     };
 
-    return !auth ? (
+    return auth.into_inner() ? (
         <Login on_success={on_success} on_error={on_error}/>
     ) : (
-        <AuthContext value={{token: auth, logout}}>
+        <AuthContext value={Option.some({token: auth, logout})}>
             {children}
         </AuthContext>
     );
 }
 
-export default Auth;
+export default AuthProvider;

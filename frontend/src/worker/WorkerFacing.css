@@ -78,6 +78,11 @@
     flex-direction: column;
 }
 
+.table-container{
+    max-height: 500px;
+    overflow-y: auto;
+}
+
 .body-header-button {
     height: 100%;
     color: var(--su-yellow);

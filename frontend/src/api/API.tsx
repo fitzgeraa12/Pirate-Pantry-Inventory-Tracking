@@ -3,31 +3,30 @@ import { APIContext } from './APIContext';
 import { AuthContext } from '../auth/AuthContext';
 import axios, { type AxiosResponse } from 'axios';
 import z from 'zod';
-import { unreachable } from '../misc/misc';
-import type { Perms } from '../auth/perms/Perms';
+import { Option } from '../misc/misc';
+// import { unreachable } from '../misc/misc';
 
-// Cache auth
-// https://zod.dev/basics
-const CacheAuthResponse = z.object({
-  success: z.boolean(),
-});
+// // Cache auth
+// // https://zod.dev/basics
+// const CacheAuthResponse = z.object({
+//   success: z.boolean(),
+// });
 
 // Perms
 // https://zod.dev/basics?id=inferring-types
-export const PermsSchema = z.enum(["User", "Trusted", "Admin"]);
-export const GetPermsResponse = z.object({
-    perms: PermsSchema,
-});
+export const PermsSchema = z.enum(["user", "trusted", "admin"]);
+export type Perms = z.infer<typeof PermsSchema>;
 
 // Product
 export const ProductSchema = z.object({
-    name: z.string(),
     id: z.number(),
-    brand: z.optional(z.string()),
-    tags: z.array(z.string()),
+    name: z.string(),
+    brand: z.string(),
     quantity: z.number(),
-    image_link: z.optional(z.string()),
+    image_link: z.nullable(z.string()),
+    tags: z.array(z.string()).default([]),
 });
+
 export type Product = z.infer<typeof ProductSchema>;
 export const ProductResponse = z.object({
     product: z.optional(ProductSchema),
@@ -66,205 +65,231 @@ export const AllTagsResponse = z.object({
 });
 
 export interface APIInterface {
+    inventory: () => Promise<Array<Product>>,
     cache_auth: () => Promise<boolean>,
     perms: () => Promise<Perms>,
-    product: (id: number) => Promise<Product | undefined>,
-    query_products: (name?: string, brand?: string, tags?: Array<string>) => Promise<Array<Product>>,
-    all_products: () => Promise<Array<Product>>,
-    brand: (id: number) => Promise<Brand | undefined>,
-    all_brands: () => Promise<Array<Brand>>,
-    tag: (id: number) => Promise<Tag | undefined>,
-    all_tags: () => Promise<Array<Tag>>,
 }
 
 class NoAuthError extends Error {
   constructor() {
     super("No authentication");
     this.name = "NoAuthError";
-}
+  }
 }
 
-const API_URL = "https://api.piratepantry.com";
-type HttpMethod = "GET" | "POST";
+const API_URL = "https://fitzgeraa12.pythonanywhere.com";
+// type HttpMethod = "GET" | "POST";
 
-function API({ children }: PropsWithChildren) {
+function APIProvider({ children }: PropsWithChildren) {
     const auth = useContext(AuthContext);
 
     /**
      * @throws NoAuthError
      */
     const get_auth = useCallback((): string => {
-        if (!auth) throw new NoAuthError();
+        if (auth.is_none()) throw new NoAuthError();
 
-        return auth;
+        return auth.expect("Failed to get auth token in 'API'").token.expect("Auth token is None in 'API'");
     }, [auth]);
 
     const api = useMemo<APIInterface>(() => {
-        /**
-         * @returns string
-         */
-        const prepend_api_url = (partial_endpoint: string, params: URLSearchParams): string => {
-            return `${API_URL}/${partial_endpoint}?${params.toString()}`;
-        };
+        // /**
+        //  * @returns string
+        //  */
+        // const prepend_api_url = (partial_endpoint: string, params: URLSearchParams): string => {
+        //     return `${API_URL}/${partial_endpoint}?${params.toString()}`;
+        // };
 
-        /**
-         * @returns URLSearchParams
-         */
-        const auth_url_search_params = (): URLSearchParams => {
-            return new URLSearchParams({ auth: get_auth() });
-        };
+        // /**
+        //  * @returns URLSearchParams
+        //  */
+        // const auth_url_search_params = (): URLSearchParams => {
+        //     return new URLSearchParams({ auth: get_auth() });
+        // };
 
-        /**
-         * https://www.npmjs.com/package/axios
-         * 
-         * @returns boolean
-         */
-        const api_call = async (method: HttpMethod, partial_endpoint: string, params: URLSearchParams): Promise<AxiosResponse> => {
-            const endpoint = prepend_api_url(partial_endpoint, params);
+        // /**
+        //  * https://www.npmjs.com/package/axios
+        //  */
+        // const api_call = async (method: HttpMethod, partial_endpoint: string, params: URLSearchParams): Promise<AxiosResponse> => {
+        //     const endpoint = prepend_api_url(partial_endpoint, params);
             
-            switch (method) {
-                case "GET":
-                    return axios.get(endpoint);
-                case "POST":
-                    return axios.post(endpoint);
-                default:
-                    unreachable("Unrecognized HTTP method");
-            }
+        //     switch (method) {
+        //         case "GET":
+        //             return axios.get(endpoint);
+        //         case "POST":
+        //             return axios.post(endpoint);
+        //         default:
+        //             unreachable("Unrecognized HTTP method");
+        //     }
+        // };
+
+        /**
+         * Makes an authenticated GET request to the Flask API
+         * 
+         * @throws NoAuthError, AxiosError
+         * @returns AxiosResponse
+         */
+        const authenticated_get = async (endpoint: string): Promise<AxiosResponse> => {
+            const token = get_auth();
+            return axios.get(`${API_URL}${endpoint}`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
         };
 
         return {
             /**
              * @throws NoAuthError, AxiosError, ZodError
-             * @returns boolean
+             * @returns Array<Product>
              */
+            inventory: async (): Promise<Array<Product>> => {
+                const response = await authenticated_get('/inventory');
+                return z.array(ProductSchema).parseAsync(response.data);
+            },
+
             cache_auth: async (): Promise<boolean> => {
-                const params = auth_url_search_params();
-
-                const response = await api_call("GET", "cache_auth", params);
-                const parsed = await CacheAuthResponse.parseAsync(response.data);
-                
-                return parsed.success;
+                const response = await authenticated_get('/cache_auth');
+                return response.data.success;
             },
 
-            /**
-             * @throws NoAuthError, AxiosError, ZodError
-             * @returns Perms
-             */
             perms: async (): Promise<Perms> => {
-                return "Admin";
-
-                const params = auth_url_search_params();
-
-                const response = await api_call("GET", "perms", params);
-                const parsed = await GetPermsResponse.parseAsync(response.data);
-                
-                return parsed.perms;
+                const response = await authenticated_get('/perms');
+                return PermsSchema.parseAsync(response.data.perms);
             },
 
-            /**
-             * @throws NoAuthError, AxiosError, ZodError
-             * @returns Product | undefined
-             */
-            product: async (id: number): Promise<Product | undefined> => {
-                const params = auth_url_search_params();
-                params.append("id", id.toString());
+        //     /**
+        //      * @throws NoAuthError, AxiosError, ZodError
+        //      * @returns boolean
+        //      */
+        //     cache_auth: async (): Promise<boolean> => {
+        //         const params = auth_url_search_params();
 
-                const response = await api_call("GET", "product", params);
-                const parsed = await ProductResponse.parseAsync(response.data);
+        //         const response = await api_call("GET", "cache_auth", params);
+        //         const parsed = await CacheAuthResponse.parseAsync(response.data);
                 
-                return parsed.product;
-            },
+        //         return parsed.success;
+        //     },
 
-            /**
-             * @throws NoAuthError, AxiosError, ZodError
-             * @returns Array<Product>
-             */
-            query_products: async (name?: string, brand?: string, tags?: Array<string>): Promise<Array<Product>> => {
-                const params = auth_url_search_params();
-                if (name) params.append("name", name);
-                if (brand) params.append("brand", brand);
-                if (tags) params.append("tags", tags.join(","));
+        //     /**
+        //      * @throws NoAuthError, AxiosError, ZodError
+        //      * @returns Perms
+        //      */
+        //     perms: async (): Promise<Perms> => {
+        //         return "Admin";
 
-                const response = await api_call("GET", "query_products", params);
-                const parsed = await ProductsArrayResponse.parseAsync(response.data);
+        //         const params = auth_url_search_params();
+
+        //         const response = await api_call("GET", "perms", params);
+        //         const parsed = await GetPermsResponse.parseAsync(response.data);
                 
-                return parsed.products;
-            },
+        //         return parsed.perms;
+        //     },
 
-            /**
-             * @throws NoAuthError, AxiosError, ZodError
-             * @returns Array<Product>
-             */
-            all_products: async (): Promise<Array<Product>> => {
-                const params = auth_url_search_params();
+        //     /**
+        //      * @throws NoAuthError, AxiosError, ZodError
+        //      * @returns Product | undefined
+        //      */
+        //     product: async (id: number): Promise<Product | undefined> => {
+        //         const params = auth_url_search_params();
+        //         params.append("id", id.toString());
 
-                const response = await api_call("GET", "all_products", params);
-                const parsed = await ProductsArrayResponse.parseAsync(response.data);
+        //         const response = await api_call("GET", "product", params);
+        //         const parsed = await ProductResponse.parseAsync(response.data);
                 
-                return parsed.products;
-            },
+        //         return parsed.product;
+        //     },
 
-            /**
-             * @throws NoAuthError, AxiosError, ZodError
-             * @returns Brand | undefined
-             */
-            brand: async (id: number): Promise<Brand | undefined> => {
-                const params = auth_url_search_params();
-                params.append("id", id.toString());
+        //     /**
+        //      * @throws NoAuthError, AxiosError, ZodError
+        //      * @returns Array<Product>
+        //      */
+        //     query_products: async (name?: string, brand?: string, tags?: Array<string>): Promise<Array<Product>> => {
+        //         const params = auth_url_search_params();
+        //         if (name) params.append("name", name);
+        //         if (brand) params.append("brand", brand);
+        //         if (tags) params.append("tags", tags.join(","));
 
-                const response = await api_call("GET", "brand", params);
-                const parsed = await BrandResponse.parseAsync(response.data);
+        //         const response = await api_call("GET", "query_products", params);
+        //         const parsed = await ProductsArrayResponse.parseAsync(response.data);
                 
-                return parsed.brand;
-            },
+        //         return parsed.products;
+        //     },
 
-            /**
-             * @throws NoAuthError, AxiosError, ZodError
-             * @returns Array<Brand>
-             */
-            all_brands: async (): Promise<Array<Brand>> => {
-                const params = auth_url_search_params();
+        //     /**
+        //      * @throws NoAuthError, AxiosError, ZodError
+        //      * @returns Array<Product>
+        //      */
+        //     all_products: async (): Promise<Array<Product>> => {
+        //         const params = auth_url_search_params();
 
-                const response = await api_call("GET", "all_brands", params);
-                const parsed = await AllBrandsResponse.parseAsync(response.data);
+        //         const response = await api_call("GET", "all_products", params);
+        //         const parsed = await ProductsArrayResponse.parseAsync(response.data);
                 
-                return parsed.brands;
-            },
+        //         return parsed.products;
+        //     },
 
-            /**
-             * @throws NoAuthError, AxiosError, ZodError
-             * @returns Tag | undefined
-             */
-            tag: async (id: number): Promise<Tag | undefined> => {
-                const params = auth_url_search_params();
-                params.append("id", id.toString());
+        //     /**
+        //      * @throws NoAuthError, AxiosError, ZodError
+        //      * @returns Brand | undefined
+        //      */
+        //     brand: async (id: number): Promise<Brand | undefined> => {
+        //         const params = auth_url_search_params();
+        //         params.append("id", id.toString());
 
-                const response = await api_call("GET", "tag", params);
-                const parsed = await TagResponse.parseAsync(response.data);
+        //         const response = await api_call("GET", "brand", params);
+        //         const parsed = await BrandResponse.parseAsync(response.data);
                 
-                return parsed.tag;
-            },
+        //         return parsed.brand;
+        //     },
 
-            /**
-             * @throws NoAuthError, AxiosError, ZodError
-             * @returns Array<Tag>
-             */
-            all_tags: async (): Promise<Array<Tag>> => {
-                const params = auth_url_search_params();
+        //     /**
+        //      * @throws NoAuthError, AxiosError, ZodError
+        //      * @returns Array<Brand>
+        //      */
+        //     all_brands: async (): Promise<Array<Brand>> => {
+        //         const params = auth_url_search_params();
 
-                const response = await api_call("GET", "all_tags", params);
-                const parsed = await AllTagsResponse.parseAsync(response.data);
+        //         const response = await api_call("GET", "all_brands", params);
+        //         const parsed = await AllBrandsResponse.parseAsync(response.data);
                 
-                return parsed.tags;
-            },
+        //         return parsed.brands;
+        //     },
+
+        //     /**
+        //      * @throws NoAuthError, AxiosError, ZodError
+        //      * @returns Tag | undefined
+        //      */
+        //     tag: async (id: number): Promise<Tag | undefined> => {
+        //         const params = auth_url_search_params();
+        //         params.append("id", id.toString());
+
+        //         const response = await api_call("GET", "tag", params);
+        //         const parsed = await TagResponse.parseAsync(response.data);
+                
+        //         return parsed.tag;
+        //     },
+
+        //     /**
+        //      * @throws NoAuthError, AxiosError, ZodError
+        //      * @returns Array<Tag>
+        //      */
+        //     all_tags: async (): Promise<Array<Tag>> => {
+        //         const params = auth_url_search_params();
+
+        //         const response = await api_call("GET", "all_tags", params);
+        //         const parsed = await AllTagsResponse.parseAsync(response.data);
+                
+        //         return parsed.tags;
+        //     },
         }
     }, [auth]);
 
     return (
-        <APIContext value={api}>
+        <APIContext value={Option.some(api)}>
             {children}
         </APIContext>
     );
 }
 
-export default API;
+export default APIProvider;

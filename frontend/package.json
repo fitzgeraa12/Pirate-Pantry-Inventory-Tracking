@@ -5,14 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
-    "tunnel-deploy-dev": "npm run build && concurrently \"npx serve dist -l 5173\" \"cloudflared tunnel --config tunnel/dev-config.yml run piratepantryapp-dev\"",
-    "tunnel-deploy": "npm run build && concurrently \"npx serve dist -l 5174\" \"cloudflared tunnel --config tunnel/prod-config.yml run piratepantryapp\""
+    "build": "tsc -b && vite build"
   },
   "dependencies": {
     "@react-oauth/google": "^0.13.4",
     "@tanstack/react-table": "^8.21.3",
     "axios": "^1.13.5",
+    "express": "^5.2.1",
     "jwt-decode": "^4.0.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

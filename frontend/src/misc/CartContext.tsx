@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
+import { Option } from '../misc/misc';
 
 interface CartItem{
     id: number;
@@ -12,7 +13,7 @@ interface CartContextType{
     getCartCount: () => number;
 }
 
-const CartContext = createContext<CartContextType | undefined>(undefined);
+const CartContext = createContext<Option<CartContextType>>(Option.none());
 
 export function CartProvider({ children }: { children: ReactNode }){
     const [cart, setCart] = useState<CartItem[]>([]);
@@ -37,7 +38,7 @@ export function CartProvider({ children }: { children: ReactNode }){
     const getCartCount = () =>
         cart.reduce((total,item) => total + item.quantity, 0);
     return(
-        <CartContext.Provider value={{cart, addToCart, removeFromCart, getCartCount}}>
+        <CartContext.Provider value={Option.some({cart, addToCart, removeFromCart, getCartCount})}>
             {children}
         </CartContext.Provider>
     );
