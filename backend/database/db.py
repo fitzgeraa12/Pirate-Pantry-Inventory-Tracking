@@ -138,22 +138,39 @@ def add_item(
             query('INSERT INTO tags (label) VALUES (?) ON CONFLICT (label) DO NOTHING', [tag.title()])
             query('INSERT INTO product_tags VALUES (?, ?)', [id, tag.title()])
 
+#May have to be combined with some method that gets the item's id from it's name or brand
 def update_item(
         name: str = '',
         brand: str ='',
-        id: Optional[int] = None,
+        id: list[int] = None,
         quantity: int = 0,
         tags: Optional[list[str]] = None,
         image_link: str = ''
 ):
     result = query('SELECT quantity FROM products WHERE id = ?', [id])
+    new_query = []
+    conds = []
     if not result:
-        return "Invalid quantity"
+        return "Item not found"
     if quantity >= 0:
-        old_quantity = result[0]['quantity']
-        new_quantity = old_quantity + quantity
-        query('UPDATE products SET name = ?, brand = ?, quantity = ?, image_link = ? WHERE id = ?',
-              [name.title(), brand.title(), new_quantity, image_link, id])
+        if name:
+            new_query.append("name = ?")
+            conds.append(name.title())
+        if brand:
+            new_query.append("brand = ?")
+            conds.append(brand.title())
+        if quantity > 0:
+            new_query.append("quantity = ?")
+            old_quantity = result[0][0]
+            conds.append(quantity + old_quantity)
+        if image_link:
+            new_query.append("image_link = ?")
+            conds.append(image_link)
+        conds.append(id)
+        joined_query = ", ".join(new_query)
+        if joined_query:
+            final = 'Update products SET ' + joined_query + ' WHERE id = ?'
+            query(final, conds)
         if tags:
             for tag in tags:
                 query('INSERT INTO tags (label) VALUES (?) ON CONFLICT (label) DO NOTHING', [tag.title()])
@@ -165,7 +182,7 @@ def checkout_item(id: Optional[int] = None, quantity: int = 0):
     result = query('SELECT quantity FROM products WHERE id = ?', [id])
     if not result:
         return "Invalid quantity"
-    old_quantity = result[0]['quantity']
+    old_quantity = result[0][0]
     new_quantity = old_quantity - quantity
     if new_quantity >= 0:
         query('UPDATE products SET quantity = ? WHERE id = ?', [new_quantity, id])
