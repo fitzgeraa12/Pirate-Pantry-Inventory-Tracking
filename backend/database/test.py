@@ -1,38 +1,58 @@
 import db
+import sqlite3
 import admin
+
 
 #This is where I can test the methods
 def main():
-    print(db.view_table())
-    #print(db.add_item(cursor, 'F', 'W', 234, 100, 'None'))
-    #db.delete_item(cursor, 39393, True)
-    #print(db.view_table(cursor))
-    #print(db.view_pantry_tags(cursor))
-    print(db.update_item('Mystery Soup', 'Campbell\'s', 39393, 5, ['None', 'Beans', 'Bugs', 'Birds', 'Bees'])) 
-    print(db.checkout_item(5555, 10))
-    print(db.view_table())
 
-    #print(db.add_tags(cursor, ('carbs', 'hfdsal', 'contains nuts')))
-    #print(db.view_all_tags())
-    #print(db.get_all_info(39393)) 
-    #print(db.get_tags_for_item(, 39393)) 
-    #print(db.view_pantry_tags())
+    '''
+    #Creates the table
+    connection = sqlite3.connect('/workspaces/Pirate-Pantry-Inventory-Tracking/backend/database/db_test.db')
+    cursor = connection.cursor()
 
-    #print(admin.in_table(cursor2, 'james2@southwestern.edu'))
-    #print(admin.is_admin(cursor2, 'james2@southwestern.edu'))
-    #print(admin.view_admins(cursor2))
-    #print(admin.view_trusted(cursor2))
-    #print(admin.add_user(cursor2, 'trustworthyuser@southwestern.edu', 'admin', 'james2@southwestern.edu'))
-    #print(admin.view_all(cursor2))
-    #print(remove_user(cursor2, 'james2@southwestern.edu'))
-    #print(remove_user(cursor2, 'doehlera@southwestern.edu'))
-    #print(remove_user(cursor2, 'fitzgeraa@southwestern.edu'))
-    #print(remove_user(cursor2, 'trann@southwestern.edu'))
-    #print(remove_user(cursor2, 'fakeemail@hotmail.com'))
+    with open('/workspaces/Pirate-Pantry-Inventory-Tracking/backend/migrations/0001_init_schema.sql', 'r') as f:
+        schema_script = f.read()
+    
+    try:
+        cursor.executescript(schema_script)
+        connection.commit()
+    except sqlite3.Error as e:
+        print("Oh no!")'''
+    
+    #finally:
+    
+    #cursor.execute('SELECT * FROM products')
+    #print(cursor.fetchall())
+    #db.add_item('corn', 'HEB', 3835982, 4, 'None', ['VEGETABLES', 'canned'])
+    #db.add_item('peas', 'green giant', 324, 2, 'None', ['VEGETABLES', 'canned'])
+    #db.add_item('carrots', 'HEB', 9239, 1, 'None', ['VEGETABLES', 'canned'])
+    #db.add_item('olives', 'everyday olives', 345345, 5, 'None', ['VEGETABLES', 'canned'])
+    #db.add_item('tomato paste', 'HEB', 4329, 7, 'None', ['VEGETABLES'])
+    #db.add_item('diced tomatoes', 'HEB', 49104, 6, 'None', ['VEGETABLES'])
+    #db.add_item('roasted tomatoes', 'HEB', 68234, 2, 'None', ['VEGETABLES'])
+    #db.add_item('cheerios', 'gereral mills', 48328, 8, 'None', ['cereal'])
+    #db.add_item('frosted flakes', 'kellogs', 43453, 1, 'None', ['cereal'])
+    #db.add_item('resse\'s puffs', 'general mills', 43824, 3, 'None', ['cereal', 'contains nuts'])
+    #db.add_item('deodorant', 'dove', 3994294, 10, 'None', ['toiletries'])
+    #db.add_item('deodorant', 'secret', 548239, 5, 'None', ['toiletries'])
+    #db.add_item('deodorant', 'under armor', 5729495, 2, 'None', ['toiletries'])
+    #db.add_item('corn', 'green giant', 95827, 14, 'None', ['vegetables', 'canned'])
+    #db.add_item('pasta', 'HEB', 47283, 5, 'None', ['pasta', 'nut free'])
+    #db.add_item('pasta', 'walmart', 1288901, 6, 'None', ['pasta', 'nut free'])
+    #db.add_item('pasta', 'HEB', 390438, 8, 'None', ['pasta', 'gluten free'])
+    #db.add_item('oatmeal', 'kellogs', 5743843, 2, 'None')
+    #db.add_item('oatmeal', 'HEB', 1117362, 15, 'None')
+    #db.add_item('liquid soap', 'dove', 3331, 5, 'None', ['soap', 'toiletries'])
+    #db.add_item('hand soap', 'soft soap', 4888, 5, 'None', ['soap', 'toiletries'])
+    
     print(admin.view_all())
-    print(admin.get_role('james2@southwestern.edu'))
-    print(admin.get_role('trustrthyuser@southwestern.edu'))
-    print(admin.get_role('fakeemail@hotmail.com'))
+    print(db.view_table())
+
+
+
+
+   
 
 if __name__ == "__main__":
     main()

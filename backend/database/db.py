@@ -1,12 +1,21 @@
 from typing import Any, Optional
 
+from dotenv import load_dotenv, dotenv_values #Loads info as env variables or a dictionary
+
+import sqlite3
+
 import requests
 import os
 
+
+load_dotenv()
+
+
 # Cloudflare D1 REST API
-ACCOUNT_ID = os.environ.get('CLOUDFLARE_ACCOUNT_ID')
+ACCOUNT_ID = os.environ.get('CLOUDFLARE_ACCOUNT_ID') #Returning none
 DATABASE_ID = os.environ.get('CLOUDFLARE_D1_DATABASE_ID')
 API_TOKEN = os.environ.get('CLOUDFLARE_D1_API_TOKEN')
+
 
 API_URL = f'https://api.cloudflare.com/client/v4/accounts/{ACCOUNT_ID}/d1/database/{DATABASE_ID}/query'
 
@@ -19,7 +28,7 @@ def query(sql: str, params: Optional[list[Any]]= None) -> list[Any]:
 
         Returns:
             list: Rows returned by the query
-    '''
+    ''
     headers = {
         'Authorization': f'Bearer {API_TOKEN}',
         'Content-Type': 'application/json'
@@ -35,13 +44,23 @@ def query(sql: str, params: Optional[list[Any]]= None) -> list[Any]:
 
     if not data.get('success'):
         raise Exception(f'D1 query failed: {data.get("errors")}')
-
-    results = data.get('result', [])
+    '''
+    connection = sqlite3.connect('/workspaces/Pirate-Pantry-Inventory-Tracking/backend/database/db_test.db')
+    cursor_t = connection.cursor()
+    if params:
+        cursor_t.execute(sql, params)
+        print(sql, params)
+    else:
+        cursor_t.execute(sql)
+    #results = data.get('result', [])
+    results = cursor_t.fetchall()
+    connection.commit()
+    connection.close()
     if not results:
         return []
 
-    return results[0].get('results', [])
-
+    
+    return results #results[0].get('results', [])
 
 def rows_to_list(rows: list[Any]) -> list[list[Any]]:
     ''' Convert D1 result dicts to lists for backwards compatibility '''
@@ -54,7 +73,7 @@ def rows_to_list(rows: list[Any]) -> list[list[Any]]:
 
 def view_table():
     rows = query('SELECT * FROM products')
-    return rows_to_list(rows)
+    return rows
 
 def view_all_names():
     rows = query('SELECT DISTINCT name FROM products')
@@ -102,34 +121,56 @@ def view_pantry_tags():
 
 def add_item(
         name: str = '',
-        brand: str = '',
+        brand: Optional[str] = None,
         id: Optional[int] = None,
         quantity: int = 0,
         image_link: str = '',
         tags: Optional[list[str]] = None
 ):
-    query('INSERT INTO products VALUES (?, ?, ?, ?, ?)', [id, name.title(), brand.title(), quantity, image_link])
+
+    if brand is None:
+        brand = ''
+    else:
+        brand = brand.title()
+    query('INSERT INTO products VALUES (?, ?, ?, ?, ?)', [id, name.title(), brand, quantity, image_link])
     if tags:
         for tag in tags:
             query('INSERT INTO tags (label) VALUES (?) ON CONFLICT (label) DO NOTHING', [tag.title()])
             query('INSERT INTO product_tags VALUES (?, ?)', [id, tag.title()])
 
+#May have to be combined with some method that gets the item's id from it's name or brand
 def update_item(
         name: str = '',
         brand: str ='',
-        id: Optional[int] = None,
+        id: list[int] = None,
         quantity: int = 0,
         tags: Optional[list[str]] = None,
         image_link: str = ''
 ):
     result = query('SELECT quantity FROM products WHERE id = ?', [id])
+    new_query = []
+    conds = []
     if not result:
-        return "Invalid quantity"
+        return "Item not found"
     if quantity >= 0:
-        old_quantity = result[0]['quantity']
-        new_quantity = old_quantity + quantity
-        query('UPDATE products SET name = ?, brand = ?, quantity = ?, image_link = ? WHERE id = ?',
-              [name.title(), brand.title(), new_quantity, image_link, id])
+        if name:
+            new_query.append("name = ?")
+            conds.append(name.title())
+        if brand:
+            new_query.append("brand = ?")
+            conds.append(brand.title())
+        if quantity > 0:
+            new_query.append("quantity = ?")
+            old_quantity = result[0][0]
+            conds.append(quantity + old_quantity)
+        if image_link:
+            new_query.append("image_link = ?")
+            conds.append(image_link)
+        conds.append(id)
+        joined_query = ", ".join(new_query)
+        if joined_query:
+            final = 'Update products SET ' + joined_query + ' WHERE id = ?'
+            query(final, conds)
         if tags:
             for tag in tags:
                 query('INSERT INTO tags (label) VALUES (?) ON CONFLICT (label) DO NOTHING', [tag.title()])
@@ -141,7 +182,7 @@ def checkout_item(id: Optional[int] = None, quantity: int = 0):
     result = query('SELECT quantity FROM products WHERE id = ?', [id])
     if not result:
         return "Invalid quantity"
-    old_quantity = result[0]['quantity']
+    old_quantity = result[0][0]
     new_quantity = old_quantity - quantity
     if new_quantity >= 0:
         query('UPDATE products SET quantity = ? WHERE id = ?', [new_quantity, id])
@@ -228,4 +269,3 @@ def delete_tag(tag: str = ''):
 def cache_auth(token: str) -> bool:
     result = query('INSERT INTO auth_cache (token) VALUES (?) ON CONFLICT (token) DO NOTHING RETURNING token', [token])
     return len(result) > 0
-

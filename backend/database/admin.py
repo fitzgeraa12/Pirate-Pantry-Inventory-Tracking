@@ -1,35 +1,38 @@
 # Returns all users in the table
 from typing import Optional
+import os
+import sys
 
-from backend.api.auth import Role
-from backend.database.db import query, rows_to_list
+sys.path.append(os.path.abspath('/workspaces/Pirate-Pantry-Inventory-Tracking/backend/api'))
+from auth import Role
+from db import query, rows_to_list
 
 
 def view_all():
     rows = query('SELECT * FROM perms')
-    return rows_to_list(rows)
+    return (rows)
 
 # Returns all admin users in the table
 def view_admins():
     rows = query("SELECT * FROM perms WHERE type == ?", [Role.ADMIN])
-    return rows_to_list(rows)
+    return (rows)
 
 # Returns all trusted users in the table
 def view_trusted():
     rows = query("SELECT * FROM perms WHERE type == ?", [Role.TRUSTED])
-    return rows_to_list(rows)
+    return (rows)
 
 # Returns true if the email is a trusted or admin user
 def in_table(email: str):
     rows = query('SELECT * FROM perms WHERE email == ?', [email])
-    if len(rows_to_list(rows)) > 0:
+    if len((rows)) > 0:
         return True
     return False
 
 # Returns true if the user is an admin, false if they're trusted
 def is_admin(email: str):
     rows = query("SELECT * FROM perms WHERE email == ? AND type == ?", [email, Role.ADMIN])
-    if len(rows_to_list(rows)) > 0:
+    if len((rows)) > 0:
         return True
     return False
 
@@ -37,7 +40,7 @@ def is_admin(email: str):
 def get_role(email: str) -> Optional[str]:
     rows = query('SELECT type FROM perms WHERE email == ?', [email])
     if len(rows) > 0:
-        return rows_to_list(rows)[0][0]
+        return (rows)[0][0]
     return None
 
 # Adds a new user to the table. Checks for if the user is an admin comes from the API
