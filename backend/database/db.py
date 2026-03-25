@@ -49,7 +49,7 @@ def query(sql: str, params: Optional[list[Any]]= None) -> list[Any]:
     cursor_t = connection.cursor()
     if params:
         cursor_t.execute(sql, params)
-        print(sql, params)
+        #print(sql, params)
     else:
         cursor_t.execute(sql)
     #results = data.get('result', [])
@@ -89,7 +89,7 @@ def view_all_brands():
 
 def view_all_tags():
     rows = query('SELECT * FROM tags')
-    return rows_to_list(rows)
+    return rows
 
 #------------------------------
 # Viewing items currently in the pantry (quantity > 0)
@@ -126,17 +126,22 @@ def add_item(
         quantity: int = 0,
         image_link: str = '',
         tags: Optional[list[str]] = None
+        
 ):
+    """Returns [] if id is already in the table"""
 
     if brand is None:
         brand = ''
     else:
         brand = brand.title()
+    if id:
+        if in_table(id):
+            return []
     query('INSERT INTO products VALUES (?, ?, ?, ?, ?)', [id, name.title(), brand, quantity, image_link])
     if tags:
         for tag in tags:
-            query('INSERT INTO tags (label) VALUES (?) ON CONFLICT (label) DO NOTHING', [tag.title()])
-            query('INSERT INTO product_tags VALUES (?, ?)', [id, tag.title()])
+            query('INSERT INTO tags (label) VALUES (?) ON CONFLICT (label) DO NOTHING', [str(tag).title()])
+            query('INSERT INTO product_tags VALUES (?, ?)', [id, str(tag).title()])
 
 #May have to be combined with some method that gets the item's id from it's name or brand
 def update_item(
@@ -217,11 +222,11 @@ def get_all_info(id: Optional[int] = None) -> list[Any]:
 #------------------------------
 
 def search_pantry_by_name(name: str = ''):
-    rows = query('SELECT * FROM products WHERE quantity > 0 AND name = ?', [name.title()])
+    rows = query('SELECT * FROM products WHERE quantity > 0 AND name LIKE = ?', [name.title()])
     return rows_to_list(rows)
 
 def search_pantry_by_brand(brand: str = ''):
-    rows = query('SELECT * FROM products WHERE quantity > 0 AND brand = ?', [brand.title()])
+    rows = query('SELECT * FROM products WHERE quantity > 0 AND brand LIKE = ?', [brand.title()])
     return rows_to_list(rows)
 
 def search_pantry_by_id(id: Optional[int] = None):
@@ -242,7 +247,7 @@ def search_pantry_by_tag(tag: str =''):
 
 def get_tags_for_item(id: Optional[int] = None):
     rows = query('SELECT tag_label FROM product_tags WHERE product_id = ?', [id])
-    return [row['tag_label'] for row in rows]
+    return [x[0] for x in rows]
 
 def view_image(id: Optional[int] = None) -> Optional[str]:
     rows = query('SELECT image_link FROM products WHERE id = ?', [id])

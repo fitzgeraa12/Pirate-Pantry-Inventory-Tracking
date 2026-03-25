@@ -45,13 +45,12 @@ def main():
     #db.add_item('oatmeal', 'HEB', 1117362, 15, 'None')
     #db.add_item('liquid soap', 'dove', 3331, 5, 'None', ['soap', 'toiletries'])
     #db.add_item('hand soap', 'soft soap', 4888, 5, 'None', ['soap', 'toiletries'])
-    
-    print(admin.view_all())
-    print(db.view_table())
-
-
-
-
+    #print(db.view_all_tags())
+    #db.add_item('TEST_TOMATO', '', 333333333, 5, '', ['TEST_TAG1','TEST_TAG2',4,'DSAFDSAFDSAFDSA','VegetableS','Canned'])
+    #print(db.get_tags_for_item(333333333)) 
+    #db.delete_item(333333333)
+    #print(admin.view_all())
+    #print(db.view_table())
    
 
 if __name__ == "__main__":
