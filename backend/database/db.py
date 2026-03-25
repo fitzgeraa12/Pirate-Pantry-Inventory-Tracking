@@ -137,7 +137,13 @@ def add_item(
     if id:
         if in_table(id):
             return []
-    query('INSERT INTO products VALUES (?, ?, ?, ?, ?)', [id, name.title(), brand, quantity, image_link])
+        else:
+            query('INSERT INTO products VALUES (?, ?, ?, ?, ?)', [id, name.title(), brand, quantity, image_link])
+    else: #Issue: id autoincraments from last entered id- how close are ID values to each other?
+        #issue for me- how do I get the id of a value I just entered
+        new_id = [x[0] for x in query('INSERT INTO products VALUES (Null, ?, ?, ?, ?) RETURNING id', [name.title(), brand, quantity, image_link])]
+        id = new_id[0]
+        print(id)
     if tags:
         for tag in tags:
             query('INSERT INTO tags (label) VALUES (?) ON CONFLICT (label) DO NOTHING', [str(tag).title()])
@@ -254,6 +260,7 @@ def view_image(id: Optional[int] = None) -> Optional[str]:
     if rows:
         return rows[0]['image_link']
     return None
+
 
 #------------------------------
 # Removing methods

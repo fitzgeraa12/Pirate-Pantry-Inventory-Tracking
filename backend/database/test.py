@@ -6,7 +6,7 @@ import admin
 #This is where I can test the methods
 def main():
 
-    '''
+    
     #Creates the table
     connection = sqlite3.connect('/workspaces/Pirate-Pantry-Inventory-Tracking/backend/database/db_test.db')
     cursor = connection.cursor()
@@ -18,7 +18,7 @@ def main():
         cursor.executescript(schema_script)
         connection.commit()
     except sqlite3.Error as e:
-        print("Oh no!")'''
+        print("Oh no!")
     
     #finally:
     
@@ -26,7 +26,8 @@ def main():
     #print(cursor.fetchall())
     #db.add_item('corn', 'HEB', 3835982, 4, 'None', ['VEGETABLES', 'canned'])
     #db.add_item('peas', 'green giant', 324, 2, 'None', ['VEGETABLES', 'canned'])
-    #db.add_item('carrots', 'HEB', 9239, 1, 'None', ['VEGETABLES', 'canned'])
+    #db.add_item('carrots', 'HEB', [], 7, 'None', ['VEGETABLES', 'canned'])
+    print(db.get_tags_for_item(347))
     #db.add_item('olives', 'everyday olives', 345345, 5, 'None', ['VEGETABLES', 'canned'])
     #db.add_item('tomato paste', 'HEB', 4329, 7, 'None', ['VEGETABLES'])
     #db.add_item('diced tomatoes', 'HEB', 49104, 6, 'None', ['VEGETABLES'])
@@ -50,7 +51,7 @@ def main():
     #print(db.get_tags_for_item(333333333)) 
     #db.delete_item(333333333)
     #print(admin.view_all())
-    #print(db.view_table())
+    print(db.view_table())
    
 
 if __name__ == "__main__":
