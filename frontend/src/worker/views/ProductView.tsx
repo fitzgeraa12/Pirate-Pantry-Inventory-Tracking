@@ -44,7 +44,7 @@ function ProductView({ searchTerm: externalSearchTerm }: ProductViewProps = {}) 
                 cell: ({row}) => (
                     <>
                         <button className="table-entry-button"
-                        onClick={()=> addToCart(row.original.id)}>Add</button>
+                        onClick={()=> addToCart(row.original.id, row.original.quantity)}>Add</button>
                         <button className="table-entry-button"
                         onClick={()=>removeFromCart(row.original.id)}>Remove</button>
                     </>
@@ -106,16 +106,16 @@ function ProductView({ searchTerm: externalSearchTerm }: ProductViewProps = {}) 
 
     const[products, setProducts] = useState<ProductTableEntry[]>([]);
 
-    // useEffect(() =>{
-    //     const timeout = setTimeout( async () => {
-    //         //const response = await fetch(`/api/products?search=${encodeURIComponent(search)}`);//api
-    //         const response = await fetch(`http://localhost:3001/api/products?search=${encodeURIComponent(search)}`);
-    //         const data = await response.json();
-    //         setProducts(data);
-    //     }, 300);
+    useEffect(() =>{
+        const timeout = setTimeout( async () => {
+            //const response = await fetch(`/api/products?search=${encodeURIComponent(search)}`);//api
+            const response = await fetch(`http://localhost:3001/api/products?search=${encodeURIComponent(search)}`);
+            const data = await response.json();
+            setProducts(data);
+        }, 300);
 
-    //     return() => clearTimeout(timeout);
-    // }, [search]);
+        return() => clearTimeout(timeout);
+    }, [search]);
 
     useEffect(() => {
     const timeout = setTimeout(async () => {

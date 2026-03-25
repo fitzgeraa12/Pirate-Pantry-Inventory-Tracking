@@ -13,7 +13,7 @@ function StudentFacing() {
     if (auth.is_none()) return null;
 
     return (
-        <Titled title="Pirate Pantry Checkout">
+        <Titled title="Checkout">
             <div id="container">
                 <div id="header">
                     <div id="title">Pirate Pantry Checkout</div>
