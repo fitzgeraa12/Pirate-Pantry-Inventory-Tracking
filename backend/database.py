@@ -28,6 +28,10 @@ class ProductNotFoundError(NotFoundError):
     def __init__(self, id: int):
         super().__init__("Product", "id", id)
 
+class NotEnoughProductStockError(Exception):
+    def __init__(self, id: int, amount: int, quantity: int):
+        super().__init__(f"Product with id `{id}` is out of stock. Tried to check out `{amount}` items but only `{quantity}` were in stock")
+
 class BrandNotFoundError(NotFoundError):
     def __init__(self, name: str):
         super().__init__("Brand", "name", name)
