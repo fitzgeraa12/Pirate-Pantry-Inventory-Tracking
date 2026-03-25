@@ -7,7 +7,7 @@ interface CartItem{
 }
 
 interface CartContextType{
-    cart: CartItem[];
+    cart: CartItem[]; 
     addToCart: (id: number) => void;
     removeFromCart: (id: number) => void;
     getCartCount: () => number;
@@ -18,10 +18,14 @@ const CartContext = createContext<Option<CartContextType>>(Option.none());
 export function CartProvider({ children }: { children: ReactNode }){
     const [cart, setCart] = useState<CartItem[]>([]);
 
-    const addToCart = (id: number)=> {
+    const addToCart = (id: number, maxQuantity: number)=> {
         setCart(prev =>{
             const existing = prev.find(item => item.id === id);
-
+            // If more than in inventory is attempted to be added, deny it 
+            if(existing && existing.quantity >= maxQuantity) {
+                return prev;
+            }
+            //otherwise add an instance
             if(existing){
                 return prev.map(item =>
                     item.id === id
@@ -33,7 +37,21 @@ export function CartProvider({ children }: { children: ReactNode }){
         });
     };
     const removeFromCart = (id: number) => { // remove from cart currently takes every instance of the item out of the cart not individual 
-        setCart(prev => prev.filter(item => item.id !== id));
+        setCart(prev =>{
+            const existing =  prev.find(item => item.id == id);
+            //If item is not in cart do nothing
+            if(!existing) return prev;
+            //If it item count 
+            if(existing.quantity === 1){
+                return prev.filter(item => item.id !==id);
+            }
+            //Otherwise remove one instance of item
+            return prev.map(item =>
+                item.id === id
+                ? {...item, quantity: item.quantity - 1}
+                : item
+            );
+        });
     };
     const getCartCount = () =>
         cart.reduce((total,item) => total + item.quantity, 0);
