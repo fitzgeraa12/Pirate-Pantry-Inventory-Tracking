@@ -17,8 +17,12 @@ function StudentFacing() {
             <div id= "container"> 
                 <div id ="header"> 
                     <div id = "title"> Pirate Pantry Checkout</div>                              
-        
-                             
+                        <input // search bar
+                        type="text"
+                        placeholder="Search for items..."
+                        value={searchTerm}
+                        onChange={(e)=> setSearchTerm(e.target.value)}
+                        />                             
                     <div id= "header-top-right">
 
                         <button id="checkout" className="header-button">Checkout</button>
