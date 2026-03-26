@@ -1,6 +1,6 @@
 -- Migration number: 0001 	 2026-03-09T23:39:38.348Z
 CREATE TABLE IF NOT EXISTS products (
-    id         INTEGER PRIMARY KEY,
+    id         INTEGER UNIQUE PRIMARY KEY NOT NULL,
     name       TEXT    NOT NULL,
     brand      TEXT    NOT NULL DEFAULT '',
     quantity   INTEGER NOT NULL DEFAULT 0,
