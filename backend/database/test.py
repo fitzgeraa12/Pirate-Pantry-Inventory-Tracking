@@ -25,9 +25,12 @@ def main():
     #cursor.execute('SELECT * FROM products')
     #print(cursor.fetchall())
     #db.add_item('corn', 'HEB', 3835982, 4, 'None', ['VEGETABLES', 'canned'])
-    #db.add_item('peas', 'green giant', 324, 2, 'None', ['VEGETABLES', 'canned'])
+    #db.add_item('peas', 'green giant', 324, 2, 'None', ['VEGETABLES', 'canned'])'''
     #db.add_item('carrots', 'HEB', [], 7, 'None', ['VEGETABLES', 'canned'])
-    print(db.get_tags_for_item(347))
+    #db.update_item('corn', 'HEB', 3835982, 10, '', ['VEGETABLES', 'canned'])
+
+    #db.delete_item(3835983)
+    #print(db.get_tags_for_item(347))
     #db.add_item('olives', 'everyday olives', 345345, 5, 'None', ['VEGETABLES', 'canned'])
     #db.add_item('tomato paste', 'HEB', 4329, 7, 'None', ['VEGETABLES'])
     #db.add_item('diced tomatoes', 'HEB', 49104, 6, 'None', ['VEGETABLES'])
