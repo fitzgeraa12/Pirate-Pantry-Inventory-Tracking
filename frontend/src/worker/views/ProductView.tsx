@@ -16,7 +16,7 @@ interface ProductViewProps {
 }
 
 function ProductView({ searchTerm: externalSearchTerm }: ProductViewProps = {}) {
-    const { addToCart, removeFromCart} = useCart().unwrap(); 
+    const { addToCart, removeFromCart} = useCart(); 
     const columns = useMemo<ColumnDef<ProductTableEntry>[]>(() => {
         return [
             {
@@ -44,7 +44,7 @@ function ProductView({ searchTerm: externalSearchTerm }: ProductViewProps = {}) 
                 cell: ({row}) => (
                     <>
                         <button className="table-entry-button"
-                        onClick={()=> addToCart(row.original.id, row.original.quantity)}>Add</button>
+                        onClick={()=> addToCart(row.original.id, row.original.name, row.original.quantity)}>Add</button>
                         <button className="table-entry-button"
                         onClick={()=>removeFromCart(row.original.id)}>Remove</button>
                     </>
@@ -53,50 +53,6 @@ function ProductView({ searchTerm: externalSearchTerm }: ProductViewProps = {}) 
         ]
     }, []);
 
-    // const [product_table_entries, _set_product_table_entries] = useState<Array<ProductTableEntry>>([
-    //     {
-    //         id: 2,
-    //         name: "TEST2",
-    //         brand: null,
-    //         tags: [],
-    //         quantity: 1,
-    //     },
-    //     {
-    //         id: 1,
-    //         name: "TEST",
-    //         brand: null,
-    //         tags: [],
-    //         quantity: 7,
-    //     },
-    //     {
-    //         id: 3,
-    //         name: "TEST3",
-    //         brand: "General Mills",
-    //         tags: [],
-    //         quantity: 3,
-    //     },
-    //     {
-    //         id: 4,
-    //         name: "TEST4",
-    //         brand: "General Mills",
-    //         tags: [],
-    //         quantity: ,
-    //     },        
-    //     {
-    //         id: 5,
-    //         name: "TEST5",
-    //         brand: "HEB",
-    //         tags: [],
-    //         quantity: 4,
-    //     },
-    //     {
-    //         id: 6,
-    //         name: "TEST6",
-    //         brand: "HEB",
-    //         tags: ["PROTIEN"],
-    //         quantity: 6,
-    //     },
-    // ]);
     const [sorting, set_sorting] = useState<SortingState>([
         { id: "id", desc: false }
     ])

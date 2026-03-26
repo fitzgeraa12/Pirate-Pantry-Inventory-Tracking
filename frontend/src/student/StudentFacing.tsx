@@ -5,11 +5,13 @@ import { useContext } from 'react';
 import ProductView from '../worker/views/ProductView';
 import { useCart } from "../misc/CartContext"; 
 import { AuthContext } from '../auth/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 function StudentFacing() {
     const [searchTerm, setSearchTerm] = useState<string>("");
-    const {getCartCount} = useCart().unwrap();
+    const {getCartCount} = useCart();
     const auth = useContext(AuthContext);
+    const navigate = useNavigate();
     if (auth.is_none()) return null;
 
     return (
@@ -24,7 +26,7 @@ function StudentFacing() {
                         onChange={(e)=> setSearchTerm(e.target.value)}
                     />
                     <div id= "header-top-right">
-                        <button id="checkout" className="header-button">Checkout</button>
+                        <button onClick={ () => navigate("/checkout")}>Checkout</button>
                         <button id= "log-out" className="header-button"
                             onClick={(auth.expect("no augh in student facing").logout)}>Log Out
                         </button>

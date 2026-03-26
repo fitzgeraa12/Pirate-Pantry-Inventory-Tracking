@@ -5,13 +5,16 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import StudentFacing from './student/StudentFacing';
 import WorkerFacing from './worker/WorkerFacing';
 import AdminFacing from './admin/AdminFacing';
+import Checkout from './student/Checkout';
 import ProtectedRoute from './misc/ProtectedRoute';
+
 
 // https://www.kindacode.com/article/ways-to-set-page-title-dynamically-in-react
 function App() {
   return (
     <Routes>
       <Route path="/" element={<StudentFacing />} />
+      <Route path="/checkout" element={<Checkout />}/> 
       <Route path="/workpanel" element={
         <ProtectedRoute required_perms={["trusted", "admin"]}>
           <WorkerFacing />
