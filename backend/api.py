@@ -8,7 +8,7 @@ from flask_cors import CORS
 from pydantic import BaseModel, ValidationError, field_validator
 from backend.common import UNSET
 from misc import env_get
-from database import AccessLevel, Database, Product, ProductNotFoundError, NotEnoughProductStockError, User, UserAlreadyExistsError
+from database import AccessLevel, Brand, Database, Product, ProductNotFoundError, NotEnoughProductStockError, Tag, User, UserAlreadyExistsError
 from google_auth_oauthlib.flow import Flow # pyright: ignore[reportMissingTypeStubs]
 import jwt
 import requests
@@ -428,7 +428,7 @@ def define_routes(app: Flask, db: Database):
 
             return jsonify({'deleted': results, 'errors': errors}), 200 if not errors else 207
 
-    @app.route('products/checkout', methods=['PATCH'])
+    @app.route('/products/checkout', methods=['PATCH'])
     @requires_at_least(AccessLevel.TRUSTED)
     def checkout_products(): # pyright: ignore[reportUnusedFunction]
         ''' PATCH method to check items out (decrease items' quantities)
@@ -549,11 +549,11 @@ def define_routes(app: Flask, db: Database):
 
         tags = db.query_and_map_rows(
             sql,
-            lambda row: str(row),
+            lambda row: Tag(**row),
             params
         )
 
-        return jsonify(tags)
+        return jsonify([t.model_dump() for t in tags])
 
     @app.route('/tags', methods=['POST'])
     @requires_at_least(AccessLevel.TRUSTED)
@@ -651,39 +651,53 @@ def define_routes(app: Flask, db: Database):
     @app.route('/brands', methods=['GET'])
     @requires_at_least(AccessLevel.TRUSTED)
     def get_brands(): # pyright: ignore[reportUnusedFunction]
-        ''' GET method to retrieve tags, optionally filtered by query parameters.
+        ''' GET method to retrieve brands, optionally filtered by query parameters.
 
             Query parameters (all optional):
-                - label (str): Support for `%` (wildcard) and `_` (single-char wildcard)
+                - name (str): Support for `%` (wildcard) and `_` (single-char wildcard)
 
             Returns:
-                Response (JSON): A list of matching tags.
+                Response (JSON): A list of matching brands.
         '''
         class GetBrandsQuery(BaseModel):
             name: Optional[str] = None
+            page: int = 1
+            page_size: int = 20
 
-        try:
-            brands_query = GetBrandsQuery.model_validate(request.args.to_dict())
-        except ValidationError as e:
-            return jsonify({'error': e.errors()}), 400
+        with db.transaction():
+            try:
+                brands_query = GetBrandsQuery.model_validate(request.args.to_dict())
+            except ValidationError as e:
+                return jsonify({'error': e.errors()}), 400
 
-        conditions: list[str] = []
-        params: list[Any] = []
+            conditions: list[str] = []
+            params: list[Any] = []
 
-        if brands_query.name:
-            conditions.append('b.name LIKE ?')
-            params.append(brands_query.name)
+            if brands_query.name:
+                conditions.append('b.name LIKE ?')
+                params.append(brands_query.name)
 
-        where = ('WHERE ' + ' AND '.join(conditions)) if len(conditions) > 0 else ''
-        sql = f'SELECT * FROM tags {where}'
+            where = ('WHERE ' + ' AND '.join(conditions)) if conditions else ''
 
-        tags = db.query_and_map_rows(
-            sql,
-            lambda row: str(row),
-            params
-        )
+            filter_params = params.copy()
 
-        return jsonify(tags)
+            offset = (brands_query.page - 1) * brands_query.page_size
+            sql = f'SELECT * FROM brands b {where} LIMIT ? OFFSET ?'
+            params.extend([brands_query.page_size, offset])
+
+            brands = db.query_and_map_rows(
+                sql,
+                lambda row: Brand(**row),
+                params
+            )
+
+            total = db.query(f'SELECT COUNT(*) as total FROM brands b {where}', filter_params)[0]['total']
+
+            return jsonify({
+                'data': [b.model_dump() for b in brands],
+                'total': total,
+                'total_pages': (total + brands_query.page_size - 1) // brands_query.page_size,
+            })
     
     @app.route('/brands', methods=['POST'])
     @requires_at_least(AccessLevel.TRUSTED)

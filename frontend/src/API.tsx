@@ -27,21 +27,47 @@ const UserSchema = z.object({
 })
 export type User = z.infer<typeof UserSchema>
 
+const BrandSchema = z.object({
+    name: z.string(),
+})
+export type Brand = z.infer<typeof BrandSchema>
+
+const TagSchema = z.object({
+    label: z.string(),
+})
+export type Tag = z.infer<typeof TagSchema>
+
 const ProductSchema = z.object({
     id: z.number(),
     name: z.string(),
-    brand: z.string().nullable().optional(),
+    brand: BrandSchema.nullable().optional(),
     quantity: z.number(),
     image_link: z.string().nullable().optional(),
-    tags: z.array(z.string()),
+    tags: z.array(TagSchema),
 })
 export type Product = z.infer<typeof ProductSchema>
+
+function PaginatedSchema<T extends z.ZodTypeAny>(item_schema: T) {
+    return z.object({
+        data: z.array(item_schema),
+        total: z.number(),
+        total_pages: z.number(),
+    });
+}
+
+type Paginated<T> = {
+    data: Array<T>;
+    total: number;
+    total_pages: number;
+};
 
 export namespace API {
     export type Type = {
         get_user: () => Promise<Optional<User>>,
         whoami: () => Promise<Optional<string>>,
-        products:() => Promise<Array<Product>>,
+        products:() => Promise<Paginated<Product>>,
+        brands: () => Promise<Paginated<Brand>>,
+        tags: () => Promise<Paginated<Tag>>,
     }
 
     export const Context = React.createContext<Optional<Type>>(null);
@@ -68,9 +94,19 @@ export namespace API {
                     }
                 },
 
-                products: async(): Promise<Array<Product>> => {
+                products: async(): Promise<Paginated<Product>> => {
                     const response = await api_base.get("products");
-                    return z.array(ProductSchema).parse(response.data);
+                    return PaginatedSchema(ProductSchema).parse(response.data);
+                },
+
+                brands: async(): Promise<Paginated<Brand>> => {
+                    const response = await api_base.get("brands");
+                    return PaginatedSchema(BrandSchema).parse(response.data);
+                },
+
+                tags: async(): Promise<Paginated<Tag>> => {
+                    const response = await api_base.get("tags");
+                    return PaginatedSchema(TagSchema).parse(response.data);
                 }
             }
         }, []);

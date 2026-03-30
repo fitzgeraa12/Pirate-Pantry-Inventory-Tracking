@@ -56,6 +56,12 @@ class UserAlreadyExistsError(Exception):
 # Schema
 # --------------------------------------------------
 
+class Brand(BaseModel):
+    name: str
+
+class Tag(BaseModel):
+    label: str
+
 class Product(BaseModel):
     id: int
     name: str
