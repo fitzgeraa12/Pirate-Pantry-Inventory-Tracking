@@ -19,7 +19,7 @@ function Checkout() {
     return (
         <div id= "container">
             <div id = "header">
-                <div id ="title">Pirate Pantry</div>
+                <div id ="title">Checkout</div>
 
                 <div id= "header-top-right">
                     <button className="header-button" onClick={handleBack}>

@@ -1,7 +1,7 @@
 #container {
     --margin: 16px;
 
-    background-color: var(--su-dark-gray);
+    background-color: var(--su-light-gray);
     border: 2px solid var(--su-yellow);
     width: calc(100vw - 2 * var(--margin));
     height: calc(100vh - 2 * var(--margin));
@@ -60,13 +60,13 @@
     align-items: center;
     gap: 8px;
     padding: 8px;
-    background-color: var(--su-dark-mid-gray);
+    background-color: var(--su-light-gray);
     border-bottom: 2px solid var(--su-mid-gray);
 }
 
 #body-left {
     width: 50px;
-    background-color: var(--su-dark-mid-gray);
+    background-color: var(--su-light-gray);
     border-right: 1px solid var(--su-yellow);
     min-width: 150px;
 }
@@ -91,8 +91,8 @@
 
 #add-item, #export-to-xls {
     height: 20;
-    border-color: var(--su-light-gray);
-    background-color: var(--su-mid-gray);
+    border-color: var(--su-dark-mid-gray);
+    background-color: var(--su-yellow);
     margin-bottom: 0;
 }
 
@@ -104,7 +104,7 @@
 
 #database-view {
     flex-grow: 1;
-    color: var(--su-light-gray);
+    color: var(--su-yellow);
     padding: 16px;
     border-collapse: separate;
 }

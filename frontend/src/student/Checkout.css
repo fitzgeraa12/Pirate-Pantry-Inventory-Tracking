@@ -62,7 +62,7 @@
     align-items: center;
     gap: 8px;
     padding: 8px;
-    background-color: var(--su-dark-mid-gray);
+    background-color: var(--su-light-gray);
     border-bottom: 2px solid var(--su-mid-gray);
     font-size: 1.5em;
 }
