@@ -52,7 +52,7 @@ def remove_user(email: str):
     if in_table(email):
         if is_admin(email): 
             if len(view_admins()) <= 1:
-                return "Error: Must have at least one admin"
+                return "Must have at least one admin"
         query('DELETE FROM perms WHERE email == ?', [email])
         return True
     else:

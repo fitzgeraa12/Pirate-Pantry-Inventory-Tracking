@@ -1,20 +1,21 @@
-
+import pandas as pd
 from typing import Any, Optional, cast
 
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import sys
-
+from datetime import datetime, timedelta
 
 from pydantic import BaseModel, ValidationError, field_validator
 from .auth import requires_roles
 import os
 import re
-
+import io
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import database.db as database
+import database.admin as admin
 from database.db import query
 # Initialize Flask app
 app = Flask(__name__)
@@ -579,14 +580,10 @@ def get_table():
    return jsonify(database.view_table())
 
 
-
-
 @app.route('/table/all_names', methods=['GET'])
 @requires_roles('trusted', 'admin')
 def get_all_names():
    return jsonify(database.view_all_names())
-
-
 
 
 @app.route('/table/all_brands', methods=['GET'])
@@ -690,6 +687,131 @@ def get_item_by_tag(tag: str):
    return jsonify(database.search_pantry_by_tag(tag))
 
 
+
+# --------------------------------------------------
+# Admin Only methods
+# --------------------------------------------------
+@app.route('/admin/export', methods=['GET'])
+@requires_roles('admin')
+def export_inventory():
+    ''' GET method to export inventory data as Excel file
+
+        Returns:
+            Response (JSON): Message confirming export with Excel file
+    '''
+    try:
+        inventory = database.view_pantry_inventory()
+        buffer = io.BytesIO()
+        inventory.to_excel(buffer, index=False, sheet_name='Sheet1')
+        buffer.seek(0)
+        return send_file(buffer, as_attachment=True, download_name='Inventory_summary.xlsx')
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/admin/stats', methods=['GET'])
+@requires_roles('admin')
+def get_stats():
+    ''' GET method to retrieve inventory stats (e.g. total items, most common tags, etc.)
+
+        Returns:
+            Response (JSON): Inventory stats
+    '''
+    # TODO: Total number of items checked out weekly
+    # TODO: Top x items that got checked out weekly
+    # TODO: Percentage of item tags checked out weekly (pie chart). Item tags represent categories of items, including food types, allergy free groups, toiletries, etc
+    # TODO: Number of checkouts per weekday (bar graph)
+    # TODO: Number of checkouts per hour (separate bar graphs for each day of the week)
+    return None
+
+@app.route('/admin/permission', methods=['GET'])
+@requires_roles('admin')
+def view_users():
+    ''' GET method to view all authorized users and their roles
+
+        Returns:
+            Response (JSON): List of authorized users and their roles
+    '''
+    return jsonify(admin.view_all())
+
+@app.route('/admin/permission/admin', methods=['GET'])
+@requires_roles('admin')
+def view_admins():
+    ''' GET method to view all admins
+        Returns:
+            Response (JSON): List of admins
+    '''
+    return jsonify(admin.view_admins())
+
+@app.route('/admin/permission/trusted', methods=['GET'])
+@requires_roles('admin')
+def view_trusted():
+    ''' GET method to view all trusted
+
+        Returns:
+            Response (JSON): List of trusted
+    '''
+    return jsonify(admin.view_trusted())
+
+@app.route('admin/permission/add', methods=['POST'])
+@requires_roles('admin')
+def add_user():
+    ''' POST method to add authorized users and their roles
+
+        Returns:
+            Response (JSON): Message to confirm addition of authorized users and their roles
+    '''
+    data: Any = request.get_json()
+    if not data:
+       return jsonify({'error': 'Invalid JSON'}), 400
+
+    email = data.get('email')
+    role = data.get('role')
+    
+    if not email or not role:
+        return jsonify({'error': 'Missing email or role'}), 400
+    
+    try:
+        if admin.in_table(email):
+            return jsonify({'error': 'User already authorized'}), 400
+        
+        if not role in ['admin', 'trusted']:
+            return jsonify({'error': 'Invalid role'}), 400
+        admin.add_user(email, role)
+        return jsonify({'message': 'New Authorized User Added!', 'email': email, 'role': role}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+
+@app.route('admin/permission/delete', methods=['DELETE'])
+@requires_roles('admin')
+def remove_user():
+    ''' DELETE method to remove authorized users and their roles
+
+        Returns:
+            Response (JSON): Message to confirm removal of authorized users and their roles
+    '''
+    data: Any = request.get_json()
+    if not data:
+       return jsonify({'error': 'Invalid JSON'}), 400
+
+    email = data.get('email')
+    
+    if not email:
+        return jsonify({'error': 'Missing email'}), 400
+    
+    try:        
+        result = admin.remove_user(email)
+        if result == "User not found":
+            return jsonify({'error': 'User not found'}), 404
+
+        if result == "Must have at least one admin":
+            return jsonify({'error': 'Must have at least one admin'}), 409
+
+        return jsonify({'message': 'Authorized User Removed!'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
 if __name__ == '__main__':
    app.run()
   
