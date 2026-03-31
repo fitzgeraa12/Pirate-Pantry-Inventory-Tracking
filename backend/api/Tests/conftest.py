@@ -4,22 +4,21 @@ from unittest.mock import patch
 
 
 # https://github.com/ericsalesdeandrade/pytest-fixtures-examples/blob/master/tests/unit/test_calculator_api.py
+@pytest.fixture(autouse=True)
+def authentication():
+    def bypass(*roles):
+        def decorator(f):
+            return f
+        return decorator
+  
+    with patch("backend.api.auth.requires_roles", bypass), patch("backend.api.api.requires_roles", bypass):
+        yield
+       
 @pytest.fixture
 def client():
    app.config['TESTING'] = True
    with app.test_client() as client:
        yield client
-
-
-@pytest.fixture(autouse=True)
-def authentication():
-   def bypass(*roles):
-       def decorator(f):
-           return f
-       return decorator
-  
-   with patch("backend.api.api.requires_roles", bypass):
-       yield
 
 
 @pytest.fixture()
@@ -96,8 +95,7 @@ def table():
 def tag_list(table):
    # flatten tags
    tag_set = set()
-
-
+   
    for p in table:
        for tag in p['tags']:
            tag_set.add(tag)
@@ -109,3 +107,7 @@ def tag_list(table):
 def inventory(table):
    inv = [p for p in table if p['quantity'] > 0]
    return inv
+
+@pytest.fixture()
+def empty():
+   return []

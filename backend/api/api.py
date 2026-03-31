@@ -404,15 +404,13 @@ def delete_products():
    return jsonify({'deleted': results, 'errors': errors}), 200 if not errors else 207
 
 
-
-
 # --------------------------------------------------
 # Tags
 # --------------------------------------------------
 
 
 class GetTagsQuery(BaseModel):
-   label: Optional[str] = None
+   tag: Optional[str] = None
 
 
 @app.route('/tags', methods=['GET'])
@@ -422,11 +420,11 @@ def get_tags():
 
 
        Query parameters (all optional):
-           - label (str): With wildcard support:
-               label=Gluten Free   -> exact match
-               label=*Gluten Free* -> contains
-               label=Gluten Free*  -> starts with
-               label=*Gluten Free  -> ends with
+           - tag (str): With wildcard support:
+               tag=Gluten Free   -> exact match
+               tag=*Gluten Free* -> contains
+               tag=Gluten Free*  -> starts with
+               tag=*Gluten Free  -> ends with
 
 
        Returns:
@@ -442,9 +440,9 @@ def get_tags():
    params: list[Any] = []
 
 
-   if query.label:
+   if query.tag:
        try:
-           condition, param = parse_symbol_expr(query.label, 'label', alias=None)
+           condition, param = parse_symbol_expr(query.tag, 'tag', alias=None)
            conditions.append(condition)
            params.append(param)
        except ValueError as e:
@@ -462,14 +460,14 @@ def get_tags():
 
 
 class PostTagsSchema(BaseModel):
-   labels: list[str]
+   tags: list[str]
 
 
-   @field_validator('labels')
+   @field_validator('tags')
    @classmethod
    def validate_labels(cls, v: list[str]) -> list[str]:
-       for label in v:
-           error = validate_symbol(label, 'label')
+       for tag in v:
+           error = validate_symbol(tag, 'tag')
            if error:
                raise ValueError(error)
        return v
@@ -484,7 +482,7 @@ def post_tags():
 
 
        Request body (JSON):
-           { "labels": list[str] } - A list of tag labels to add.
+           { "tags": list[str] } - A list of tag labels to add.
 
 
        Returns:
@@ -509,19 +507,19 @@ def post_tags():
    errors: list[Any] = []
 
 
-   for label in body.labels:
+   for tag in body.tags:
        try:
-           database.add_tags_to_table(label)
-           results.append(label)
+           database.add_tags_to_table(tag)
+           results.append(tag)
        except Exception as e:
-           errors.append({'error': str(e), 'tags': label})
+           errors.append({'error': str(e), 'tags': tag})
 
 
    return jsonify({'added': results, 'errors': errors}), 201 if not errors else 207
 
 
 class DeleteTagsSchema(BaseModel):
-   labels: list[str]
+   tags: list[str]
 
 
 
@@ -534,13 +532,13 @@ def delete_tags():
 
 
        Request body (JSON):
-           { "labels": list[str] } - List of tag labels to delete
+           { "tags": list[str] } - List of tag labels to delete
 
 
        Returns:
            Response (JSON): {
-               "deleted": list of successfully deleted labels,
-               "errors": list of failed labels with error messages
+               "deleted": list of successfully deleted tag labels,
+               "errors": list of failed tag labels with error messages
            }
            200 if all succeeded, 207 if some failed.
    '''
@@ -559,12 +557,12 @@ def delete_tags():
    errors: list[Any] = []
 
 
-   for label in body.labels:
+   for tag in body.tags:
        try:
-           database.delete_tag(label)
-           results.append(label)
+           database.delete_tag(tag)
+           results.append(tag)
        except Exception as e:
-           errors.append({'error': str(e), 'label': label})
+           errors.append({'error': str(e), 'tag': tag})
 
 
    return jsonify({'deleted': results, 'errors': errors}), 200 if not errors else 207
@@ -686,7 +684,7 @@ def get_item_by_id(id: int):
    return jsonify(database.search_pantry_by_id(id))
 
 
-@app.route('/inventory/search/tags', methods=['GET'])
+@app.route('/inventory/search/tags/<string:tag>', methods=['GET'])
 @requires_roles('trusted', 'admin', 'user')
 def get_item_by_tag(tag: str):
    return jsonify(database.search_pantry_by_tag(tag))
