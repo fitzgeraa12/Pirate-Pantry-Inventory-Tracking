@@ -33,6 +33,9 @@ if command -v tmux &>/dev/null; then
     echo "  Detach with: Ctrl+B then D"
     echo "  Kill with:   tmux kill-session -t $SESSION"
 
+    # Set up trap to kill tmux session on Ctrl+C
+    trap "tmux kill-session -t $SESSION 2>/dev/null; exit 0" SIGINT
+
     # If running interactively, attach immediately
     if [ -t 0 ]; then
         tmux attach -t "$SESSION"
