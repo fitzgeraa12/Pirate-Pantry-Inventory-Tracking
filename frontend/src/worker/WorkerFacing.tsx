@@ -62,6 +62,7 @@ function WorkerFacing() {
                     <div id="body-left">
                         <button id="admin-panel" className="body-left-button">Admin Panel</button>
                         <button id="settings" className="body-left-button">Settings</button>
+                        <button onClick={() => navigate("/addItem")}>Add Item</button>
                     </div>
                     {decide_view()}
                 </div>
