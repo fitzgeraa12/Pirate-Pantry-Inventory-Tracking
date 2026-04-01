@@ -27,3 +27,11 @@ CREATE TABLE IF NOT EXISTS auth_cache (
     email      TEXT    NOT NULL,     -- Verified email extracted from token
     expires_at INTEGER NOT NULL      -- Unix timestamp (from token's exp claim)
 );
+
+CREATE TABLE IF NOT EXISTS checkouts (
+    id         INTEGER UNIQUE PRIMARY KEY NOT NULL,
+    name       TEXT    NOT NULL,
+    brand      TEXT    NOT NULL DEFAULT '',
+    quantity   INTEGER NOT NULL,
+    checked_out TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
