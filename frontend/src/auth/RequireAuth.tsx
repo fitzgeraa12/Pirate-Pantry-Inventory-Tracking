@@ -16,14 +16,18 @@ export default function RequireAuth({ children }: React.PropsWithChildren): Reac
             return;
         }
         
-        api!.whoami().then(google_sub => {
-            if (!google_sub) {
-                localStorage.removeItem('session');
-                window.location.href = `${API_URL}/auth/google`;
-            } else {
-                setReady(true);
-            }
-        });
+        try {
+            api!.whoami().then(google_sub => {
+                if (!google_sub) {
+                    localStorage.removeItem('session');
+                    window.location.href = `${API_URL}/auth/google`;
+                } else {
+                    setReady(true);
+                }
+            });
+        } catch (error) {
+            
+        }
     }, []);
 
     if (!ready) return <div>Loading...</div>;
