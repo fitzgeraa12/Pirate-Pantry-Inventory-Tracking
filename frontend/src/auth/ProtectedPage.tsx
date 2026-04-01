@@ -3,6 +3,7 @@ import React from "react";
 import Unauthorized from "./Unauthorized";
 import { API, type AccessLevel } from "../API";
 import type { Optional } from "../misc/misc";
+import { Spinner } from "../misc/misc";
 
 interface ProtectedRouteProps {
     required_access_level: AccessLevel,
@@ -27,6 +28,11 @@ export default function ProtectedPage({ required_access_level, children }: Props
         });
     }, [get_access_level]);
     
-    if (has_access === null) return <div>Loading...</div>;
+    if (has_access === null) return (
+        <div className="page-loading">
+            <div className="page-loading-title">Pirate Pantry</div>
+            <Spinner />
+        </div>
+    );
     return has_access ? <>{children}</> : <Unauthorized />;
 }

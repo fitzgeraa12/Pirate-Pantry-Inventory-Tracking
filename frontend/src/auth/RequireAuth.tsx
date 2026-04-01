@@ -1,5 +1,6 @@
 import React from "react";
 import { API } from "../API";
+import { Spinner } from "../misc/misc";
 
 export default function RequireAuth({ children }: React.PropsWithChildren): React.ReactNode {
     const [ready, setReady] = React.useState(false);
@@ -30,6 +31,11 @@ export default function RequireAuth({ children }: React.PropsWithChildren): Reac
         }
     }, []);
 
-    if (!ready) return <div>Loading...</div>;
+    if (!ready) return (
+        <div className="page-loading">
+            <div className="page-loading-title">Pirate Pantry</div>
+            <Spinner />
+        </div>
+    );
     return <>{children}</>;
 }

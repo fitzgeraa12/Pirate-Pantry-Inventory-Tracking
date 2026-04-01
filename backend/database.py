@@ -124,6 +124,7 @@ class AuthCode(BaseModel):
     code: str
     session_id: str
     expires_at: int
+    picture: Optional[str] = None
 
 # --------------------------------------------------
 # Database
@@ -451,14 +452,14 @@ class Database(ABC):
     # Auth
     #------------------------------
 
-    def store_auth_code(self, code: str, session_id: str):
+    def store_auth_code(self, code: str, session_id: str, picture: Optional[str] = None):
         expires_at = int(time.time()) + 60
         self.query(
-            "INSERT INTO auth_codes (code, session_id, expires_at) VALUES (?, ?, ?)",
-            [code, session_id, expires_at]
+            "INSERT INTO auth_codes (code, session_id, expires_at, picture) VALUES (?, ?, ?, ?)",
+            [code, session_id, expires_at, picture]
         )
     
-    def consume_auth_code(self, code: str) -> Optional[str]:
+    def consume_auth_code(self, code: str) -> Optional[tuple[str, Optional[str]]]:
         with self.transaction():
             auth_code = self.try_query_and_map_single(
                 "SELECT * FROM auth_codes WHERE code = ?",
@@ -474,12 +475,13 @@ class Database(ABC):
             if int(time.time()) > auth_code.expires_at:
                 return None
             
-            return auth_code.session_id
+            return (auth_code.session_id, auth_code.picture)
         
     def create_auth_session(self, user_id: Optional[str], google_sub: str, refresh_token: str) -> AuthSession:
         session_id = str(uuid.uuid4())
         created_at = int(time.time())
-        expires_at = created_at + 60 * 60 * 24 * SESSION_EXPIRY_IN_DAYS  # calculate expiry date
+        timeout_days = int(self.get_setting("login_timeout_days") or SESSION_EXPIRY_IN_DAYS)
+        expires_at = created_at + 60 * 60 * 24 * timeout_days
 
         self.query(
             "INSERT INTO auth_sessions (id, user_id, google_sub, refresh_token, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)",
@@ -511,6 +513,24 @@ class Database(ABC):
             lambda row: User(**row),
             [id]
         )
+
+    def all_users(self) -> list[User]:
+        return self.query_and_map_rows("SELECT * FROM users", lambda row: User(**row))
+
+    def get_setting(self, key: str) -> Optional[str]:
+        row = self.try_query_and_map_single(
+            "SELECT value FROM settings WHERE key = ?",
+            lambda r: str(r["value"]),
+            [key]
+        )
+        return row
+
+    def get_all_settings(self) -> dict[str, str]:
+        rows = self.query("SELECT key, value FROM settings")
+        return {str(r["key"]): str(r["value"]) for r in rows}
+
+    def update_setting(self, key: str, value: str):
+        self.query("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", [key, value])
     
     def add_user(self, id: str, email: str, access_level: AccessLevel):
         with self.transaction():
@@ -527,6 +547,22 @@ class Database(ABC):
                 return User(id=id, email=email, access_level=access_level)
             except sqlite3.IntegrityError:
                 raise UserAlreadyExistsError(id)
+
+    def set_user_picture(self, id: str, picture: Optional[str]):
+        self.query("UPDATE users SET picture = ? WHERE id = ?", [picture, id])
+
+    def update_user_access_level(self, id: str, access_level: AccessLevel) -> User:
+        self.query("UPDATE users SET access_level = ? WHERE id = ?", [str(access_level), id])
+        user = self.get_user(id)
+        if not user:
+            raise UserNotFoundError(id)
+        return user
+
+    def all_sessions(self) -> list[AuthSession]:
+        return self.query_and_map_rows("SELECT * FROM auth_sessions", lambda row: AuthSession(**row))
+
+    def revoke_session(self, session_id: str):
+        self.query("DELETE FROM auth_sessions WHERE id = ?", [session_id])
 
 def connect(locally: bool) -> Database:
     if locally:

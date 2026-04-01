@@ -1,9 +1,89 @@
+import React from "react";
 import ProtectedPage from "../auth/ProtectedPage";
 import Titled from "../misc/Titled";
 import ProductView from "./ProductView";
+import BrandView from "./BrandView";
+import TagView from "./TagsView";
+import UserView from "./UserView";
+import AdminView from "./AdminView";
+import SettingsView from "./SettingsView";
+import { useTheme } from "../misc/useTheme";
+import { useNavigate } from "react-router-dom";
+import { API, type User } from "../API";
 import './Workpanel.css'
 
+const THEME_LABELS = { light: "☀  Light", dark: "🌙  Dark", auto: "⊙  System" };
+
+type Panel = "products" | "brands" | "tags" | "users" | "admin" | "settings";
+
+function initials(email: string): string {
+    const name = email.split("@")[0];
+    const parts = name.split(/[._-]/).filter(Boolean);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return name.slice(0, 2).toUpperCase();
+}
+
+function UserMenu({ user }: { user: User }): React.ReactNode {
+    const [open, setOpen] = React.useState(false);
+    const ref = React.useRef<HTMLDivElement>(null);
+    const picture = localStorage.getItem("user-picture");
+
+    React.useEffect(() => {
+        function onClickOutside(e: MouseEvent) {
+            if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+        }
+        document.addEventListener("mousedown", onClickOutside);
+        return () => document.removeEventListener("mousedown", onClickOutside);
+    }, []);
+
+    function logOut() {
+        localStorage.removeItem("session");
+        localStorage.removeItem("user-picture");
+        window.location.href = "/";
+    }
+
+    return (
+        <div className="user-menu" ref={ref}>
+            <button className="user-avatar" onClick={() => setOpen(o => !o)} aria-label="Account menu">
+                {picture
+                    ? <img src={picture} alt={user.email} className="user-avatar-img" referrerPolicy="no-referrer" />
+                    : initials(user.email)
+                }
+            </button>
+            {open && (
+                <div className="user-menu-dropdown">
+                    <div className="user-menu-email">{user.email}</div>
+                    <div className="user-menu-badge">{user.access_level}</div>
+                    <hr className="user-menu-divider" />
+                    <button className="user-menu-item" onClick={logOut}>Log Out</button>
+                </div>
+            )}
+        </div>
+    );
+}
+
+function PanelContent({ panel }: { panel: Panel }): React.ReactNode {
+    switch (panel) {
+        case "products":  return <ProductView />;
+        case "brands":    return <BrandView />;
+        case "tags":      return <TagView />;
+        case "users":     return <UserView />;
+        case "admin":     return <AdminView />;
+        case "settings":  return <SettingsView />;
+    }
+}
+
 export default function Workpanel(): React.ReactNode {
+    const [theme, cycleTheme] = useTheme();
+    const [panel, setPanel] = React.useState<Panel>("products");
+    const [user, setUser] = React.useState<User | null>(null);
+    const navigate = useNavigate();
+    const api = React.useContext(API.Context);
+
+    React.useEffect(() => {
+        api!.get_user().then(u => { if (u) setUser(u); });
+    }, [api]);
+
     return (
         <ProtectedPage required_access_level="trusted">
             <Titled title="Pirate Pantry - Workpanel">
@@ -11,16 +91,32 @@ export default function Workpanel(): React.ReactNode {
                     <div id="header">
                         <div id="title">Pirate Pantry Workpanel</div>
                         <div id="header-top-right">
-                            <button id="user-view" className="header-button">User View</button>
-                            <button id="log-out" className="header-button">Log Out</button> 
+                            <button id="user-view" className="header-button" onClick={() => navigate("/checkout")}>Checkout</button>
+                            {user && <UserMenu user={user} />}
                         </div>
                     </div>
                     <div id="body">
                         <div id="body-left">
-                            <button id="admin-panel" className="body-left-button">Admin Panel</button>
-                            <button id="settings" className="body-left-button">Settings</button>
+                            <span className="body-left-section-label">Database</span>
+                            <button className="body-left-button body-left-sub-button" onClick={() => setPanel("products")} data-active={panel === "products" ? "" : undefined}>Products</button>
+                            <button className="body-left-button body-left-sub-button" onClick={() => setPanel("brands")}  data-active={panel === "brands"   ? "" : undefined}>Brands</button>
+                            <button className="body-left-button body-left-sub-button" onClick={() => setPanel("tags")}    data-active={panel === "tags"     ? "" : undefined}>Tags</button>
+                            {user?.access_level === "admin" && (
+                                <button className="body-left-button body-left-sub-button" onClick={() => setPanel("users")} data-active={panel === "users" ? "" : undefined}>Users</button>
+                            )}
+                            <div className="body-left-spacer" />
+                            <hr className="body-left-divider" />
+                            <button className="body-left-button" onClick={() => setPanel("settings")} data-active={panel === "settings" ? "" : undefined}>Settings</button>
+                            {user?.access_level === "admin" && (
+                                <button className="body-left-button" onClick={() => setPanel("admin")} data-active={panel === "admin" ? "" : undefined}>Admin Panel</button>
+                            )}
+                            <hr className="body-left-divider" />
+                            <span className="body-left-section-label">Appearance</span>
+                            <button className="body-left-button body-left-button--sm" onClick={cycleTheme} data-active={theme !== "auto" ? "" : undefined}>
+                                Theme: {THEME_LABELS[theme]}
+                            </button>
                         </div>
-                        <ProductView />
+                        <PanelContent panel={panel} />
                     </div>
                 </div>
             </Titled>

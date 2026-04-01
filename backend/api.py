@@ -8,7 +8,7 @@ from flask_cors import CORS
 from pydantic import BaseModel, ValidationError, field_validator
 from backend.common import UNSET
 from misc import env_get
-from database import AccessLevel, Brand, Database, LocalDatabase, Product, ProductNotFoundError, NotEnoughProductStockError, Tag, User, UserAlreadyExistsError
+from database import AccessLevel, Brand, Database, LocalDatabase, Product, ProductNotFoundError, NotEnoughProductStockError, Tag, User, UserAlreadyExistsError, UserNotFoundError
 from google_auth_oauthlib.flow import Flow # pyright: ignore[reportMissingTypeStubs]
 import jwt
 import requests
@@ -122,6 +122,7 @@ def define_routes(app: Flask, db: Database):
             return jsonify({'error': 'Unauthorized email domain'}), 403
         
         google_sub = str(id_info['sub'])
+        picture: Optional[str] = id_info.get('picture')
 
         # Make sure user exists if in dev mode
         if isinstance(db, LocalDatabase):
@@ -150,19 +151,20 @@ def define_routes(app: Flask, db: Database):
         )
 
         auth_code = secrets.token_urlsafe(64)
-        db.store_auth_code(auth_code, session.id)
+        db.store_auth_code(auth_code, session.id, picture)
 
         return redirect(f'{frontend_url}/auth/callback?code={auth_code}')
 
     @app.route('/auth/exchange', methods=['POST'])
     def auth_exchange(): # pyright: ignore[reportUnusedFunction]
         code = request.json.get('code') # pyright: ignore[reportOptionalMemberAccess]
-        session_id = db.consume_auth_code(code)
+        result = db.consume_auth_code(code)
 
-        if not session_id:
+        if not result:
             return jsonify({'error': 'Invalid or expired code'}), 401
-        
-        return jsonify({'session': session_id})
+
+        session_id, picture = result
+        return jsonify({'session': session_id, 'picture': picture})
 
     @app.route('/user', methods=['GET'])
     @requires_at_least(None)
@@ -189,6 +191,74 @@ def define_routes(app: Flask, db: Database):
     def whoami(): # pyright: ignore[reportUnusedFunction]
         result = {'id': g.session.google_sub if g.session else None }
         return jsonify(result)
+
+    @app.route('/users', methods=['GET'])
+    @requires_at_least(AccessLevel.ADMIN)
+    def get_users(): # pyright: ignore[reportUnusedFunction]
+        return jsonify([u.model_dump() for u in db.all_users()])
+
+    @app.route('/user/<user_id>', methods=['PATCH'])
+    @requires_at_least(AccessLevel.ADMIN)
+    def update_user(user_id: str): # pyright: ignore[reportUnusedFunction]
+        body = request.json or {}
+        try:
+            new_level = AccessLevel(body.get('access_level'))
+        except (ValueError, KeyError):
+            return jsonify({'error': 'Invalid access_level'}), 400
+        try:
+            user = db.update_user_access_level(user_id, new_level)
+            return jsonify(user.model_dump())
+        except UserNotFoundError:
+            return jsonify({'error': 'User not found'}), 404
+
+    @app.route('/sessions', methods=['GET'])
+    @requires_at_least(AccessLevel.ADMIN)
+    def list_sessions(): # pyright: ignore[reportUnusedFunction]
+        sessions = db.all_sessions()
+        users_by_id = {u.id: u for u in db.all_users()}
+        current_id = g.session.id if g.session else None
+        result = []
+        for s in sessions:
+            user = users_by_id.get(s.user_id) if s.user_id else None
+            result.append({
+                'id': s.id,
+                'user_email': user.email if user else None,
+                'created_at': s.created_at,
+                'expires_at': s.expires_at,
+                'is_current': s.id == current_id,
+            })
+        return jsonify(result)
+
+    @app.route('/session/<session_id>', methods=['DELETE'])
+    @requires_at_least(AccessLevel.ADMIN)
+    def revoke_session_route(session_id: str): # pyright: ignore[reportUnusedFunction]
+        if g.session and g.session.id == session_id:
+            return jsonify({'error': 'Cannot revoke your own session'}), 400
+        db.revoke_session(session_id)
+        return '', 204
+
+    # --------------------------------------------------
+    # Settings
+    # --------------------------------------------------
+
+    ALLOWED_SETTINGS = {'login_timeout_days', 'page_size'}
+
+    @app.route('/settings', methods=['GET'])
+    @requires_at_least(AccessLevel.TRUSTED)
+    def get_settings(): # pyright: ignore[reportUnusedFunction]
+        return jsonify(db.get_all_settings())
+
+    @app.route('/settings', methods=['PATCH'])
+    @requires_at_least(AccessLevel.TRUSTED)
+    def update_settings(): # pyright: ignore[reportUnusedFunction]
+        body = request.json or {}
+        updated = {}
+        for key, value in body.items():
+            if key not in ALLOWED_SETTINGS:
+                return jsonify({'error': f'Unknown setting: {key}'}), 400
+            db.update_setting(key, str(value))
+            updated[key] = str(value)
+        return jsonify(updated)
 
     # --------------------------------------------------
     # Product
@@ -556,6 +626,8 @@ def define_routes(app: Flask, db: Database):
         '''
         class GetTagsQuery(BaseModel):
             label: Optional[str] = None
+            page: int = 1
+            page_size: int = 20
 
         try:
             tags_query = GetTagsQuery.model_validate(request.args.to_dict())
@@ -570,7 +642,12 @@ def define_routes(app: Flask, db: Database):
             params.append(tags_query.label)
 
         where = ('WHERE ' + ' AND '.join(conditions)) if len(conditions) > 0 else ''
-        sql = f'SELECT * FROM tags {where}'
+
+        filter_params = params.copy()
+
+        offset = (tags_query.page - 1) * tags_query.page_size
+        sql = f'SELECT * FROM tags {where} LIMIT ? OFFSET ?'
+        params.extend([tags_query.page_size, offset])
 
         tags = db.query_and_map_rows(
             sql,
@@ -578,7 +655,13 @@ def define_routes(app: Flask, db: Database):
             params
         )
 
-        return jsonify([t.model_dump() for t in tags])
+        total = db.query(f'SELECT COUNT(*) as total FROM tags {where}', filter_params)[0]['total']
+
+        return jsonify({
+            'data': [t.model_dump() for t in tags],
+            'total': total,
+            'total_pages': (total + tags_query.page_size - 1) // tags_query.page_size,
+        })
 
     @app.route('/tags', methods=['POST'])
     @requires_at_least(AccessLevel.TRUSTED)

@@ -23,7 +23,7 @@ export type AccessLevel = z.infer<typeof AccessLevelSchema>
 const UserSchema = z.object({
     id: z.string(),
     email: z.string(),
-    access_level: AccessLevelSchema
+    access_level: AccessLevelSchema,
 })
 export type User = z.infer<typeof UserSchema>
 
@@ -78,13 +78,29 @@ type PaginatedResponse<T> = {
     total_pages: number;
 };
 
+const SessionSchema = z.object({
+    id: z.string(),
+    user_email: z.string().nullable().optional(),
+    created_at: z.number(),
+    expires_at: z.number(),
+    is_current: z.boolean(),
+})
+export type Session = z.infer<typeof SessionSchema>
+
 export namespace API {
     export type Type = {
         get_user: () => Promise<Optional<User>>,
+        get_users: () => Promise<Array<User>>,
         whoami: () => Promise<Optional<string>>,
-        get_products:(args?: PaginatedRequest<GetProductsArgs>) => Promise<PaginatedResponse<Product>>,
+        get_products: (args?: PaginatedRequest<GetProductsArgs>) => Promise<PaginatedResponse<Product>>,
         get_brands: (args?: PaginatedRequest<GetBrandsArgs>) => Promise<PaginatedResponse<Brand>>,
         get_tags: (args?: PaginatedRequest<GetTagsArgs>) => Promise<PaginatedResponse<Tag>>,
+        get_settings: () => Promise<Record<string, string>>,
+        update_settings: (patch: Record<string, string | number>) => Promise<Record<string, string>>,
+        add_user: (id: string, email: string, access_level: AccessLevel) => Promise<User>,
+        update_user: (id: string, patch: { access_level: AccessLevel }) => Promise<User>,
+        get_sessions: () => Promise<Array<Session>>,
+        revoke_session: (id: string) => Promise<void>,
     }
 
     interface GetProductsArgs {
@@ -120,6 +136,10 @@ export namespace API {
                     return await api_get("/user", UserSchema.optional().nullable());
                 },
 
+                get_users: async (): Promise<Array<User>> => {
+                    return await api_get("/users", z.array(UserSchema));
+                },
+
                 whoami: async (): Promise<Optional<string>> => {
                     return (await api_get("/auth/whoami", WhoAmISchema)).id
                 },
@@ -134,7 +154,31 @@ export namespace API {
 
                 get_tags: async(args?: PaginatedRequest<GetTagsArgs>): Promise<PaginatedResponse<Tag>> => {
                     return await api_get("tags", PaginatedResponseSchema(TagSchema), args);
-                }
+                },
+
+                get_settings: async (): Promise<Record<string, string>> => {
+                    return (await api_base.get("/settings")).data as Record<string, string>;
+                },
+
+                update_settings: async (patch: Record<string, string | number>): Promise<Record<string, string>> => {
+                    return (await api_base.patch("/settings", patch)).data;
+                },
+
+                add_user: async (id: string, email: string, access_level: AccessLevel): Promise<User> => {
+                    return (await api_base.post("/user", null, { params: { id, email, access_level } })).data;
+                },
+
+                update_user: async (id: string, patch: { access_level: AccessLevel }): Promise<User> => {
+                    return (await api_base.patch(`/user/${id}`, patch)).data;
+                },
+
+                get_sessions: async (): Promise<Array<Session>> => {
+                    return await api_get("/sessions", z.array(SessionSchema));
+                },
+
+                revoke_session: async (id: string): Promise<void> => {
+                    await api_base.delete(`/session/${id}`);
+                },
             }
         }, []);
 

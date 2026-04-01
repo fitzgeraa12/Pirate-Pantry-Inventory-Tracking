@@ -2,49 +2,25 @@ import React from "react";
 import TableView from "./TableView";
 import type { Optional } from "../misc/misc";
 import { API, type Tag } from "../API";
-import { createColumnHelper } from "@tanstack/react-table";
 
-const helper = createColumnHelper<Tag>();
 export default function TagView(): React.ReactNode {
     const api = React.useContext(API.Context);
-    const [tags, set_tags] = React.useState<Optional<Array<Tag>>>(null);
+    const [tags, setTags] = React.useState<Optional<Array<Tag>>>(null);
+    const pageSize = parseInt(localStorage.getItem("table-page-size") ?? "20") || 20;
 
     React.useEffect(() => {
-        api!.tags().then((tgs) => {
-            set_tags(tgs);
-        })
-    }, [])
-    
+        api!.get_tags({ page_size: 99999 }).then(t => setTags(t.data));
+    }, []);
+
     return (
-        <TableView data={tags} column_meta={{
+        <TableView data={tags} pageSize={pageSize} column_meta={{
             meta: {
-                label: { header: "Name" },
-                actions: {
-                    type: "display",
-                    column: helper.display({
-                        id: "actions",
-                        cell: ({ }) => (
-                            <>
-                                <button
-                                    style={{color: "white"}}
-                                    className="table-entry-button"
-                                    // onClick={() => addToCart(row.original.id, row.original.name, row.original.quantity)}
-                                >
-                                    Edit
-                                </button>
-                                <button
-                                    style={{color: "white"}}
-                                    className="table-entry-button"
-                                    // onClick={() => removeFromCart(row.original.id)}
-                                >
-                                    Remove
-                                </button>
-                            </>
-                        ),
-                    }),
-                },
+                label: { header: "Label" },
             },
-            order: ["label", "actions"],
-        }}></TableView>
+            order: ["label"],
+        }} actions={[
+            { label: "Edit",   onClick: (rows) => console.log("Edit", rows) },
+            { label: "Delete", onClick: (rows) => console.log("Delete", rows) },
+        ]} />
     );
 }

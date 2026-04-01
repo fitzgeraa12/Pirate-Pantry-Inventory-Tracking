@@ -2,54 +2,64 @@ import React from "react";
 import TableView from "./TableView";
 import type { Optional } from "../misc/misc";
 import { API, type Product } from "../API";
-import { createColumnHelper } from "@tanstack/react-table";
 
-const helper = createColumnHelper<Product>();
 export default function ProductView(): React.ReactNode {
     const api = React.useContext(API.Context);
     const [products, set_products] = React.useState<Optional<Array<Product>>>(null);
+    const [isLoading, setIsLoading] = React.useState(false);
+    const [search, setSearch] = React.useState("");
+    const [inputValue, setInputValue] = React.useState("");
+    const [page, setPage] = React.useState(1);
+    const [total, setTotal] = React.useState(0);
+    const [totalPages, setTotalPages] = React.useState(1);
+    const pageSize = parseInt(localStorage.getItem("table-page-size") ?? "20") || 20;
+
+    const searchRef = React.useRef<HTMLInputElement>(null);
 
     React.useEffect(() => {
-        const search = "cheerios";
-        api!.get_products({name: `%${search}%`}).then((prods) => {
-            console.log(prods.data)
+        const timer = setTimeout(() => { setSearch(inputValue.trim()); setPage(1); }, 300);
+        return () => clearTimeout(timer);
+    }, [inputValue]);
+
+    React.useEffect(() => {
+        const wasFocused = document.activeElement === searchRef.current;
+        setIsLoading(true);
+        api!.get_products({ name: search ? `%${search}%` : undefined, page, page_size: pageSize }).then((prods) => {
             set_products(prods.data);
-        })
-    }, [])
+            setTotal(prods.total);
+            setTotalPages(prods.total_pages);
+            setIsLoading(false);
+            if (wasFocused) searchRef.current?.focus();
+        });
+    }, [search, page]);
+
+    const toolbar = (
+        <input
+            ref={searchRef}
+            className="table-search"
+            type="search"
+            placeholder="Search products..."
+            value={inputValue}
+            onChange={e => setInputValue(e.target.value)}
+        />
+    );
     
     return (
-        <TableView data={products} column_meta={{
+        <TableView data={products} toolbar={toolbar} isLoading={isLoading} pageSize={pageSize}
+            serverPagination={{ page, total, totalPages, onPageChange: setPage }}
+            column_meta={{
             meta: {
                 id: { header: "Id" },
                 name: { header: "Name" },
                 brand: { header: "Brand" },
                 quantity: { header: "Quantity" },
-                tags: { header: "Tags" },
+                tags: { header: "Tags", cell: (val: Array<string>) => <>{val.join(", ")}</> },
                 image_link: { header: "Image" },
-                actions: {
-                    type: "display",
-                    column: helper.display({
-                        id: "actions",
-                        cell: ({ }) => (
-                            <>
-                                <button
-                                    className="table-entry-button"
-                                    // onClick={() => addToCart(row.original.id, row.original.name, row.original.quantity)}
-                                >
-                                    Edit
-                                </button>
-                                <button
-                                    className="table-entry-button"
-                                    // onClick={() => removeFromCart(row.original.id)}
-                                >
-                                    Remove
-                                </button>
-                            </>
-                        ),
-                    }),
-                },
             },
-            order: ["id", "image_link", "name", "brand", "quantity", "tags", "actions"],
-        }}></TableView>
+            order: ["id", "image_link", "name", "brand", "quantity", "tags"],
+        }} actions={[
+            { label: "Edit", onClick: (rows) => console.log("Edit", rows) },
+            { label: "Delete", onClick: (rows) => console.log("Delete", rows) },
+        ]} />
     );
 }

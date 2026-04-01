@@ -1,6 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { api_base } from "../API";
+import { Spinner } from "../misc/misc";
 
 export default function AuthCallback(): React.ReactNode {
     const navigate = useNavigate();
@@ -14,12 +15,17 @@ export default function AuthCallback(): React.ReactNode {
         window.history.replaceState({}, "", "/auth/callback");
         api_base.post("/auth/exchange", { code }).then(({ data }) => {
             localStorage.setItem("session", data.session);
+            if (data.picture) localStorage.setItem("user-picture", data.picture);
+            else localStorage.removeItem("user-picture");
             navigate("/");
         });
         }
     }, []);
 
     return (
-        <div>Logging you in...</div>
+        <div className="page-loading">
+            <div className="page-loading-title">Pirate Pantry</div>
+            <Spinner />
+        </div>
     );
 }
