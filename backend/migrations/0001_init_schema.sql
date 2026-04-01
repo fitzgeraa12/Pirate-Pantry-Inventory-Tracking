@@ -28,10 +28,13 @@ CREATE TABLE IF NOT EXISTS auth_cache (
     expires_at INTEGER NOT NULL      -- Unix timestamp (from token's exp claim)
 );
 
-CREATE TABLE IF NOT EXISTS checkouts (
-    id         INTEGER UNIQUE PRIMARY KEY NOT NULL,
+CREATE TABLE IF NOT EXISTS total_checkouts (
+    checkout_id INTEGER UNIQUE PRIMARY KEY NOT NULL, --unique per checkout
+    id         INTEGER NOT NULL,
     name       TEXT    NOT NULL,
     brand      TEXT    NOT NULL DEFAULT '',
-    quantity   INTEGER NOT NULL,
-    checked_out TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    num_checked_out   INTEGER NOT NULL,
+    checkout_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+

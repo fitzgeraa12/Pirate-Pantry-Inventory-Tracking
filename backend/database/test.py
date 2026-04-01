@@ -1,13 +1,17 @@
 import db
 import sqlite3
 import admin
-
+import stats
+import datetime
+import random
 
 #This is where I can test the methods
 def main():
 
+    #pip install google-auth
     
     #Creates the table
+    
     connection = sqlite3.connect('/workspaces/Pirate-Pantry-Inventory-Tracking/backend/database/db_test.db')
     cursor = connection.cursor()
 
@@ -19,16 +23,19 @@ def main():
         connection.commit()
     except sqlite3.Error as e:
         print("Oh no!")
+        
     
     #finally:
     
     #cursor.execute('SELECT * FROM products')
     #print(cursor.fetchall())
     #db.add_item('corn', 'HEB', 3835982, 4, 'None', ['VEGETABLES', 'canned'])
-    #db.add_item('peas', 'green giant', 324, 2, 'None', ['VEGETABLES', 'canned'])'''
+    #db.add_item('peas', 'green giant', 324, 2, 'None', ['VEGETABLES', 'canned'])
     #db.add_item('carrots', 'HEB', [], 7, 'None', ['VEGETABLES', 'canned'])
     #db.update_item('corn', 'HEB', 3835982, 10, '', ['VEGETABLES', 'canned'])
-
+    stats.new_checkout(random.randint(0,500), 3835982, 'corn', 'HEB', 3, datetime.datetime.now())
+    print(stats.get_checkout())
+    print(datetime.datetime.now())
     #db.delete_item(3835983)
     #print(db.get_tags_for_item(347))
     #db.add_item('olives', 'everyday olives', 345345, 5, 'None', ['VEGETABLES', 'canned'])
@@ -54,7 +61,7 @@ def main():
     #print(db.get_tags_for_item(333333333)) 
     #db.delete_item(333333333)
     #print(admin.view_all())
-    print(db.view_table())
+    #print(db.view_table())
    
 
 if __name__ == "__main__":
