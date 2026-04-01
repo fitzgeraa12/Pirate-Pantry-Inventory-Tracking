@@ -10,7 +10,8 @@ export default function ProductView(): React.ReactNode {
     const [products, set_products] = React.useState<Optional<Array<Product>>>(null);
 
     React.useEffect(() => {
-        api!.get_products({name: "%tomato%"}).then((prods) => {
+        const search = "cheerios";
+        api!.get_products({name: `%${search}%`}).then((prods) => {
             console.log(prods.data)
             set_products(prods.data);
         })

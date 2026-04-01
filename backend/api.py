@@ -66,11 +66,11 @@ def define_routes(app: Flask, db: Database):
                     return fn(*args, **kwargs)
 
                 session = db.get_auth_session(token)
-                if not session:
+                if required_access_level and not session:
                     return jsonify({'error': 'Invalid session'}), 401
 
-                user = db.get_user(session.user_id) if session.user_id else None
-                access_level = user.access_level if user else None
+                user = db.get_user(session.user_id) if session and session.user_id else None
+                access_level = user.access_level if session and user else None
 
                 if required_access_level and (not access_level or not access_level.at_least(required_access_level)):
                     return jsonify({'error': 'Unauthorized'}), 403
@@ -125,7 +125,10 @@ def define_routes(app: Flask, db: Database):
 
         # Make sure user exists if in dev mode
         if isinstance(db, LocalDatabase):
-            db.add_user(google_sub, email, AccessLevel.ADMIN)
+            try:
+                db.add_user(google_sub, email, AccessLevel.ADMIN)
+            except UserAlreadyExistsError:
+                pass
 
         user = db.get_user(google_sub)
 
@@ -184,7 +187,7 @@ def define_routes(app: Flask, db: Database):
     @app.route('/auth/whoami', methods=['GET'])
     @requires_at_least(None)
     def whoami(): # pyright: ignore[reportUnusedFunction]
-        result = {'id': g.session.google_sub if g.session else None}
+        result = {'id': g.session.google_sub if g.session else None }
         return jsonify(result)
 
     # --------------------------------------------------
@@ -225,6 +228,7 @@ def define_routes(app: Flask, db: Database):
             page_size: int = 20
 
         with db.transaction():
+            print(request.args.to_dict())
             try:
                 products_query = GetProductsSchema.model_validate(request.args.to_dict())
             except ValidationError as e:

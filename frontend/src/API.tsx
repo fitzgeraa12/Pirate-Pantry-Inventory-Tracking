@@ -28,8 +28,9 @@ const UserSchema = z.object({
 export type User = z.infer<typeof UserSchema>
 
 const WhoAmISchema = z.object({
-    id: z.string(),
+    id: z.string().optional().nullable(),
 })
+type WhoAmI = z.infer<typeof WhoAmISchema>
 
 const BrandSchema = z.object({
     name: z.string(),
@@ -116,23 +117,23 @@ export namespace API {
 
             return {
                 get_user: async (): Promise<Optional<User>> => {
-                    return await api_get("/user", z.optional(UserSchema));
+                    return await api_get("/user", UserSchema.optional().nullable());
                 },
 
                 whoami: async (): Promise<Optional<string>> => {
-                    return await api_get("/auth/whoami", z.optional(WhoAmISchema))
+                    return (await api_get("/auth/whoami", WhoAmISchema)).id
                 },
 
                 get_products: async(args?: PaginatedRequest<GetProductsArgs>): Promise<PaginatedResponse<Product>> => {
-                    return await await api_get("products", PaginatedResponseSchema(ProductSchema), args);
+                    return await api_get("products", PaginatedResponseSchema(ProductSchema), args);
                 },
 
                 get_brands: async(args?: PaginatedRequest<GetBrandsArgs>): Promise<PaginatedResponse<Brand>> => {
-                    return await await api_get("brands", PaginatedResponseSchema(BrandSchema), args);
+                    return await api_get("brands", PaginatedResponseSchema(BrandSchema), args);
                 },
 
                 get_tags: async(args?: PaginatedRequest<GetTagsArgs>): Promise<PaginatedResponse<Tag>> => {
-                    return await await api_get("tags", PaginatedResponseSchema(TagSchema), args);
+                    return await api_get("tags", PaginatedResponseSchema(TagSchema), args);
                 }
             }
         }, []);
