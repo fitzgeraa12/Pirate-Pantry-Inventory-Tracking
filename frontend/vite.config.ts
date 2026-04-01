@@ -13,4 +13,8 @@ export default defineConfig({
     }
   },
   envDir: '../',
+  server: {
+    host: '0.0.0.0',
+    allowedHosts: 'all',
+  },
 })
