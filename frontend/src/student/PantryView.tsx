@@ -15,7 +15,7 @@ interface ProductViewProps {
     searchTerm?: string;
 }
 
-function ProductView({ searchTerm: externalSearchTerm }: ProductViewProps = {}) {
+function PantryView({ searchTerm: externalSearchTerm }: ProductViewProps = {}) {
     const { addToCart, removeFromCart} = useCart(); 
     const columns = useMemo<ColumnDef<ProductTableEntry>[]>(() => {
         return [
@@ -124,4 +124,4 @@ function ProductView({ searchTerm: externalSearchTerm }: ProductViewProps = {}) 
     );
 }
 
-export default ProductView;
+export default PantryView;
