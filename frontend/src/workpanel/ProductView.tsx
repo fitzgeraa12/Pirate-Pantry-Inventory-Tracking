@@ -10,8 +10,9 @@ export default function ProductView(): React.ReactNode {
     const [products, set_products] = React.useState<Optional<Array<Product>>>(null);
 
     React.useEffect(() => {
-        api!.products().then((prods) => {
-            set_products(prods);
+        api!.get_products({name: "%tomato%"}).then((prods) => {
+            console.log(prods.data)
+            set_products(prods.data);
         })
     }, [])
     
@@ -31,14 +32,12 @@ export default function ProductView(): React.ReactNode {
                         cell: ({ }) => (
                             <>
                                 <button
-                                    style={{color: "white"}}
                                     className="table-entry-button"
                                     // onClick={() => addToCart(row.original.id, row.original.name, row.original.quantity)}
                                 >
                                     Edit
                                 </button>
                                 <button
-                                    style={{color: "white"}}
                                     className="table-entry-button"
                                     // onClick={() => removeFromCart(row.original.id)}
                                 >

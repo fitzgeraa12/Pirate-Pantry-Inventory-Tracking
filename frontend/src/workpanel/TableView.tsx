@@ -1,6 +1,7 @@
 import React from "react";
 import type { Optional } from "../misc/misc";
 import { createColumnHelper, flexRender, getCoreRowModel, useReactTable, type ColumnDef, type RowData } from "@tanstack/react-table";
+import './TableView.css'
 
 type BoxedPrimitive<T> = { value: T };
 type RowType<T> = T extends object ? T : BoxedPrimitive<T>;
@@ -94,36 +95,38 @@ export default function TableView<
     const [page_no, set_page_no] = React.useState(1);
     
     return data ? (
-        <table>
-            <thead>
-                {table.getHeaderGroups().map(headerGroup => (
-                    <tr key={headerGroup.id} style={{color: "white"}}>
-                        {headerGroup.headers.map(header => (
-                            <th key={header.id}>
-                                {flexRender(
-                                    header.column.columnDef.header,
-                                    header.getContext()
-                                )}
-                            </th>
-                        ))}
-                    </tr>
-                ))}
-            </thead>
-            <tbody>
-                {table.getRowModel().rows.map(row => (
-                    <tr key={row.id} style={{color: "white"}}>
-                        {row.getVisibleCells().map(cell => (
-                            <td key={cell.id}>
-                                {flexRender(
-                                    cell.column.columnDef.cell,
-                                    cell.getContext()
-                                )}
-                            </td>
-                        ))}
-                    </tr>
-                ))}
-            </tbody>
-        </table>
+        <div className="table-view-wrapper">
+            <table className="table-view">
+                <thead className="table-view-header">
+                    {table.getHeaderGroups().map(headerGroup => (
+                        <tr key={headerGroup.id}>
+                            {headerGroup.headers.map(header => (
+                                <th className="table-view-header-cell" key={header.id}>
+                                    {flexRender(
+                                        header.column.columnDef.header,
+                                        header.getContext()
+                                    )}
+                                </th>
+                            ))}
+                        </tr>
+                    ))}
+                </thead>
+                <tbody className="table-view-body">
+                    {table.getRowModel().rows.map(row => (
+                        <tr key={row.id}>
+                            {row.getVisibleCells().map(cell => (
+                                <td className="table-view-data-cell" key={cell.id}>
+                                    {flexRender(
+                                        cell.column.columnDef.cell,
+                                        cell.getContext()
+                                    )}
+                                </td>
+                            ))}
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
     ) : (
         <>Loading...</>
     );

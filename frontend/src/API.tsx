@@ -27,6 +27,10 @@ const UserSchema = z.object({
 })
 export type User = z.infer<typeof UserSchema>
 
+const WhoAmISchema = z.object({
+    id: z.string(),
+})
+
 const BrandSchema = z.object({
     name: z.string(),
 })
@@ -40,14 +44,26 @@ export type Tag = z.infer<typeof TagSchema>
 const ProductSchema = z.object({
     id: z.number(),
     name: z.string(),
-    brand: BrandSchema.nullable().optional(),
+    brand: z.string().nullable().optional(),
     quantity: z.number(),
     image_link: z.string().nullable().optional(),
-    tags: z.array(TagSchema),
+    tags: z.array(z.string()),
 })
 export type Product = z.infer<typeof ProductSchema>
 
-function PaginatedSchema<T extends z.ZodTypeAny>(item_schema: T) {
+function PaginatedRequestSchema<T extends z.ZodTypeAny>(item_schema: T) {
+    return z.union([z.object({
+        page: z.number(),
+        page_size: z.number(),
+    }), item_schema]);
+}
+
+type PaginatedRequest<T> = T & {
+    page?: Optional<number>,
+    page_size?: Optional<number>,
+};
+
+function PaginatedResponseSchema<T extends z.ZodType>(item_schema: T) {
     return z.object({
         data: z.array(item_schema),
         total: z.number(),
@@ -55,7 +71,7 @@ function PaginatedSchema<T extends z.ZodTypeAny>(item_schema: T) {
     });
 }
 
-type Paginated<T> = {
+type PaginatedResponse<T> = {
     data: Array<T>;
     total: number;
     total_pages: number;
@@ -65,48 +81,58 @@ export namespace API {
     export type Type = {
         get_user: () => Promise<Optional<User>>,
         whoami: () => Promise<Optional<string>>,
-        products:() => Promise<Paginated<Product>>,
-        brands: () => Promise<Paginated<Brand>>,
-        tags: () => Promise<Paginated<Tag>>,
+        get_products:(args?: PaginatedRequest<GetProductsArgs>) => Promise<PaginatedResponse<Product>>,
+        get_brands: (args?: PaginatedRequest<GetBrandsArgs>) => Promise<PaginatedResponse<Brand>>,
+        get_tags: (args?: PaginatedRequest<GetTagsArgs>) => Promise<PaginatedResponse<Tag>>,
+    }
+
+    interface GetProductsArgs {
+        id?: Optional<number>,
+        name?: Optional<string>,
+        brand?: Optional<string>,
+        quantity?: Optional<string>,
+        image_link?: Optional<string>,
+        tags?: Optional<Array<string>>,
+    }
+
+    interface GetBrandsArgs {
+        name?: Optional<string>,
+    }
+
+    interface GetTagsArgs {
+        label?: Optional<string>,
     }
 
     export const Context = React.createContext<Optional<Type>>(null);
     
     export function Component({ children }: React.PropsWithChildren): React.ReactNode {
         const api = React.useMemo<Type>(() => {
+            
+            const api_get = async<T extends object, U extends z.ZodType>(url: string, schema: U, params?: T): Promise<any> => {
+                return schema.parse(
+                    (await api_base.get(url, params ? {params} : undefined)).data
+                );
+            }
+
             return {
                 get_user: async (): Promise<Optional<User>> => {
-                    try {
-                        const response = await api_base.get("/user");
-                        if (response.data === null) return null;
-                        return UserSchema.parse(response.data);
-                    } catch {
-                        return null;
-                    }
+                    return await api_get("/user", z.optional(UserSchema));
                 },
 
                 whoami: async (): Promise<Optional<string>> => {
-                    try {
-                        const response = await api_base.get("/auth/whoami");
-                        return response.data.id ?? null;
-                    } catch {
-                        return null;
-                    }
+                    return await api_get("/auth/whoami", z.optional(WhoAmISchema))
                 },
 
-                products: async(): Promise<Paginated<Product>> => {
-                    const response = await api_base.get("products");
-                    return PaginatedSchema(ProductSchema).parse(response.data);
+                get_products: async(args?: PaginatedRequest<GetProductsArgs>): Promise<PaginatedResponse<Product>> => {
+                    return await await api_get("products", PaginatedResponseSchema(ProductSchema), args);
                 },
 
-                brands: async(): Promise<Paginated<Brand>> => {
-                    const response = await api_base.get("brands");
-                    return PaginatedSchema(BrandSchema).parse(response.data);
+                get_brands: async(args?: PaginatedRequest<GetBrandsArgs>): Promise<PaginatedResponse<Brand>> => {
+                    return await await api_get("brands", PaginatedResponseSchema(BrandSchema), args);
                 },
 
-                tags: async(): Promise<Paginated<Tag>> => {
-                    const response = await api_base.get("tags");
-                    return PaginatedSchema(TagSchema).parse(response.data);
+                get_tags: async(args?: PaginatedRequest<GetTagsArgs>): Promise<PaginatedResponse<Tag>> => {
+                    return await await api_get("tags", PaginatedResponseSchema(TagSchema), args);
                 }
             }
         }, []);

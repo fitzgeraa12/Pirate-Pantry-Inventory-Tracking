@@ -8,7 +8,7 @@ from flask_cors import CORS
 from pydantic import BaseModel, ValidationError, field_validator
 from backend.common import UNSET
 from misc import env_get
-from database import AccessLevel, Brand, Database, Product, ProductNotFoundError, NotEnoughProductStockError, Tag, User, UserAlreadyExistsError
+from database import AccessLevel, Brand, Database, LocalDatabase, Product, ProductNotFoundError, NotEnoughProductStockError, Tag, User, UserAlreadyExistsError
 from google_auth_oauthlib.flow import Flow # pyright: ignore[reportMissingTypeStubs]
 import jwt
 import requests
@@ -122,6 +122,11 @@ def define_routes(app: Flask, db: Database):
             return jsonify({'error': 'Unauthorized email domain'}), 403
         
         google_sub = str(id_info['sub'])
+
+        # Make sure user exists if in dev mode
+        if isinstance(db, LocalDatabase):
+            db.add_user(google_sub, email, AccessLevel.ADMIN)
+
         user = db.get_user(google_sub)
 
         if not user:
@@ -186,7 +191,6 @@ def define_routes(app: Flask, db: Database):
     # Product
     # --------------------------------------------------
 
-    # FIXME: remove custom wildcard behavior in name and brand
     @app.route('/products', methods=['GET'])
     @requires_at_least(AccessLevel.TRUSTED)
     def query_products(): # pyright: ignore[reportUnusedFunction]
@@ -204,9 +208,11 @@ def define_routes(app: Flask, db: Database):
                     quantity=:10    -> at most 10
                 - image_link (str): Exact image link match
                 - tags (str): Comma-separated list of tags to filter by
+                - page (int): Page number, 1-indexed (default: 1)
+                - page_size (int): Number of results per page (default: 20)
 
             Returns:
-                Response (JSON): A list of matching products.
+                Response (JSON): A paginated list of matching products.
         '''
         class GetProductsSchema(BaseModel):
             id: Optional[int] = None
@@ -215,6 +221,8 @@ def define_routes(app: Flask, db: Database):
             quantity: Optional[str] = None
             image_link: Optional[str] = None
             tags: Optional[str] = None
+            page: int = 1
+            page_size: int = 20
 
         with db.transaction():
             try:
@@ -248,22 +256,35 @@ def define_routes(app: Flask, db: Database):
                 conditions.append('p.image_link = ?')
                 params.append(products_query.image_link)
 
-            where = ('WHERE ' + ' AND '.join(conditions)) if len(conditions) > 0 else ''
+            where = ('WHERE ' + ' AND '.join(conditions)) if conditions else ''
+
+            filter_params = params.copy()
 
             if tag_list:
                 placeholders = ', '.join('?' for _ in tag_list)
-                sql = f'''
-                    SELECT DISTINCT p.* FROM products p
+                base_sql = f'''
+                    FROM products p
                     JOIN product_tags pt ON p.id = pt.product_id
                     {where}
                     {'AND' if conditions else 'WHERE'} pt.tag_label IN ({placeholders})
                 '''
-                params.extend(tag_list)
+                filter_params.extend(tag_list)
             else:
-                sql = f'SELECT * FROM products p {where}'
+                base_sql = f'FROM products p {where}'
 
-            products = Product.query_and_include_tags(db, sql, params)
-            return jsonify([p.model_dump() for p in products])
+            total = db.query(f'SELECT COUNT(DISTINCT p.id) as total {base_sql}', filter_params)[0]['total']
+
+            offset = (products_query.page - 1) * products_query.page_size
+            paginated_params = filter_params + [products_query.page_size, offset]
+            sql = f'SELECT DISTINCT p.* {base_sql} LIMIT ? OFFSET ?'
+
+            products = Product.query_and_include_tags(db, sql, paginated_params)
+
+            return jsonify({
+                'data': [p.model_dump() for p in products],
+                'total': total,
+                'total_pages': (total + products_query.page_size - 1) // products_query.page_size,
+            })
 
     @app.route('/products', methods=['POST'])
     @requires_at_least(AccessLevel.TRUSTED)

@@ -25,7 +25,6 @@ dist-ssr
 
 /tunnel
 **/__pycache__
-**/__local__
 **/.wrangler
 .pytest_cache
 

@@ -1,8 +1,6 @@
 import ProtectedPage from "../auth/ProtectedPage";
 import Titled from "../misc/Titled";
-import BrandView from "./BrandView";
 import ProductView from "./ProductView";
-import TagView from "./TagsView";
 import './Workpanel.css'
 
 export default function Workpanel(): React.ReactNode {
@@ -22,7 +20,7 @@ export default function Workpanel(): React.ReactNode {
                             <button id="admin-panel" className="body-left-button">Admin Panel</button>
                             <button id="settings" className="body-left-button">Settings</button>
                         </div>
-                        <BrandView />
+                        <ProductView />
                     </div>
                 </div>
             </Titled>
