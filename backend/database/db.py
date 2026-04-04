@@ -21,6 +21,7 @@ API_URL = f'https://api.cloudflare.com/client/v4/accounts/{ACCOUNT_ID}/d1/databa
 
 def query(sql: str, params: Optional[list[Any]]= None) -> list[Any]:
     ''' Execute a SQL query against the Cloudflare D1 REST API
+        Commented out until Cloudflare stuff is sorted out. Using local tables
 
         Args:
             sql (str): SQL query to execute
@@ -127,39 +128,42 @@ def add_item(
         image_link: str = '',
         tags: Optional[list[str]] = None
 ):
-    """Returns [] if id is already in the table"""
+    '''Adds brand new item to the table.
+        Returns [] if id is already in the table'''
 
-    if brand is None:
-        brand = ''
-    else:
+    if brand is not None:
         brand = brand.title()
     if id:
-        if in_table(id):
+        if in_table(id): #TODO: Should this call update_item instead?
             return []
         else:
             query('INSERT INTO products VALUES (?, ?, ?, ?, ?)', [id, name.title(), brand, quantity, image_link])
-    else: #Issue: id autoincrements from last entered id- how close are ID values to each other?
-        #issue for me- how do I get the id of a value I just entered
-        new_id = [x[0] for x in query('INSERT INTO products VALUES (Null, ?, ?, ?, ?) RETURNING id', [name.title(), brand, quantity, image_link])]
-        id = new_id[0]
+    else: #TODO: id autoincrements from last entered id- how close are ID values to each other? Will this be an issue?
+        new_id = in_table_no_id(name, brand)
+        if len(new_id) > 0: #Item is already in the table
+            id = new_id[0][0]
+            update_item(name, brand, id, quantity, image_link, None)
+        else: #Item is not in table, generate new id
+            new_id = [x[0] for x in query('INSERT INTO products VALUES (Null, ?, ?, ?, ?) RETURNING id', [name.title(), brand, quantity, image_link])]
+            id = new_id[0]
     if tags:
         for tag in tags:
             query('INSERT INTO tags (label) VALUES (?) ON CONFLICT (label) DO NOTHING', [str(tag).title()])
-            query('INSERT INTO product_tags VALUES (?, ?)', [id, str(tag).title()])
+            query('INSERT INTO product_tags VALUES (?, ?) ON CONFLICT (product_id, tag_label) DO NOTHING', [id, str(tag).title()])
 
 #TODO: How exact should this search be? What if an item is entered manually with no brand, but it already exists in the database with the brand field?
 def in_table_no_id(
         name: str = '',
         brand: Optional[str] = None,
-        quantity: int = 0,
-        image_link: str = '',
 ):
-    '''Searches for item id when item is manually entered'''
+    '''Searches for the item in the table if there's no id attatched to it (maunal entry)'''
     if brand is None:
         brand = ''
     else:
         brand = brand.title() 
-    build_query('SELECT id FROM products WHERE ', name, brand, quantity, image_link) 
+    result = build_query('SELECT id FROM products WHERE ', '', name.title(), brand.title(), [], -1, None, True) 
+    result = query(result[0], result[1])
+    return result 
 
 
 def build_query(
@@ -169,13 +173,13 @@ def build_query(
         brand: Optional[str] = None,
         id: list[int] = None,
         quantity: int = -1,
-        image_link: str = None
+        image_link: str = None,
+        ands: bool = False
     ):
     '''Builds a query with desired parameters'''
     new_query = []
     conds = []
     if id:
-        print("ADDING ID")
         new_query.append("id = ?")
         conds.append(id)
     if name:
@@ -188,15 +192,18 @@ def build_query(
         new_query.append("quantity = ?")
         conds.append(quantity)
     if image_link:
-        print("ADDING I,D")
         new_query.append("image_link = ?")
         conds.append(image_link)
     joined_query = ", ".join(new_query)
+    if ands:
+        and_query = joined_query.replace(", ", " AND ")
+        if and_query:
+            final = start + and_query + end
+            return final, conds
     if joined_query:
         final = start + joined_query + end
         return final, conds
 
-#May have to be combined with some method that gets the item's id from it's name or brand
 def update_item(
         name: str = '',
         brand: Optional[str] = None,
@@ -205,22 +212,47 @@ def update_item(
         image_link: Optional[str] = None,
         tags: Optional[list[str]] = None
 ):
+    '''Updates information for an item. Adds new quantity to existing quantity'''
     current_quantity = query('SELECT quantity FROM products WHERE id = ?', [id])
     if not current_quantity:
         return "Item not found"
     if quantity >= 0:
         new_quantity = current_quantity[0][0] + quantity
-        result = build_query('UPDATE products SET ', ' WHERE id = ?', name, brand, None, new_quantity, image_link)
-        to_query = result[0]
+        result = build_query('UPDATE products SET ', ' WHERE id = ?', name, brand, None, new_quantity, image_link, False)
         conds = result[1]
         conds.append(id)
-        query(to_query, conds) 
+        query(result[0], conds) 
         if tags:
             for tag in tags:
                 query('INSERT INTO tags (label) VALUES (?) ON CONFLICT (label) DO NOTHING', [tag.title()])
                 query('INSERT INTO product_tags (product_id, tag_label) VALUES (?, ?) ON CONFLICT (product_id, tag_label) DO NOTHING', [id, tag.title()])
     else:
         return "Invalid quantity"
+
+def search(val: str):
+    '''Returns ids for all items who's name, brand, or tags contain val. Returns empty set if no match was found'''
+    #TODO: Should this return item info?
+    searching = '%' + val + '%'
+    found = set()
+    name_search = query('SELECT id FROM products WHERE name LIKE ?', [searching])
+    if len(name_search) > 0:
+        name_ids = [x[0] for x in name_search]
+        for i in name_ids:
+            found.add(i)
+    brand_search = query('SELECT id FROM products WHERE brand LIKE ?', [searching])
+    if len(brand_search) > 0:
+        brand_ids = [x[0] for x in brand_search]
+        for i in brand_ids:
+            found.add(i)
+    tag_search = get_tagged_items([val])
+    if len(tag_search) > 0:
+        tagged_ids = [x[0] for x in tag_search]
+        for i in tagged_ids:
+            found.add(i)
+    if len(found) > 0:
+        return found
+    return {}
+
 
 def checkout_item(id: Optional[int] = None, quantity: int = 0):
     result = query('SELECT quantity FROM products WHERE id = ?', [id])
@@ -257,7 +289,7 @@ def get_all_info(id: Optional[int] = None) -> list[Any]:
     return item
 
 #------------------------------
-# Searching pantry (items with quantity > 0)
+# Searching pantry (items with quantity > 0). TODO: Do I replace these with general search?
 #------------------------------
 
 def search_pantry_by_name(name: str = ''):
@@ -294,6 +326,23 @@ def view_image(id: Optional[int] = None) -> Optional[str]:
         return rows[0]['image_link']
     return None
 
+def get_tagged_items(
+        
+        tags: Optional[list[str]] = None
+        ):
+    ids = set()
+    for i in tags:
+        searching = '%' + i + '%'
+        result = query('SELECT product_id FROM product_tags WHERE tag_label LIKE ?', [searching])
+        if len(result) > 0:
+            temp_list = [x[0] for x in result]
+            for j in temp_list:
+                ids.add(j)
+    items = []
+    for k in ids:
+        product = query('SELECT * FROM products WHERE id = ?', [k])
+        items.append(list(product[0]))
+    return items  
 
 #------------------------------
 # Removing methods
