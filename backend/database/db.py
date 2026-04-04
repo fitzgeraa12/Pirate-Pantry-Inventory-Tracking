@@ -114,7 +114,7 @@ def view_pantry_brands():
 
 def view_pantry_tags():
     rows = query('SELECT DISTINCT tag_label FROM product_tags pt JOIN products p ON pt.product_id = p.id WHERE p.quantity > 0')
-    return [row['tag_label'] for row in rows]
+    return rows
 
 #------------------------------
 # Updating methods
@@ -131,7 +131,9 @@ def add_item(
     '''Adds brand new item to the table.
         Returns [] if id is already in the table'''
 
-    if brand is not None:
+    if brand is None:
+        brand = ''
+    else:
         brand = brand.title()
     if id:
         if in_table(id): #TODO: Should this call update_item instead?

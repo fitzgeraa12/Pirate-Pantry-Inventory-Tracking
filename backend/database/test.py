@@ -34,7 +34,11 @@ def main():
     #db.add_item('peas', 'green giant', 324, 2, 'None', ['VEGETABLES', 'canned'])
     db.add_item('toilet paper', 'HEB', [], 100, 'None', ['hygiene'])
     db.update_item('corn', 'HEB', 3835982, 10, '', ['VEGETABLES', 'canned'])
-    print(db.search('hy'))
+    
+    #print(db.search('hy'))
+    test = db.view_pantry_tags()
+    t = [x[0] for x in test]
+    print(t)
     #print("FDASFD", db.in_table_no_id('carrots', 'HEB'))
     #print(db.get_tagged_items(['Vegetables', 'canned']))
     #stats.new_checkout(random.randint(0,500), 3835982, 'corn', 'HEB', 3, datetime.datetime.now())

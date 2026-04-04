@@ -1,8 +1,9 @@
+'''
 import pytest
 from backend.api.api import app
 from unittest.mock import patch
 
-
+''
 # https://github.com/ericsalesdeandrade/pytest-fixtures-examples/blob/master/tests/unit/test_calculator_api.py
 @pytest.fixture(autouse=True)
 def authentication():
@@ -111,3 +112,4 @@ def inventory(table):
 @pytest.fixture()
 def empty():
    return []
+'''
