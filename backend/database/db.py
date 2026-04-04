@@ -136,12 +136,12 @@ def add_item(
             return []
         else:
             query('INSERT INTO products VALUES (?, ?, ?, ?, ?)', [id, name.title(), brand, quantity, image_link])
-    else: #Issue: id autoincrements from last entered id- how close are ID values to each other?
+    else: #TODO: id autoincrements from last entered id- how close are ID values to each other?
         new_id = in_table_no_id(name, brand)
         if len(new_id) > 0: #Item is already in the table
             id = new_id[0][0]
             update_item(name, brand, id, quantity, image_link, None)
-        else: #Item is not in table, generate new item
+        else: #Item is not in table, generate new id
             new_id = [x[0] for x in query('INSERT INTO products VALUES (Null, ?, ?, ?, ?) RETURNING id', [name.title(), brand, quantity, image_link])]
             id = new_id[0]
     if tags:
@@ -161,9 +161,7 @@ def in_table_no_id(
         brand = brand.title() 
     result = build_query('SELECT id FROM products WHERE ', '', name.title(), brand.title(), [], -1, None, True) 
     to_query = result[0]
-    print(to_query)
     conds = result[1]
-    print(conds)
     result = query(to_query, conds)
     return result 
 
@@ -238,17 +236,24 @@ def search(
 ):
     searching = '%' + val + '%'
     found = set()
-    name_search = query('SELECT * FROM products WHERE name LIKE ?', [searching])
+    name_search = query('SELECT id FROM products WHERE name LIKE ?', [searching])
     if len(name_search) > 0:
-        found.update(name_search)
-    brand_search = query('SELECT * FROM products WHERE brand LIKE ?', [searching])
+        name_ids = [x[0] for x in name_search]
+        for i in name_ids:
+            found.add(i)
+    brand_search = query('SELECT id FROM products WHERE brand LIKE ?', [searching])
     if len(brand_search) > 0:
-        found.update(brand_search)
+        brand_ids = [x[0] for x in brand_search]
+        for i in brand_ids:
+            found.add(i)
     tag_search = get_tagged_items([val])
     if len(tag_search) > 0:
-        print("fff", tag_search[0]) #TODO: get tag_search to return something found can add to
-        found.update(tag_search)
-    return found
+        tagged_ids = [x[0] for x in tag_search]
+        for i in tagged_ids:
+            found.add(i)
+    if len(found) > 0:
+        return found
+    return {}
 
 
 def checkout_item(id: Optional[int] = None, quantity: int = 0):

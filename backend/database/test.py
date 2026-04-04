@@ -34,7 +34,7 @@ def main():
     #db.add_item('peas', 'green giant', 324, 2, 'None', ['VEGETABLES', 'canned'])
     #db.add_item('carrots', 'HEB', [], 100, 'None', ['VEGETABLES', 'canned'])
     #db.update_item('corn', 'HEB', 3835982, 10, '', ['VEGETABLES', 'canned'])
-    print(db.search('e'))
+    print(db.search('olivess'))
     #print("FDASFD", db.in_table_no_id('carrots', 'HEB'))
     #print(db.get_tagged_items(['Vegetables', 'canned']))
     #stats.new_checkout(random.randint(0,500), 3835982, 'corn', 'HEB', 3, datetime.datetime.now())
@@ -63,7 +63,7 @@ def main():
     #print(db.get_tags_for_item(333333333)) 
     #db.delete_item(333333333)
     #print(admin.view_all())
-    #print(db.view_table())
+    print(db.view_table())
    
 
 if __name__ == "__main__":
