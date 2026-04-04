@@ -21,6 +21,7 @@ API_URL = f'https://api.cloudflare.com/client/v4/accounts/{ACCOUNT_ID}/d1/databa
 
 def query(sql: str, params: Optional[list[Any]]= None) -> list[Any]:
     ''' Execute a SQL query against the Cloudflare D1 REST API
+        Commented out until Cloudflare stuff is sorted out. Using local tables
 
         Args:
             sql (str): SQL query to execute
@@ -127,16 +128,17 @@ def add_item(
         image_link: str = '',
         tags: Optional[list[str]] = None
 ):
-    """Returns [] if id is already in the table"""
+    '''Adds brand new item to the table.
+        Returns [] if id is already in the table'''
 
     if brand is not None:
         brand = brand.title()
     if id:
-        if in_table(id):
+        if in_table(id): #TODO: Should this call update_item instead?
             return []
         else:
             query('INSERT INTO products VALUES (?, ?, ?, ?, ?)', [id, name.title(), brand, quantity, image_link])
-    else: #TODO: id autoincrements from last entered id- how close are ID values to each other?
+    else: #TODO: id autoincrements from last entered id- how close are ID values to each other? Will this be an issue?
         new_id = in_table_no_id(name, brand)
         if len(new_id) > 0: #Item is already in the table
             id = new_id[0][0]
@@ -154,15 +156,13 @@ def in_table_no_id(
         name: str = '',
         brand: Optional[str] = None,
 ):
-    '''Searches for item id when item is manually entered'''
+    '''Searches for the item in the table if there's no id attatched to it (maunal entry)'''
     if brand is None:
         brand = ''
     else:
         brand = brand.title() 
     result = build_query('SELECT id FROM products WHERE ', '', name.title(), brand.title(), [], -1, None, True) 
-    to_query = result[0]
-    conds = result[1]
-    result = query(to_query, conds)
+    result = query(result[0], result[1])
     return result 
 
 
@@ -196,7 +196,6 @@ def build_query(
         conds.append(image_link)
     joined_query = ", ".join(new_query)
     if ands:
-        print("FDAFDSA")
         and_query = joined_query.replace(", ", " AND ")
         if and_query:
             final = start + and_query + end
@@ -205,7 +204,6 @@ def build_query(
         final = start + joined_query + end
         return final, conds
 
-#May have to be combined with some method that gets the item's id from it's name or brand
 def update_item(
         name: str = '',
         brand: Optional[str] = None,
@@ -214,16 +212,16 @@ def update_item(
         image_link: Optional[str] = None,
         tags: Optional[list[str]] = None
 ):
+    '''Updates information for an item. Adds new quantity to existing quantity'''
     current_quantity = query('SELECT quantity FROM products WHERE id = ?', [id])
     if not current_quantity:
         return "Item not found"
     if quantity >= 0:
         new_quantity = current_quantity[0][0] + quantity
         result = build_query('UPDATE products SET ', ' WHERE id = ?', name, brand, None, new_quantity, image_link, False)
-        to_query = result[0]
         conds = result[1]
         conds.append(id)
-        query(to_query, conds) 
+        query(result[0], conds) 
         if tags:
             for tag in tags:
                 query('INSERT INTO tags (label) VALUES (?) ON CONFLICT (label) DO NOTHING', [tag.title()])
@@ -231,9 +229,9 @@ def update_item(
     else:
         return "Invalid quantity"
 
-def search(
-        val: str
-):
+def search(val: str):
+    '''Returns ids for all items who's name, brand, or tags contain val. Returns empty set if no match was found'''
+    #TODO: Should this return item info?
     searching = '%' + val + '%'
     found = set()
     name_search = query('SELECT id FROM products WHERE name LIKE ?', [searching])
@@ -291,7 +289,7 @@ def get_all_info(id: Optional[int] = None) -> list[Any]:
     return item
 
 #------------------------------
-# Searching pantry (items with quantity > 0)
+# Searching pantry (items with quantity > 0). TODO: Do I replace these with general search?
 #------------------------------
 
 def search_pantry_by_name(name: str = ''):
@@ -328,8 +326,10 @@ def view_image(id: Optional[int] = None) -> Optional[str]:
         return rows[0]['image_link']
     return None
 
-def get_tagged_items(tags: Optional[list[str]] = None):
-    #Gets ids for all entered tags
+def get_tagged_items(
+        
+        tags: Optional[list[str]] = None
+        ):
     ids = set()
     for i in tags:
         searching = '%' + i + '%'
