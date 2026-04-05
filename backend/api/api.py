@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 
 from pydantic import BaseModel, ValidationError, field_validator
 from .auth import requires_roles
+import database.stats as stats
 import os
 import re
 import io
@@ -695,6 +696,7 @@ def get_item_by_tag(tag: str):
 @requires_roles('admin')
 def export_inventory():
     ''' GET method to export inventory data as Excel file
+        Source: https://stackoverflow.com/questions/68568527/create-excel-file-from-dataframe-and-allow-download-in-flask-error-file-format
 
         Returns:
             Response (JSON): Message confirming export with Excel file
@@ -717,6 +719,9 @@ def get_stats():
         Returns:
             Response (JSON): Inventory stats
     '''
+    data: Any = request.get_json()
+    if not data:
+       return jsonify({'error': 'Invalid JSON'}), 400
     # TODO: Total number of items checked out weekly
     # TODO: Top x items that got checked out weekly
     # TODO: Percentage of item tags checked out weekly (pie chart). Item tags represent categories of items, including food types, allergy free groups, toiletries, etc
