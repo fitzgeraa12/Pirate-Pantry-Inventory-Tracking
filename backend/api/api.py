@@ -18,6 +18,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import database.db as database
 import database.admin as admin
 from database.db import query
+
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
 # Initialize Flask app
 app = Flask(__name__)
 CORS(app, origins=['https://piratepantry.com', 'https://www.piratepantry.com', 'https://dev.piratepantry.com', 'http://localhost:5173'], supports_credentials=True)
@@ -269,8 +272,6 @@ class PostProductSchema(BaseModel):
        return v
 
 
-
-
 @app.route('/products', methods=['POST'])
 @requires_roles('trusted', 'admin')
 def post_products():
@@ -297,17 +298,17 @@ def post_products():
 
 
        try:
-           existing = database.in_table(p.id)
+           existing = database.get_all_info(p.id) if p.id else []
            if not existing and not p.name:
                errors.append({'error': 'Name is required for new products', 'item': raw_p})
                continue
 
 
            if existing:
-               new_quantity = p.quantity if p.quantity is not None else existing[0]['quantity']
-               new_name = p.name if p.name is not None else existing[0]['name']
-               new_brand = p.brand if p.brand is not None else existing[0]['brand']
-               new_image_link = p.image_link if p.image_link is not None else existing[0]['image_link']
+               new_quantity = p.quantity if p.quantity is not None else existing[1]
+               new_name = p.name if p.name is not None else existing[2]
+               new_brand = p.brand if p.brand is not None else existing[3]
+               new_image_link = p.image_link if p.image_link is not None else existing[4]
 
 
                database.query('''
@@ -692,7 +693,7 @@ def get_item_by_tag(tag: str):
 # --------------------------------------------------
 # Admin Only methods
 # --------------------------------------------------
-@app.route('/admin/export', methods=['GET'])
+@app.route('/admin/export_inventory', methods=['GET'])
 @requires_roles('admin')
 def export_inventory():
     ''' GET method to export inventory data as Excel file
@@ -703,18 +704,24 @@ def export_inventory():
     '''
     try:
         inventory = database.view_pantry_inventory()
+        df = pd.DataFrame(inventory, columns=['id', 'name', 'brand', 'quantity', 'image_link'])
         buffer = io.BytesIO()
-        inventory.to_excel(buffer, index=False, sheet_name='Sheet1')
+        df.to_excel(buffer, index=False, sheet_name='Inventory')
         buffer.seek(0)
         return send_file(buffer, as_attachment=True, download_name='Inventory_summary.xlsx')
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/admin/stats', methods=['GET'])
+@app.route('/admin/export_statistic', methods=['POST'])
 @requires_roles('admin')
-def get_stats():
-    ''' GET method to retrieve inventory stats (e.g. total items, most common tags, etc.)
+def export_stats():
+    ''' POST method to export inventory stats (e.g. total items, most common tags, etc.)
+        Source: https://matplotlib.org/stable/gallery/misc/multipage_pdf.html
+        
+        Request body (JSON):
+        - start (str): Start date in MM-DD-YYYY format
+        - end (str): End date in MM-DD-YYYY format
 
         Returns:
             Response (JSON): Inventory stats
@@ -722,12 +729,48 @@ def get_stats():
     data: Any = request.get_json()
     if not data:
        return jsonify({'error': 'Invalid JSON'}), 400
-    # TODO: Total number of items checked out weekly
-    # TODO: Top x items that got checked out weekly
-    # TODO: Percentage of item tags checked out weekly (pie chart). Item tags represent categories of items, including food types, allergy free groups, toiletries, etc
-    # TODO: Number of checkouts per weekday (bar graph)
-    # TODO: Number of checkouts per hour (separate bar graphs for each day of the week)
-    return None
+
+    start = data.get('start')
+    end = data.get('end')
+
+    if not start or not end:
+        return jsonify({'error': 'Both start and end date are required.'}), 400
+
+    try:
+        # Total number of items checked out 
+        total_fig  = stats.total_range(start, end)
+
+        # Top 10 items that got checked out 
+        top_fig    = stats.top_item(start, end)
+
+        # Percentage of item tags checked out weekly (pie chart)
+        tags_fig   = stats.tag_range(start, end)
+        
+        # Number of checkouts per day
+        daily_fig  = stats.checkout_daily(start, end)
+
+        # Number of checkouts per hour (separate bar graphs for each day)
+        hourly_fig = stats.checkout_hourly(start, end) 
+
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+    try:
+        buffer = io.BytesIO()
+        with PdfPages(buffer) as pdf:
+            for fig in [total_fig, top_fig, tags_fig, daily_fig, hourly_fig]:
+                if fig:
+                    pdf.savefig(fig)
+                    plt.close(fig)
+        buffer.seek(0)
+        return send_file(buffer, as_attachment=True,
+                        download_name=f'Stats_{start}_to_{end}.pdf',
+                        mimetype='application/pdf')
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 @app.route('/admin/permission', methods=['GET'])
 @requires_roles('admin')
@@ -758,7 +801,7 @@ def view_trusted():
     '''
     return jsonify(admin.view_trusted())
 
-@app.route('admin/permission/add', methods=['POST'])
+@app.route('/admin/permission/add', methods=['POST'])
 @requires_roles('admin')
 def add_user():
     ''' POST method to add authorized users and their roles
@@ -788,7 +831,7 @@ def add_user():
         return jsonify({'error': str(e)}), 400
 
 
-@app.route('admin/permission/delete', methods=['DELETE'])
+@app.route('/admin/permission/delete', methods=['DELETE'])
 @requires_roles('admin')
 def remove_user():
     ''' DELETE method to remove authorized users and their roles

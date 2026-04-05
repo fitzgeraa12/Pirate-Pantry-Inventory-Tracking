@@ -31,10 +31,15 @@ def total_range(start: str, end: str) -> int:
     rows = query("SELECT SUM(num_checked_out)\
                  FROM total_checkouts\
                  WHERE checkout_time >= ? AND checkout_time <= ?", [s,e])
-    return rows[0][0] if rows and rows[0][0] else 0
+    total = rows[0][0] if rows and rows[0][0] else 0
+
+    fig = plt.figure(figsize=(8, 1))
+    plt.figtext(0.5, 0.5, f'Total Items Taken From {start} To {end}:  {total}',
+                ha='center', va='center', fontsize=14, fontweight='bold')
+    return fig
 
 
-# TODO: Top x items that got checked out weekly
+# TODO: Top 10 items that got checked out weekly
 def top_item(start:str, end:str):
     s, e = parse_date(start), parse_date(end)
     rows = query("SELECT name, SUM(num_checked_out) AS total\
@@ -43,7 +48,26 @@ def top_item(start:str, end:str):
                 GROUP BY name\
                 ORDER BY total DESC\
                 LIMIT 10", [s, e])
-    return rows_to_list(rows)
+    rows = rows_to_list(rows)
+    if not rows:
+        return None
+
+    fig, ax = plt.subplots(figsize=(8, 4))
+    ax.axis('off')
+    ax.set_title(f'Top 10 Items From {start} To {end}', fontsize=14, fontweight='bold', pad=20)
+
+    table = ax.table(
+        cellText=[[i+1, row[0], row[1]] for i, row in enumerate(rows)],
+        colLabels=['Rank', 'Name', 'Checkout Quantity'],
+        cellLoc='center',
+        loc='center'
+    )
+    table.auto_set_font_size(False)
+    table.set_fontsize(10)
+    table.auto_set_column_width([0, 1, 2])
+
+    plt.tight_layout()
+    return fig
 
 # TODO: Percentage of item tags checked out weekly (pie chart). Item tags represent categories of items, including food types, allergy free groups, toiletries, etc
 def tag_range(start:str, end:str):
@@ -69,7 +93,7 @@ def tag_range(start:str, end:str):
     ax.set_title(f'Percentage of Item Tags Taken From {start} To {end}', fontsize=14, fontweight='bold')
     plt.tight_layout() 
 
-    return freq, fig
+    return fig
 
 # TODO: Number of checkouts per weekday (bar graph)
 def checkout_daily(start:str, end:str):
@@ -99,7 +123,7 @@ def checkout_daily(start:str, end:str):
     plt.xticks(rotation=45, ha='right', fontsize=9)
     plt.tight_layout()
 
-    return result, fig
+    return fig
 
 # TODO: Number of checkouts per hour (separate bar graphs for each day of the week)
 def checkout_hourly(start:str, end:str):
@@ -121,5 +145,5 @@ def checkout_hourly(start:str, end:str):
     plt.xticks(rotation=45, ha='right')
     plt.tight_layout()
 
-    return result, fig
+    return fig
 
