@@ -8,7 +8,7 @@ export default function HomeRedirect(): React.ReactNode {
 
   React.useEffect(() => {
     api.get_user().then(user => {
-      setDestination(user ? '/workpanel' : '/checkout');
+      setDestination(user ? '/workpanel' : '/pantry');
     });
   }, []);
 

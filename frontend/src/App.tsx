@@ -8,6 +8,7 @@ import _404_ from './misc/404';
 import Checkout from './checkout/Checkout';
 import React from 'react';
 import { API } from './API';
+import StudentFacing from './checkout/StudentFacing';
 
 // https://www.kindacode.com/article/ways-to-set-page-title-dynamically-in-react
 function App() {
@@ -23,6 +24,7 @@ function App() {
     <Routes>
       <Route path="/" element={<HomeRedirect />} />
       <Route path="/workpanel" element={<Workpanel />} />
+      <Route path="/pantry" element={<StudentFacing />}/>
       <Route path="/checkout" element={<Checkout />} />
       <Route path="*" element={<_404_></_404_>} />
     </Routes>
