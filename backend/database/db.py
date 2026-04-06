@@ -255,6 +255,15 @@ def search(val: str):
 
 
 def checkout_item(id: Optional[int] = None, quantity: int = 0):
+    '''
+    Given a valid id, checks out an item from the table
+    Args:
+        [int] id: The id of the item
+        int quantity: Number of items being checked out
+    Returns: 
+        str: Invalid quantity if quantity is greater than the number of items in the table
+        int: Updated quantity of the item
+    '''
     result = query('SELECT quantity FROM products WHERE id = ?', [id])
     if not result:
         return "Invalid quantity"
