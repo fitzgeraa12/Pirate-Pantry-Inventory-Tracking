@@ -1,6 +1,7 @@
 import React from "react";
 import { Navigate } from "react-router-dom";
 import { API } from "../API";
+import { Spinner } from "./misc";
 
 export default function HomeRedirect(): React.ReactNode {
   const [destination, setDestination] = React.useState<string | null>(null);
@@ -12,6 +13,11 @@ export default function HomeRedirect(): React.ReactNode {
     });
   }, []);
 
-  if (!destination) return <div>Loading...</div>;
+  if (!destination) return (
+    <div className="page-loading">
+        <div className="page-loading-title">Pirate Pantry</div>
+        <Spinner />
+    </div>
+  );
   return <Navigate to={destination} />;
 };

@@ -1,72 +1,4 @@
-#container {
-    --margin: 16px;
-
-    background-color: var(--su-dark-gray);
-    border: 2px solid var(--su-yellow);
-    width: calc(100vw - 2 * var(--margin));
-    height: calc(100vh - 2 * var(--margin));
-    box-sizing: border-box;
-    margin: var(--margin);
-    display: flex;
-    flex-direction: column;
-    border-radius: 5px;
-
-}
-
-#header {
-    border-bottom: 1px solid var(--su-yellow);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background-color: var(--su-mid-gray);
-    padding: 16px;
-}
-
-#header-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background-color: var(--su-mid-gray);
-    padding: 16px;
-}
-
-#title {
-    font-size: large;
-    color: white;
-    font-size: 2.25rem;
-    font-weight: bold;
-    color: var(--su-light-gray);
-}
-
-#header-top-right {
-    display: flex;
-    align-items: center; /* vertically center */
-    gap: 16px;
-}
-
-.header-button {
-    height: 100%;
-    font-size: 0.65em;
-        color: var(--su-yellow);
-}
-
-#user-view, #log-out {
-    border-color: var(--su-light-gray);
-    background-color: var(--su-dark-mid-gray);
-    margin-bottom: 0;
-}
-
-#body-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px;
-    background-color: var(--su-dark-mid-gray);
-    border-bottom: 2px solid var(--su-mid-gray);
-    font-size: 1.5em;
-}
-
-.cart-badge{
+.cart-badge {
     background: yellow;
     color: black;
     border-radius: 999px;
@@ -75,56 +7,15 @@
     font-size: 12px;
     font-weight: bold;
     display: inline-block;
+    text-shadow: none;
 }
 
-#body-left {
-    width: 50px;
-    background-color: var(--su-dark-mid-gray);
-    border-right: 1px solid var(--su-yellow);
-    min-width: 150px;
-}
-
-#view {
-    flex-grow: 1;
-    flex-grow: 1;
-    display: flex;
-    flex-direction: column;
-}
-
-.body-header-button {
-    height: 100%;
-    color: var(--su-yellow);
-    font-size: 0.5em;
-}
-
-#add-item, #export-to-xls {
-    height: 20;
-    border-color: var(--su-light-gray);
-    background-color: var(--su-mid-gray);
-    margin-bottom: 0;
-}
-
-#body {
-    flex-grow: 1;
-    display: flex;
-    flex-direction: row;
-}
-
-#database-view {
-    flex-grow: 1;
-    color: var(--su-light-gray);
-    padding: 16px;
-    border-collapse: separate;
-}
-
-#page-navigation {
-    color: var(--su-light-gray);
-}
-
-#quick-statistics {
-    color: var(--su-light-gray);
-}
-
-.table-entry-button {
-    border: 0;
+.cart-icon {
+    font-size: 2em;
+    color: #222;
+    text-shadow: 2px 2px 4px #000;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }

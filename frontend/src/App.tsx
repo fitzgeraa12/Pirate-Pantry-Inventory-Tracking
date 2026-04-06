@@ -1,6 +1,7 @@
 import './css_defaults/normalize.css'
 import './css_defaults/skeleton.css'
 import './App.css'
+import './checkout/StudentFacing.css';
 import { Route, Routes } from 'react-router-dom';
 import Workpanel from './workpanel/Workpanel';
 import HomeRedirect from './misc/HomeRedirect';

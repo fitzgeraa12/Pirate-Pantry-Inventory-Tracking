@@ -1,4 +1,3 @@
-import './StudentFacing.css'
 import Titled from "../misc/Titled";
 import React, { useState, useContext, useEffect } from 'react';
 import BrandView from "../workpanel/BrandView";
