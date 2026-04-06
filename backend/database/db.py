@@ -266,7 +266,7 @@ def checkout_item(id: Optional[int] = None, quantity: int = 0):
     '''
     result = query('SELECT quantity FROM products WHERE id = ?', [id])
     if not result:
-        return "Invalid quantity"
+        return "Item not found"
     old_quantity = result[0][0]
     new_quantity = old_quantity - quantity
     if new_quantity >= 0:
