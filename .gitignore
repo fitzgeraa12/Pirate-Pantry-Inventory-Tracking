@@ -29,3 +29,7 @@ dist-ssr
 .pytest_cache
 
 **/**.env**
+
+# SQLite auxiliary files
+**/__local__/*.sqlite3-shm
+**/__local__/*.sqlite3-wal

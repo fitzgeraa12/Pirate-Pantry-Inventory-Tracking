@@ -8,13 +8,24 @@ import UserView from "./UserView";
 import AdminView from "./AdminView";
 import SettingsView from "./SettingsView";
 import { useTheme } from "../misc/useTheme";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { API, type User } from "../API";
 import './Workpanel.css'
 
 const THEME_LABELS = { light: "☀  Light", dark: "🌙  Dark", auto: "⊙  System" };
 
 type Panel = "products" | "brands" | "tags" | "users" | "admin" | "settings";
+
+const DEFAULT_PANEL: Panel = "products";
+
+function is_panel(value: string | null): value is Panel {
+    return value === "products" || value === "brands" || value === "tags" || value === "users" || value === "admin" || value === "settings";
+}
+
+function can_access_panel(panel: Panel, user: User | null): boolean {
+    if (panel === "users" || panel === "admin") return user?.access_level === "admin";
+    return true;
+}
 
 function initials(email: string): string {
     const name = email.split("@")[0];
@@ -74,8 +85,12 @@ function PanelContent({ panel }: { panel: Panel }): React.ReactNode {
 }
 
 export default function Workpanel(): React.ReactNode {
+    const [searchParams, setSearchParams] = useSearchParams();
     const [theme, cycleTheme] = useTheme();
-    const [panel, setPanel] = React.useState<Panel>("products");
+    const [panel, setPanel] = React.useState<Panel>(() => {
+        const candidate = searchParams.get("panel");
+        return is_panel(candidate) ? candidate : DEFAULT_PANEL;
+    });
     const [user, setUser] = React.useState<User | null>(null);
     const navigate = useNavigate();
     const api = React.useContext(API.Context);
@@ -83,6 +98,37 @@ export default function Workpanel(): React.ReactNode {
     React.useEffect(() => {
         api!.get_user().then(u => { if (u) setUser(u); });
     }, [api]);
+
+    React.useEffect(() => {
+        const candidate = searchParams.get("panel");
+        if (!is_panel(candidate)) {
+            if (panel !== DEFAULT_PANEL) setPanel(DEFAULT_PANEL);
+            return;
+        }
+        if (candidate !== panel) setPanel(candidate);
+    }, [searchParams]);
+
+    React.useEffect(() => {
+        const resolvedPanel = can_access_panel(panel, user) ? panel : DEFAULT_PANEL;
+        if (resolvedPanel !== panel) {
+            setPanel(resolvedPanel);
+            return;
+        }
+
+        const currentInUrl = searchParams.get("panel");
+        if (currentInUrl !== resolvedPanel) {
+            const next = new URLSearchParams(searchParams);
+            next.set("panel", resolvedPanel);
+            setSearchParams(next, { replace: true });
+        }
+    }, [panel, user, searchParams, setSearchParams]);
+
+    function setPanelAndUrl(next: Panel) {
+        setPanel(next);
+        const params = new URLSearchParams(searchParams);
+        params.set("panel", next);
+        setSearchParams(params, { replace: true });
+    }
 
     return (
         <ProtectedPage required_access_level="trusted">
@@ -98,17 +144,20 @@ export default function Workpanel(): React.ReactNode {
                     <div id="body">
                         <div id="body-left">
                             <span className="body-left-section-label">Database</span>
-                            <button className="body-left-button body-left-sub-button" onClick={() => setPanel("products")} data-active={panel === "products" ? "" : undefined}>Products</button>
-                            <button className="body-left-button body-left-sub-button" onClick={() => setPanel("brands")}  data-active={panel === "brands"   ? "" : undefined}>Brands</button>
-                            <button className="body-left-button body-left-sub-button" onClick={() => setPanel("tags")}    data-active={panel === "tags"     ? "" : undefined}>Tags</button>
+                            <button className="body-left-button body-left-sub-button" onClick={() => setPanelAndUrl("products")} data-active={panel === "products" ? "" : undefined}>Products</button>
+                            <button className="body-left-button body-left-sub-button" onClick={() => setPanelAndUrl("brands")}  data-active={panel === "brands"   ? "" : undefined}>Brands</button>
+                            <button className="body-left-button body-left-sub-button" onClick={() => setPanelAndUrl("tags")}    data-active={panel === "tags"     ? "" : undefined}>Tags</button>
                             {user?.access_level === "admin" && (
-                                <button className="body-left-button body-left-sub-button" onClick={() => setPanel("users")} data-active={panel === "users" ? "" : undefined}>Users</button>
+                                <button className="body-left-button body-left-sub-button" onClick={() => setPanelAndUrl("users")} data-active={panel === "users" ? "" : undefined}>Users</button>
                             )}
                             <div className="body-left-spacer" />
                             <hr className="body-left-divider" />
-                            <button className="body-left-button" onClick={() => setPanel("settings")} data-active={panel === "settings" ? "" : undefined}>Settings</button>
                             {user?.access_level === "admin" && (
-                                <button className="body-left-button" onClick={() => setPanel("admin")} data-active={panel === "admin" ? "" : undefined}>Admin Panel</button>
+                                <button className="body-left-button">Export</button>
+                            )}
+                            <button className="body-left-button" onClick={() => setPanelAndUrl("settings")} data-active={panel === "settings" ? "" : undefined}>Settings</button>
+                            {user?.access_level === "admin" && (
+                                <button className="body-left-button" onClick={() => setPanelAndUrl("admin")} data-active={panel === "admin" ? "" : undefined}>Admin Panel</button>
                             )}
                             <hr className="body-left-divider" />
                             <span className="body-left-section-label">Appearance</span>
