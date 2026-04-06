@@ -91,7 +91,7 @@ export default function Workpanel(): React.ReactNode {
                     <div id="header">
                         <div id="title">Pirate Pantry Workpanel</div>
                         <div id="header-top-right">
-                            <button id="user-view" className="header-button" onClick={() => navigate("/checkout")}>Checkout</button>
+                            <button id="user-view" className="header-button" onClick={() => navigate("/pantry")}>Pantry</button>
                             {user && <UserMenu user={user} />}
                         </div>
                     </div>
