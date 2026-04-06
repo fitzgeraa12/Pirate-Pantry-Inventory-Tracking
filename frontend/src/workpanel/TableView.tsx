@@ -128,7 +128,7 @@ export default function TableView<
         getPaginationRowModel: getPaginationRowModel(),
         initialState: { pagination: { pageSize } },
         manualPagination: serverPagination !== undefined,
-        pageCount: serverPagination?.totalPages ?? -1,
+        ...(serverPagination !== undefined && { pageCount: serverPagination.totalPages }),
     });
 
     const { pageIndex, pageSize: currentPageSize } = table.getState().pagination;

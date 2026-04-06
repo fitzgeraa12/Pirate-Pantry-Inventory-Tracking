@@ -98,7 +98,7 @@ export namespace API {
         get_tags: (args?: PaginatedRequest<GetTagsArgs>) => Promise<PaginatedResponse<Tag>>,
         get_settings: () => Promise<Record<string, string>>,
         update_settings: (patch: Record<string, string | number>) => Promise<Record<string, string>>,
-        add_user: (id: string, email: string, access_level: AccessLevel) => Promise<User>,
+        add_user: (email: string, access_level: AccessLevel) => Promise<User>,
         update_user: (id: string, patch: { access_level: AccessLevel }) => Promise<User>,
         get_sessions: () => Promise<Array<Session>>,
         revoke_session: (id: string) => Promise<void>,
@@ -165,8 +165,8 @@ export namespace API {
                     return (await api_base.patch("/settings", patch)).data;
                 },
 
-                add_user: async (id: string, email: string, access_level: AccessLevel): Promise<User> => {
-                    return (await api_base.post("/user", null, { params: { id, email, access_level } })).data;
+                add_user: async (email: string, access_level: AccessLevel): Promise<User> => {
+                    return (await api_base.post("/user", null, { params: { email, access_level } })).data;
                 },
 
                 update_user: async (id: string, patch: { access_level: AccessLevel }): Promise<User> => {

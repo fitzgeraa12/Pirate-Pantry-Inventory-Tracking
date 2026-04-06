@@ -8,7 +8,7 @@ from flask_cors import CORS
 from pydantic import BaseModel, ValidationError, field_validator
 from backend.common import UNSET
 from misc import env_get
-from database import AccessLevel, Brand, Database, LocalDatabase, Product, ProductNotFoundError, NotEnoughProductStockError, Tag, User, UserAlreadyExistsError, UserNotFoundError
+from database import AccessLevel, Brand, CannotDemoteOnlyAdminError, Database, LocalDatabase, Product, ProductNotFoundError, NotEnoughProductStockError, Tag, User, UserAlreadyExistsError, UserNotFoundError, normalize_email
 from google_auth_oauthlib.flow import Flow # pyright: ignore[reportMissingTypeStubs]
 import jwt
 import requests
@@ -80,6 +80,19 @@ def define_routes(app: Flask, db: Database):
                 return fn(*args, **kwargs)
             return wrapper
         return decorator
+
+    class AddUserRequest(BaseModel):
+        email: str
+        access_level: AccessLevel
+        id: Optional[str] = None
+
+        @field_validator('email')
+        @classmethod
+        def validate_email(cls, value: str) -> str:
+            normalized = normalize_email(value)
+            if not normalized.endswith('@southwestern.edu'):
+                raise ValueError('Email must be a southwestern.edu address')
+            return normalized
     
     # --------------------------------------------------
     # Auth/Perms
@@ -117,7 +130,7 @@ def define_routes(app: Flask, db: Database):
         raw_id_token: str = str(token_data.get('id_token'))
         id_info = jwt.decode(raw_id_token, options={"verify_signature": False})
 
-        email = str(id_info['email'])
+        email = normalize_email(str(id_info['email']))
         if not email.endswith('@southwestern.edu'):
             return jsonify({'error': 'Unauthorized email domain'}), 403
         
@@ -127,11 +140,11 @@ def define_routes(app: Flask, db: Database):
         # Make sure user exists if in dev mode
         if isinstance(db, LocalDatabase):
             try:
-                db.add_user(google_sub, email, AccessLevel.ADMIN)
+                db.add_user(email, AccessLevel.ADMIN, google_sub)
             except UserAlreadyExistsError:
                 pass
 
-        user = db.get_user(google_sub)
+        user = db.get_user_by_email(email)
 
         if not user:
             local, domain = email.split('@')
@@ -175,12 +188,12 @@ def define_routes(app: Flask, db: Database):
     @requires_at_least(AccessLevel.ADMIN)
     def add_user(): # pyright: ignore[reportUnusedFunction]
         try:
-            user = User.model_validate(request.args.to_dict())
+            user = AddUserRequest.model_validate(request.args.to_dict())
         except ValidationError as e:
             return jsonify({'error': e.errors()}), 400
         
         try:
-            new_user = db.add_user(user.id, user.email, user.access_level)
+            new_user = db.add_user(user.email, user.access_level, user.id)
             return jsonify(new_user.model_dump()), 201
         except UserAlreadyExistsError as e:
             return jsonify({'error': str(e)}), 409
@@ -200,14 +213,16 @@ def define_routes(app: Flask, db: Database):
     @app.route('/user/<user_id>', methods=['PATCH'])
     @requires_at_least(AccessLevel.ADMIN)
     def update_user(user_id: str): # pyright: ignore[reportUnusedFunction]
-        body = request.json or {}
+        body: Any = request.json or {}
         try:
             new_level = AccessLevel(body.get('access_level'))
         except (ValueError, KeyError):
             return jsonify({'error': 'Invalid access_level'}), 400
         try:
-            user = db.update_user_access_level(user_id, new_level)
+            user = db.update_user_access_level(user_id, new_level, g.user.id if g.user else None)
             return jsonify(user.model_dump())
+        except CannotDemoteOnlyAdminError as e:
+            return jsonify({'error': str(e)}), 400
         except UserNotFoundError:
             return jsonify({'error': 'User not found'}), 404
 
@@ -217,7 +232,7 @@ def define_routes(app: Flask, db: Database):
         sessions = db.all_sessions()
         users_by_id = {u.id: u for u in db.all_users()}
         current_id = g.session.id if g.session else None
-        result = []
+        result: list[Any] = []
         for s in sessions:
             user = users_by_id.get(s.user_id) if s.user_id else None
             result.append({
@@ -251,7 +266,7 @@ def define_routes(app: Flask, db: Database):
     @app.route('/settings', methods=['PATCH'])
     @requires_at_least(AccessLevel.TRUSTED)
     def update_settings(): # pyright: ignore[reportUnusedFunction]
-        body = request.json or {}
+        body: Any = request.json or {}
         updated = {}
         for key, value in body.items():
             if key not in ALLOWED_SETTINGS:

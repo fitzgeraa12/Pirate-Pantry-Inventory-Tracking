@@ -49,8 +49,12 @@ class UserNotFoundError(NotFoundError):
         super().__init__("User", "id", id)
 
 class UserAlreadyExistsError(Exception):
-    def __init__(self, id: str):
-        super().__init__(f"User with id `{id}` already exists")
+    def __init__(self, identifier: str):
+        super().__init__(f"User already exists for `{identifier}`")
+
+class CannotDemoteOnlyAdminError(Exception):
+    def __init__(self):
+        super().__init__("You cannot revoke your own admin privileges while you are the only admin")
 
 # --------------------------------------------------
 # Schema
@@ -514,8 +518,21 @@ class Database(ABC):
             [id]
         )
 
+    def get_user_by_email(self, email: str) -> Optional[User]:
+        return self.try_query_and_map_single(
+            "SELECT * FROM users WHERE email = ?",
+            lambda row: User(**row),
+            [normalize_email(email)]
+        )
+
     def all_users(self) -> list[User]:
         return self.query_and_map_rows("SELECT * FROM users", lambda row: User(**row))
+
+    def count_admin_users(self) -> int:
+        return int(self.query(
+            "SELECT COUNT(*) as total FROM users WHERE access_level = ?",
+            [str(AccessLevel.ADMIN)]
+        )[0]["total"])
 
     def get_setting(self, key: str) -> Optional[str]:
         row = self.try_query_and_map_single(
@@ -532,26 +549,45 @@ class Database(ABC):
     def update_setting(self, key: str, value: str):
         self.query("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", [key, value])
     
-    def add_user(self, id: str, email: str, access_level: AccessLevel):
+    def add_user(self, email: str, access_level: AccessLevel, id: Optional[str] = None):
+        normalized_email = normalize_email(email)
+        user_id = id or str(uuid.uuid4())
+
         with self.transaction():
+            if self.get_user_by_email(normalized_email):
+                raise UserAlreadyExistsError(normalized_email)
+
             try:
                 self.query(
                     "INSERT INTO users (id, email, access_level) VALUES (?, ?, ?)",
-                    [id, email, access_level]
+                    [user_id, normalized_email, access_level]
                 )
                 # update any existing visitor sessions for this user
-                self.query(
-                    "UPDATE auth_sessions SET user_id = ? WHERE google_sub = ? AND user_id IS NULL",
-                    [id, id]  # google_sub == user id (both are the sub)
-                )
-                return User(id=id, email=email, access_level=access_level)
+                if id:
+                    self.query(
+                        "UPDATE auth_sessions SET user_id = ? WHERE google_sub = ? AND user_id IS NULL",
+                        [user_id, id]
+                    )
+                return User(id=user_id, email=normalized_email, access_level=access_level)
             except sqlite3.IntegrityError:
-                raise UserAlreadyExistsError(id)
+                raise UserAlreadyExistsError(normalized_email)
 
     def set_user_picture(self, id: str, picture: Optional[str]):
         self.query("UPDATE users SET picture = ? WHERE id = ?", [picture, id])
 
-    def update_user_access_level(self, id: str, access_level: AccessLevel) -> User:
+    def update_user_access_level(self, id: str, access_level: AccessLevel, acting_user_id: Optional[str] = None) -> User:
+        user = self.get_user(id)
+        if not user:
+            raise UserNotFoundError(id)
+
+        if (
+            acting_user_id == user.id
+            and user.access_level == AccessLevel.ADMIN
+            and access_level != AccessLevel.ADMIN
+            and self.count_admin_users() <= 1
+        ):
+            raise CannotDemoteOnlyAdminError()
+
         self.query("UPDATE users SET access_level = ? WHERE id = ?", [str(access_level), id])
         user = self.get_user(id)
         if not user:
@@ -665,3 +701,6 @@ class LocalDatabase(Database):
     def transaction(self):
         with self.conn:
             yield
+
+def normalize_email(email: str) -> str:
+    return email.strip().lower()

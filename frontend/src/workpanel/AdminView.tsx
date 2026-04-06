@@ -9,21 +9,29 @@ function fmt_date(ts: number): string {
 
 function UsersSection({ api }: { api: API.Type }): React.ReactNode {
     const [users, setUsers] = React.useState<User[] | null>(null);
+    const [currentUser, setCurrentUser] = React.useState<User | null>(null);
     const [saving, setSaving] = React.useState<Record<string, boolean>>({});
+    const [error, setError] = React.useState<string | null>(null);
 
     React.useEffect(() => {
         api.get_users().then(setUsers);
+        api.get_user().then(user => setCurrentUser(user ?? null));
     }, []);
 
     async function handleAccessChange(id: string, level: AccessLevel) {
         setSaving(s => ({ ...s, [id]: true }));
+        setError(null);
         try {
             const updated = await api.update_user(id, { access_level: level });
             setUsers(prev => prev?.map(u => u.id === id ? updated : u) ?? prev);
+        } catch (e: any) {
+            setError(e?.response?.data?.error ?? "Failed to update user");
         } finally {
             setSaving(s => ({ ...s, [id]: false }));
         }
     }
+
+    const adminCount = users?.filter(user => user.access_level === "admin").length ?? 0;
 
     return (
         <section className="admin-section">
@@ -41,27 +49,32 @@ function UsersSection({ api }: { api: API.Type }): React.ReactNode {
                                 <td>{user.email}</td>
                                 <td className="admin-id-cell">{user.id.slice(0, 16)}…</td>
                                 <td>
+                                    {(() => {
+                                        const isOnlyAdminSelf = currentUser?.id === user.id && user.access_level === "admin" && adminCount === 1;
+                                        return (
                                     <select
                                         className="admin-select"
                                         value={user.access_level}
-                                        disabled={saving[user.id]}
+                                        disabled={saving[user.id] || isOnlyAdminSelf}
                                         onChange={e => handleAccessChange(user.id, e.target.value as AccessLevel)}
                                     >
                                         <option value="trusted">Trusted</option>
                                         <option value="admin">Admin</option>
                                     </select>
+                                        );
+                                    })()}
                                 </td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
             )}
+            {error && <div className="admin-error">{error}</div>}
         </section>
     );
 }
 
 function AddUserSection({ api, onAdded }: { api: API.Type; onAdded: () => void }): React.ReactNode {
-    const [id, setId] = React.useState("");
     const [email, setEmail] = React.useState("");
     const [level, setLevel] = React.useState<AccessLevel>("trusted");
     const [loading, setLoading] = React.useState(false);
@@ -73,8 +86,7 @@ function AddUserSection({ api, onAdded }: { api: API.Type; onAdded: () => void }
         setError(null);
         setSuccess(false);
         try {
-            await api.add_user(id.trim(), email.trim(), level);
-            setId("");
+            await api.add_user(email.trim(), level);
             setEmail("");
             setLevel("trusted");
             setSuccess(true);
@@ -92,10 +104,6 @@ function AddUserSection({ api, onAdded }: { api: API.Type; onAdded: () => void }
             <h2 className="admin-section-heading">Add User</h2>
             <div className="admin-form">
                 <div className="admin-form-row">
-                    <label className="admin-form-label">Google Sub ID</label>
-                    <input className="admin-form-input" value={id} onChange={e => setId(e.target.value)} placeholder="Google account sub…" />
-                </div>
-                <div className="admin-form-row">
                     <label className="admin-form-label">Email</label>
                     <input className="admin-form-input" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="user@southwestern.edu" />
                 </div>
@@ -109,7 +117,7 @@ function AddUserSection({ api, onAdded }: { api: API.Type; onAdded: () => void }
                 <div className="admin-form-actions">
                     <button
                         className="admin-submit-button"
-                        disabled={!id.trim() || !email.trim() || loading}
+                        disabled={!email.trim() || loading}
                         onClick={handleAdd}
                     >
                         {loading ? "Adding…" : success ? "Added ✓" : "Add User"}
