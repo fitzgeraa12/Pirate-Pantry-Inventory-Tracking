@@ -1,8 +1,9 @@
 import React from "react";
 import type { Optional } from "../misc/misc";
+import { useCart } from "../misc/CartContext";
 import { Spinner } from "../misc/misc";
 import { createColumnHelper, flexRender, getCoreRowModel, getPaginationRowModel, getFilteredRowModel, useReactTable, type ColumnDef, type RowData } from "@tanstack/react-table";
-import './TableView.css'
+import './StuTable.css'
 
 type BoxedPrimitive<T> = { value: T };
 type RowType<T> = T extends object ? T : BoxedPrimitive<T>;
@@ -60,6 +61,27 @@ function build_cols<T extends RowData>(
     }) as ColumnDef<T, unknown>[];
 }
 
+const addRemoveColumns = <T extends RowData>(onAdd: (row: T) => void, onRemove: (row: T) => void): ColumnDef<T, unknown>[] => [
+    {
+        id: "__add__",
+        header: "Add",
+        cell: ({ row }) => (
+            <button className="row-action-button" onClick={() => onAdd(row.original)}>
+                +
+            </button>
+        ),
+    },
+    {
+        id: "__remove__",
+        header: "Remove",
+        cell: ({ row }) => (
+            <button className="row-action-button" onClick={() => onRemove(row.original)}>
+                -
+            </button>
+        ),
+    },
+];
+
 export default function TableView<
     T,
     E extends string = never,
@@ -76,12 +98,17 @@ export default function TableView<
     pageSize?: number;
     serverPagination?: { page: number; total: number; totalPages: number; onPageChange: (page: number) => void };
 }): React.ReactNode {
+    const { addItem, removeItem } = useCart();
+
     const dataColumns = React.useMemo(
         () => build_cols(column_meta.meta as TableMeta<T>["meta"], column_meta.order as string[]),
         [column_meta]
     );
 
-    const columns = dataColumns;
+    const columns = React.useMemo(
+        () => [...dataColumns, ...addRemoveColumns<T>((row) => addItem(row), (row) => removeItem((row as any).id))],
+        [dataColumns, addItem, removeItem]
+    );
 
     const table = useReactTable({
         data: data ?? [],

@@ -1,5 +1,6 @@
 import React from "react";
-import TableView from "../workpanel/TableView";
+import StuTable from "./StuTable";
+import { createColumnHelper } from "@tanstack/react-table";
 import type { Optional } from "../misc/misc";
 import { API, type Product } from "../API";
 import { useCart } from "../misc/CartContext";
@@ -14,9 +15,46 @@ export default function PantryView(): React.ReactNode {
     const [total, setTotal] = React.useState(0);
     const [totalPages, setTotalPages] = React.useState(1);
     const pageSize = parseInt(localStorage.getItem("table-page-size") ?? "20") || 20;
+    const columnHelper = createColumnHelper<Product>();
     const { addToCart, removeFromCart} = useCart();
 
     const searchRef = React.useRef<HTMLInputElement>(null);
+
+    const actionColumn = React.useMemo(() => ({
+        type: "display",
+        column: columnHelper.display({
+            id: "actions",
+            header: "Actions",
+            size: 150,
+            cell: ({row}) => {
+                const { id, name, quantity } = row.original;
+                        
+                return (
+                    <div style= {{ display: "flex", gap: "0.5rem" }}>
+                        <button 
+                            className="table-entry-button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                addToCart(id, name, quantity);
+                            }}
+                        >
+                        Add
+                        </button>
+
+                    <button
+                            className="table-entry-button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                removeFromCart(id);
+                            }}
+                        >
+                            Remove
+                        </button>
+                    </div>
+                );
+            }
+        })
+    }), [addToCart, removeFromCart, columnHelper]);
 
     React.useEffect(() => {
         const timer = setTimeout(() => { setSearch(inputValue.trim()); setPage(1); }, 300);
@@ -33,7 +71,7 @@ export default function PantryView(): React.ReactNode {
             setIsLoading(false);
             if (wasFocused) searchRef.current?.focus();
         });
-    }, [search, page]);
+    }, [search, page, api, pageSize]);
 
     const toolbar = (
         <input
@@ -47,7 +85,7 @@ export default function PantryView(): React.ReactNode {
     );
     
     return (
-        <TableView data={products} toolbar={toolbar} isLoading={isLoading} pageSize={pageSize}
+        <StuTable data={products} toolbar={toolbar} isLoading={isLoading} pageSize={pageSize}
             serverPagination={{ page, total, totalPages, onPageChange: setPage }}
             column_meta={{
             meta: {
@@ -57,24 +95,11 @@ export default function PantryView(): React.ReactNode {
                 quantity: { header: "Quantity" },
                 tags: { header: "Tags", cell: (val: Array<string>) => <>{val.join(", ")}</> },
                 image_link: { header: "Image" },
+
+                actions: actionColumn,
             },
-            order: ["id", "image_link", "name", "brand", "quantity", "tags"],
-        }} actions={[
-            { label: "Add", 
-                onClick: (rows) => { 
-                    rows.forEach((row) =>{
-                        const { id, name, quantity} = row.original;
-                        addToCart(id,name,quantity);
-                    });
-                },
-            },        
-            { label: "Remove",
-                 onClick: (rows) => {
-                    rows.forEach((row)=> {
-                        removeFromCart(row.original.id);
-                    });
-                },
-            },
-        ]} />
-    );
+            order: ["id", "actions", "image_link", "name", "brand", "quantity", "tags"],
+        }}
+     />
+);
 }
