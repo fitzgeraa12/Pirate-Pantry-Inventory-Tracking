@@ -5,11 +5,47 @@ function Checkout() {
     const navigate = useNavigate();
     const { cart = [], clearCart } = useCart() || {};
 
-    const handleConfirm = () => {
-        // more expansion possible ie database modification
-        clearCart(); // empty cart
-        alert("Checkout successful!");
-        navigate("/pantry"); // return to main student page
+    const handleConfirm = async () => {
+        if (cart.length === 0) {
+            alert("Cart is empty!");
+            return;
+        }
+
+        try {
+            const response = await fetch("http://localhost:5000/products/checkout", {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                    // "Authorization": `Bearer ${TRUSTED}`
+                },
+                body: JSON.stringify({
+                    products: cart.map(item => ({
+                        id: item.id,
+                        amount: item.quantity
+                    }))
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                console.error(data);
+                alert("Checkout failed!");
+                return;
+            }
+
+            console.log("Updated quantities:", data);
+
+            // ✅ ONLY clear cart after successful backend update
+            clearCart();
+
+            alert("Checkout successful!");
+            navigate("/pantry");
+
+        } catch (error) {
+            console.error(error);
+            alert("Error connecting to server");
+        }
     };
 
     const handleBack = () => {

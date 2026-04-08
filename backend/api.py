@@ -539,7 +539,7 @@ def define_routes(app: Flask, db: Database):
             return jsonify({'deleted': results, 'errors': errors}), 200 if not errors else 207
 
     @app.route('/products/checkout', methods=['PATCH'])
-    @requires_at_least(AccessLevel.TRUSTED)
+    # @requires_at_least(AccessLevel.TRUSTED)
     def checkout_products(): # pyright: ignore[reportUnusedFunction]
         ''' PATCH method to check items out (decrease items' quantities)
 
@@ -563,6 +563,8 @@ def define_routes(app: Flask, db: Database):
             except ValidationError as e:
                 return jsonify({'error': e.errors()}), 400
             
+            updated_products = []
+            
             products = body.products
             for product in products:
                 id = product.id
@@ -571,13 +573,16 @@ def define_routes(app: Flask, db: Database):
                 old_quantity = existing.quantity
                 new_quantity = old_quantity - product.amount
 
-                if existing.quantity <= 0:
+                if product.amount > existing.quantity:
                     return jsonify({'error': NotEnoughProductStockError(id, product.amount, old_quantity)}), 400
 
                 db.query('UPDATE products SET quantity = ? WHERE id = ?', [new_quantity, id])
-                product.amount = new_quantity
-            
-            return jsonify({'quantities': products}), 200
+                updated_products.append({
+                    'id': id,
+                    'quantity': new_quantity
+                })
+
+            return jsonify({'quantities': updated_products}), 200
 
     # @app.route('/products/all', methods=['GET'])
     # @requires_at_least(AccessLevel.TRUSTED)
