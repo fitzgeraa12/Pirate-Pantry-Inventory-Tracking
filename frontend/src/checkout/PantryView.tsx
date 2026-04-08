@@ -1,6 +1,10 @@
 import React from "react";
+<<<<<<< HEAD
 import StuTable from "./StuTable";
 import { createColumnHelper } from "@tanstack/react-table";
+=======
+import TableView from "../workpanel/TableView";
+>>>>>>> refactor
 import type { Optional } from "../misc/misc";
 import { API, type Product } from "../API";
 import { useCart } from "../misc/CartContext";
@@ -15,11 +19,15 @@ export default function PantryView(): React.ReactNode {
     const [total, setTotal] = React.useState(0);
     const [totalPages, setTotalPages] = React.useState(1);
     const pageSize = parseInt(localStorage.getItem("table-page-size") ?? "20") || 20;
+<<<<<<< HEAD
     const columnHelper = createColumnHelper<Product>();
+=======
+>>>>>>> refactor
     const { addToCart, removeFromCart} = useCart();
 
     const searchRef = React.useRef<HTMLInputElement>(null);
 
+<<<<<<< HEAD
     const actionColumn = React.useMemo(() => ({
         type: "display",
         column: columnHelper.display({
@@ -56,6 +64,8 @@ export default function PantryView(): React.ReactNode {
         })
     }), [addToCart, removeFromCart, columnHelper]);
 
+=======
+>>>>>>> refactor
     React.useEffect(() => {
         const timer = setTimeout(() => { setSearch(inputValue.trim()); setPage(1); }, 300);
         return () => clearTimeout(timer);
@@ -71,7 +81,11 @@ export default function PantryView(): React.ReactNode {
             setIsLoading(false);
             if (wasFocused) searchRef.current?.focus();
         });
+<<<<<<< HEAD
     }, [search, page, api, pageSize]);
+=======
+    }, [search, page]);
+>>>>>>> refactor
 
     const toolbar = (
         <input
@@ -85,7 +99,11 @@ export default function PantryView(): React.ReactNode {
     );
     
     return (
+<<<<<<< HEAD
         <StuTable data={products} toolbar={toolbar} isLoading={isLoading} pageSize={pageSize}
+=======
+        <TableView data={products} toolbar={toolbar} isLoading={isLoading} pageSize={pageSize}
+>>>>>>> refactor
             serverPagination={{ page, total, totalPages, onPageChange: setPage }}
             column_meta={{
             meta: {
@@ -95,6 +113,7 @@ export default function PantryView(): React.ReactNode {
                 quantity: { header: "Quantity" },
                 tags: { header: "Tags", cell: (val: Array<string>) => <>{val.join(", ")}</> },
                 image_link: { header: "Image" },
+<<<<<<< HEAD
 
                 actions: actionColumn,
             },
@@ -102,4 +121,26 @@ export default function PantryView(): React.ReactNode {
         }}
      />
 );
+=======
+            },
+            order: ["id", "image_link", "name", "brand", "quantity", "tags"],
+        }} actions={[
+            { label: "Add", 
+                onClick: (rows) => { 
+                    rows.forEach((row) =>{
+                        const { id, name, quantity} = row.original;
+                        addToCart(id,name,quantity);
+                    });
+                },
+            },        
+            { label: "Remove",
+                 onClick: (rows) => {
+                    rows.forEach((row)=> {
+                        removeFromCart(row.original.id);
+                    });
+                },
+            },
+        ]} />
+    );
+>>>>>>> refactor
 }

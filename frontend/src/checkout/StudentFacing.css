@@ -77,7 +77,16 @@
     display: inline-block;
 }
 
+<<<<<<< HEAD
 
+=======
+#body-left {
+    width: 50px;
+    background-color: var(--su-dark-mid-gray);
+    border-right: 1px solid var(--su-yellow);
+    min-width: 150px;
+}
+>>>>>>> refactor
 
 #view {
     flex-grow: 1;
@@ -121,6 +130,7 @@
 }
 
 .table-entry-button {
+<<<<<<< HEAD
     all: unset;
     display: inline-flex;
     align-items: center;
@@ -145,3 +155,7 @@
     background-color: #ddd;
 }
 
+=======
+    border: 0;
+}
+>>>>>>> refactor
