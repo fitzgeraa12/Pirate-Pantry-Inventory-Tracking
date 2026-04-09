@@ -303,6 +303,7 @@ def define_routes(app: Flask, db: Database):
                 Response (JSON): A paginated list of matching products.
         '''
         class GetProductsSchema(BaseModel):
+            search: Optional[str] = None
             id: Optional[int] = None
             name: Optional[str] = None
             brand: Optional[str] = None
@@ -332,6 +333,14 @@ def define_routes(app: Flask, db: Database):
             except ValueError as e:
                 return jsonify({'error': str(e)}), 400
 
+            if products_query.search:
+                like = f"%{products_query.search}%"
+                conditions.append("""
+                                  (p.name LIKE?
+                                  OR p.brand LIKE ?
+                                  OR CAST(p.id AS TEXT) LIKE?)
+                                  """)
+                params.extend([like,like,like])
             if products_query.name:
                 conditions.append('p.name LIKE ?')
                 params.append(products_query.name)

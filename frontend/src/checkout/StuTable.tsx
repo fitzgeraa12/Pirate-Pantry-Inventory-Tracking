@@ -54,6 +54,7 @@ function build_cols<T extends RowData>(
         return helper.accessor((row) => row[key as keyof T], {
             id: key,
             header: entry.header ?? key,
+            enableGlobalFilter: true,
             ...(entry.cell && {
                 cell: (info) => entry.cell!(info.getValue() as T[keyof T], info.row.original),
             }),
@@ -87,7 +88,7 @@ export default function TableView<
     E extends string = never,
     M extends FieldMetaMap<RowType<T>> & ExtraMetaMap<RowType<T>, E>
         = FieldMetaMap<RowType<T>> & ExtraMetaMap<RowType<T>, E>
->({ data, column_meta, toolbar, isLoading, pageSize = 20, serverPagination }: {
+>({ data, column_meta, toolbar, isLoading, pageSize = 20, serverPagination, searchTerm }: {
     data: Optional<Array<T>>;
     column_meta: {
         meta: M;
@@ -97,6 +98,7 @@ export default function TableView<
     isLoading?: boolean;
     pageSize?: number;
     serverPagination?: { page: number; total: number; totalPages: number; onPageChange: (page: number) => void };
+    searchTerm?: string,
 }): React.ReactNode {
     const { addItem, removeItem } = useCart();
 
@@ -113,9 +115,12 @@ export default function TableView<
     const table = useReactTable({
         data: data ?? [],
         columns,
+        state:{ globalFilter: searchTerm,},
+        onGlobalFilterChange: () => {},
         getCoreRowModel: getCoreRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
+        globalFilterFn: "includesString",
         initialState: { pagination: { pageSize } },
         manualPagination: serverPagination !== undefined,
         ...(serverPagination !== undefined && { pageCount: serverPagination.totalPages }),
@@ -163,7 +168,6 @@ export default function TableView<
             </table>)}
         </div>
         <div className="table-view-pagination">
-            {toolbar && <>{toolbar}<span className="pagination-divider" /></>}
             <span style={{ flex: 1 }} />
             <button
                 className="pagination-button"

@@ -373,6 +373,28 @@ class Database(ABC):
             [id]
         )
     
+    def products_search(self, search: str) -> list[Product]:
+        like = f"%{search}%"
+
+        sql = """
+            SELECT*
+            FROM products 
+            WHERE 
+            name LIKE ?
+            OR COALESCE(brand, '') LIKE ?
+            OR CAST(id AS TEXT) LIKE ?
+            OR id IN (
+                SELECT product_id
+                FROM product_tags
+                WHERE tag_label LIKE ?
+                )
+            """
+        return Product.query_and_include_tags(
+            self,
+            sql,
+            [like, like, like, like]
+        )
+    
     def products_from_name(self, name: str) -> list[Product]:
         """
         Fetch a list of product by a name. The name can contain the wildcard

@@ -62,9 +62,9 @@ function UserMenu({ user }: { user: User }): React.ReactNode {
     );
 }
 
-function PanelContent({ panel }: { panel: Panel }): React.ReactNode {
+function PanelContent({ panel, searchTerm }: { panel: Panel, searchTerm: string }): React.ReactNode {
     switch (panel) {
-        case "products":  return <PantryView />;
+        case "products":  return <PantryView searchTerm={searchTerm} />;
         case "brands":    return <BrandView />;
         case "tags":      return <TagView />;
         case "settings":  return <SettingsView />;
@@ -73,7 +73,7 @@ function PanelContent({ panel }: { panel: Panel }): React.ReactNode {
 
 export default function StudentFacing(): React.ReactNode {
     const [searchTerm, setSearchTerm] = useState<string>("");
-    const {getCartCount} = useCart();
+    const {getCartCount, clearCart} = useCart();
     // const navigate = useNavigate();
     // if (auth.is_none()) return null;
 
@@ -109,10 +109,11 @@ export default function StudentFacing(): React.ReactNode {
                     <div className="cart-icon">
                         🛒
                         <span className="cart-badge">{getCartCount()}</span>
+                        <button onClick={ () => clearCart()}> Clear Cart </button>
                     </div>
                 </div>
                 <div id="body">
-                    <PanelContent panel={panel} />
+                    <PanelContent panel={panel} searchTerm={searchTerm} />
                 </div>
             </div>
         </Titled>
