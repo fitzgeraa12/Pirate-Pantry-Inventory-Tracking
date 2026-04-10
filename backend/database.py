@@ -156,6 +156,7 @@ class Database(ABC):
         map_index_err: Optional[Callable[[IndexError], E]] = None,
         params: QueryParams = []
     ) -> T:
+        """Maps query results to list"""
         try:
             return map_fn(self.query(sql, params)[0])
         except IndexError as index_err:
@@ -180,14 +181,14 @@ class Database(ABC):
         return Product.query_and_include_tags(self, "SELECT * FROM products")
     
     def all_product_names(self) -> list[str]:
-        return self.query_and_map_rows("SELECT name FROM products", lambda row: str(row["name"]))
+        return self.query_and_map_rows("SELECT DISTINCT name FROM products", lambda row: str(row["name"]))
     
     def all_product_brands(self) -> list[str]:
-        return self.query_and_map_rows("SELECT name FROM brands", lambda row: str(row["name"]))
+        return self.query_and_map_rows("SELECT DISTINCT brand FROM products", lambda row: str(row["brand"]))
     
     def all_product_tags(self) -> list[str]:
         return self.query_and_map_rows(
-            "SELECT DISTINCT tag_label FROM product_tags pt JOIN products p ON pt.product_id = p.id WHERE p.quantity > 0",
+            "SELECT DISTINCT tag_label FROM product_tags pt JOIN products p ON pt.product_id = p.id",
             lambda row: str(row["tag_label"])
         )
     
@@ -199,7 +200,7 @@ class Database(ABC):
         return Product.query_and_include_tags(self, "SELECT * FROM products WHERE quantity > 0")
     
     def available_product_names(self) -> list[str]:
-        return self.query_and_map_rows("SELECT name FROM products WHERE quantity > 0", lambda row: str(row["name"]))
+        return self.query_and_map_rows("SELECT DISTINCT name FROM products WHERE quantity > 0", lambda row: str(row["name"]))
     
     def available_product_brands(self) -> list[str]:
         return self.query_and_map_rows(
@@ -226,18 +227,17 @@ class Database(ABC):
         image_link: Optional[str],
         tags: Optional[list[str]]
     ) -> Product:
+
         with self.transaction():
             # Insert brand and image link first
             if brand:
                 self.query("INSERT OR IGNORE INTO brands (name) VALUES (?)", [brand])
             if image_link:
                 self.query("INSERT OR IGNORE INTO image_links (path) VALUES (?)", [image_link])
-
             self.query(
                 "INSERT INTO products (id, name, brand, quantity, image_link) VALUES (?, ?, ?, ?, ?)",
                 [id, name, brand, quantity, image_link]
             )
-
             product_id = self.query("SELECT last_insert_rowid() as id")[0]["id"]
             if tags:
                 for tag in tags:
@@ -334,6 +334,7 @@ class Database(ABC):
         Returns:
             The list of tags that were newly added
         """
+        #TODO: tags could be unique?
         with self.transaction():
             existing_tags = self.query_and_map_rows(
                 f"SELECT label FROM tags WHERE label IN ({','.join('?' * len(tags))})",
@@ -348,11 +349,30 @@ class Database(ABC):
             # Return only the newly added tags
             newly_added_tags = [tag for tag in tags if tag not in existing_tags]
 
-            return newly_added_tags
+            return newly_added_tags    
+        
+    def search(self,
+            value: str,
+            ) -> list [Product]:
+        """
+        Returns products that name, brand, or tag match the value
+        """
+        with self.transaction():
+            #TODO: Could this be handled by the API? it just searches name brand and by tags
+            matches : list[list[Product]] = []
+            matches.append(self.products_from_name(value))
+            matches.append(self.products_from_brand(value))
+            matches.append(self.products_from_matching_tags(value))
+            all_matches = [x[0] for x in matches if x]
+
+            return all_matches
+        
             
     #------------------------------
     # Viewing singles
     #------------------------------
+
+
 
     def product_from_id(self, id: int) -> Product:
         """
@@ -386,8 +406,9 @@ class Database(ABC):
             A list of products with the provided name query (list of one 
             product for an exact name match).
         """
-        return Product.query_and_include_tags(self, "SELECT * FROM products WHERE name LIKE ?", [name])
+        return Product.query_and_include_tags(self, "SELECT * FROM products WHERE name LIKE ? AND quantity > 0", [name])
     
+
     def products_from_brand(self, name: str) -> list[Product]:
         """
         Fetch a list of product by a brand. The brand can contain the wildcard
@@ -398,8 +419,8 @@ class Database(ABC):
         Returns:
             A list of products with the provided brand query.
         """
-        return Product.query_and_include_tags(self, "SELECT * FROM products WHERE brand LIKE ?", [name])
-    
+        return Product.query_and_include_tags(self, "SELECT * FROM products WHERE brand LIKE ? AND quantity > 0", [name])
+
     def products_from_matching_tags(self, tags: list[str]) -> list[Product]:
         """
         Fetch a list of product by a list of matching tags. Each tag can contain the wildcard
@@ -423,6 +444,30 @@ class Database(ABC):
             lambda row: Product.from_row(row),
             tags
         )
+    
+    def in_table_no_id(
+            self, 
+            name: Union[str, None, Unset] = UNSET,
+            brand: Union[str, None, Unset] = UNSET):
+        """
+        Used when items are manually entered and don't have an id. Searches for the item in database so the item can be assigned to it
+        """
+        #TODO: Adjust for case insensitivity
+        with self.transaction():
+            fields: list[str] = []
+            params: QueryParams = []
+        if name is not UNSET:
+                fields.append("name = ?")
+                params.append(name)
+        if brand is not UNSET:
+            fields.append("brand = ?")
+            params.append(brand)
+        if fields:
+                return self.query(
+                    f"SELECT id FROM products WHERE {', '.join(fields)}",
+                    params
+                ) 
+    
     
     #------------------------------
     # Deleting methods
