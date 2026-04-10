@@ -7,12 +7,14 @@ import BrandView from './views/BrandView';
 import TagsView from './views/TagsView';
 import ErrorView from './views/ErrorView';
 import { APIContext } from '../api/APIContext';
+import { useNavigate } from 'react-router-dom';
 
 // https://tanstack.com/table/latest/docs/guide/tables
 // https://tanstack.com/table/latest/docs/guide/column-defs
 // https://stackoverflow.com/questions/76157947/border-radius-doesnt-round-the-borders-of-my-table-but-the-background-color
 function WorkerFacing() {
     const [search_params, set_search_params] = useSearchParams();
+    const navigate = useNavigate();
 
     // FIXME: API request test
     const api = useContext(APIContext);
@@ -52,7 +54,7 @@ function WorkerFacing() {
                 <div id="header">
                     <div id="title">Pirate Pantry Workpanel</div>
                     <div id="header-top-right">
-                        <button id="user-view" className="header-button">User View</button>
+                        <button onClick={() => navigate("/")}>Pantry</button>
                         <button id="log-out" className="header-button">Log Out</button> 
                     </div>
                 </div>

@@ -1,7 +1,7 @@
 #container {
     --margin: 16px;
 
-    background-color: var(--su-light-gray);
+    background-color: var(--su-dark-gray);
     border: 2px solid var(--su-yellow);
     width: calc(100vw - 2 * var(--margin));
     height: calc(100vh - 2 * var(--margin));
@@ -10,7 +10,7 @@
     display: flex;
     flex-direction: column;
     border-radius: 5px;
-    overflow: hidden;
+
 }
 
 #header {
@@ -47,6 +47,7 @@
 .header-button {
     height: 100%;
     font-size: 0.65em;
+        color: var(--su-yellow);
 }
 
 #user-view, #log-out {
@@ -57,19 +58,26 @@
 
 #body-header {
     display: flex;
+    justify-content: space-between;
     align-items: center;
     gap: 8px;
     padding: 8px;
     background-color: var(--su-light-gray);
     border-bottom: 2px solid var(--su-mid-gray);
+    font-size: 1.5em;
 }
 
-#body-left {
-    width: 50px;
-    background-color: var(--su-light-gray);
-    border-right: 1px solid var(--su-yellow);
-    min-width: 150px;
+.cart-badge{
+    background: yellow;
+    color: black;
+    border-radius: 999px;
+    padding: 2px 8px;
+    margin-left: 8px;
+    font-size: 12px;
+    font-weight: bold;
+    display: inline-block;
 }
+
 
 #view {
     flex-grow: 1;
@@ -78,23 +86,6 @@
     flex-direction: column;
 }
 
-.table-container{
-    max-height: 500px;
-    overflow-y: auto;
-}
-
-.body-header-button {
-    height: 100%;
-    color: var(--su-yellow);
-    font-size: 0.65em;
-}
-
-#add-item, #export-to-xls {
-    height: 20;
-    border-color: var(--su-dark-mid-gray);
-    background-color: var(--su-yellow);
-    margin-bottom: 0;
-}
 
 #body {
     flex-grow: 1;
@@ -102,21 +93,50 @@
     flex-direction: row;
 }
 
-#database-view {
-    flex-grow: 1;
-    color: var(--su-yellow);
+#checkout-container{
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
     padding: 16px;
-    border-collapse: separate;
-}
-
-#page-navigation {
     color: var(--su-light-gray);
 }
 
-#quick-statistics {
-    color: var(--su-light-gray);
+.checkout-item{
+    display: flex;
+    justify-content: space-between;
+    padding: 12px;
+    border-bottom: 1px solid var(--su-yellow);
 }
 
-.table-entry-button {
-    border: 0;
+.checkout-item-name{
+    font-weight: bold;
 }
+
+.checkout-item-quantity{
+    color: var(--su-yellow);
+}
+
+#checkout-summary{
+    margin-top: auto;
+    padding: 16px;
+    border-top: 2px solid var(--su-yellow);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#confirm-checkout{
+    background-color: yellow;
+    color: black;
+    border: none;
+    padding: 12px, 20px;
+    font-weight: bold;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#confirm-checkout:hover{
+    opacity: 0.9;
+}
+
+

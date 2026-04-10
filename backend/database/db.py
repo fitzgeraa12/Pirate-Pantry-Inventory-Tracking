@@ -49,7 +49,7 @@ def query(sql: str, params: Optional[list[Any]]= None) -> list[Any]:
     cursor_t = connection.cursor()
     if params:
         cursor_t.execute(sql, params)
-        print(sql, params)
+        #print(sql, params)
     else:
         cursor_t.execute(sql)
     #results = data.get('result', [])
@@ -89,7 +89,7 @@ def view_all_brands():
 
 def view_all_tags():
     rows = query('SELECT * FROM tags')
-    return rows_to_list(rows)
+    return rows
 
 #------------------------------
 # Viewing items currently in the pantry (quantity > 0)
@@ -127,50 +127,94 @@ def add_item(
         image_link: str = '',
         tags: Optional[list[str]] = None
 ):
+    """Returns [] if id is already in the table"""
 
     if brand is None:
         brand = ''
     else:
         brand = brand.title()
-    query('INSERT INTO products VALUES (?, ?, ?, ?, ?)', [id, name.title(), brand, quantity, image_link])
+    if id:
+        if in_table(id):
+            return []
+        else:
+            query('INSERT INTO products VALUES (?, ?, ?, ?, ?)', [id, name.title(), brand, quantity, image_link])
+    else: #Issue: id autoincrements from last entered id- how close are ID values to each other?
+        #issue for me- how do I get the id of a value I just entered
+        new_id = [x[0] for x in query('INSERT INTO products VALUES (Null, ?, ?, ?, ?) RETURNING id', [name.title(), brand, quantity, image_link])]
+        id = new_id[0]
     if tags:
         for tag in tags:
-            query('INSERT INTO tags (label) VALUES (?) ON CONFLICT (label) DO NOTHING', [tag.title()])
-            query('INSERT INTO product_tags VALUES (?, ?)', [id, tag.title()])
+            query('INSERT INTO tags (label) VALUES (?) ON CONFLICT (label) DO NOTHING', [str(tag).title()])
+            query('INSERT INTO product_tags VALUES (?, ?)', [id, str(tag).title()])
+
+#TODO: How exact should this search be? What if an item is entered manually with no brand, but it already exists in the database with the brand field?
+def in_table_no_id(
+        name: str = '',
+        brand: Optional[str] = None,
+        quantity: int = 0,
+        image_link: str = '',
+):
+    '''Searches for item id when item is manually entered'''
+    if brand is None:
+        brand = ''
+    else:
+        brand = brand.title() 
+    build_query('SELECT id FROM products WHERE ', name, brand, quantity, image_link) 
+
+
+def build_query(
+        start: str = '',
+        end: str = '',
+        name: str = '',
+        brand: Optional[str] = None,
+        id: list[int] = None,
+        quantity: int = -1,
+        image_link: str = None
+    ):
+    '''Builds a query with desired parameters'''
+    new_query = []
+    conds = []
+    if id:
+        print("ADDING ID")
+        new_query.append("id = ?")
+        conds.append(id)
+    if name:
+        new_query.append("name = ?")
+        conds.append(name.title())
+    if brand:
+        new_query.append("brand = ?")
+        conds.append(brand.title())
+    if quantity > 0:
+        new_query.append("quantity = ?")
+        conds.append(quantity)
+    if image_link:
+        print("ADDING I,D")
+        new_query.append("image_link = ?")
+        conds.append(image_link)
+    joined_query = ", ".join(new_query)
+    if joined_query:
+        final = start + joined_query + end
+        return final, conds
 
 #May have to be combined with some method that gets the item's id from it's name or brand
 def update_item(
         name: str = '',
-        brand: str ='',
+        brand: Optional[str] = None,
         id: list[int] = None,
         quantity: int = 0,
-        tags: Optional[list[str]] = None,
-        image_link: str = ''
+        image_link: Optional[str] = None,
+        tags: Optional[list[str]] = None
 ):
-    result = query('SELECT quantity FROM products WHERE id = ?', [id])
-    new_query = []
-    conds = []
-    if not result:
+    current_quantity = query('SELECT quantity FROM products WHERE id = ?', [id])
+    if not current_quantity:
         return "Item not found"
     if quantity >= 0:
-        if name:
-            new_query.append("name = ?")
-            conds.append(name.title())
-        if brand:
-            new_query.append("brand = ?")
-            conds.append(brand.title())
-        if quantity > 0:
-            new_query.append("quantity = ?")
-            old_quantity = result[0][0]
-            conds.append(quantity + old_quantity)
-        if image_link:
-            new_query.append("image_link = ?")
-            conds.append(image_link)
+        new_quantity = current_quantity[0][0] + quantity
+        result = build_query('UPDATE products SET ', ' WHERE id = ?', name, brand, None, new_quantity, image_link)
+        to_query = result[0]
+        conds = result[1]
         conds.append(id)
-        joined_query = ", ".join(new_query)
-        if joined_query:
-            final = 'Update products SET ' + joined_query + ' WHERE id = ?'
-            query(final, conds)
+        query(to_query, conds) 
         if tags:
             for tag in tags:
                 query('INSERT INTO tags (label) VALUES (?) ON CONFLICT (label) DO NOTHING', [tag.title()])
@@ -207,7 +251,7 @@ def get_all_info(id: Optional[int] = None) -> list[Any]:
     result = query('SELECT * FROM products WHERE id = ?', [id])
     if not result:
         return []
-    item = list(result[0].values())
+    item = list(result[0])
     tags = get_tags_for_item(id=id)
     item.extend(tags)
     return item
@@ -217,11 +261,11 @@ def get_all_info(id: Optional[int] = None) -> list[Any]:
 #------------------------------
 
 def search_pantry_by_name(name: str = ''):
-    rows = query('SELECT * FROM products WHERE quantity > 0 AND name = ?', [name.title()])
+    rows = query('SELECT * FROM products WHERE quantity > 0 AND name LIKE = ?', [name.title()])
     return rows_to_list(rows)
 
 def search_pantry_by_brand(brand: str = ''):
-    rows = query('SELECT * FROM products WHERE quantity > 0 AND brand = ?', [brand.title()])
+    rows = query('SELECT * FROM products WHERE quantity > 0 AND brand LIKE = ?', [brand.title()])
     return rows_to_list(rows)
 
 def search_pantry_by_id(id: Optional[int] = None):
@@ -242,13 +286,14 @@ def search_pantry_by_tag(tag: str =''):
 
 def get_tags_for_item(id: Optional[int] = None):
     rows = query('SELECT tag_label FROM product_tags WHERE product_id = ?', [id])
-    return [row['tag_label'] for row in rows]
+    return [x[0] for x in rows]
 
 def view_image(id: Optional[int] = None) -> Optional[str]:
     rows = query('SELECT image_link FROM products WHERE id = ?', [id])
     if rows:
         return rows[0]['image_link']
     return None
+
 
 #------------------------------
 # Removing methods
