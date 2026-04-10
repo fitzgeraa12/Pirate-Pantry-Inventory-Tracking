@@ -1,17 +1,21 @@
 from functools import wraps
 import os
+import io
 import re
 import secrets
 from typing import Any, Callable, Optional, cast
-from flask import Flask, jsonify, redirect, request, g, session as flask_session
+from flask import Flask, jsonify, redirect, send_file, request, g, session as flask_session
 from flask_cors import CORS
 from pydantic import BaseModel, ValidationError, field_validator
 from backend.common import UNSET
 from misc import env_get
-from database import AccessLevel, Brand, CannotDemoteOnlyAdminError, Database, LocalDatabase, Product, ProductNotFoundError, NotEnoughProductStockError, Tag, User, UserAlreadyExistsError, UserNotFoundError, normalize_email
+from backend.database import AccessLevel, Brand, CannotDemoteOnlyAdminError, Database, LocalDatabase, Product, ProductNotFoundError, NotEnoughProductStockError, Tag, User, UserAlreadyExistsError, UserNotFoundError, normalize_email
 from google_auth_oauthlib.flow import Flow # pyright: ignore[reportMissingTypeStubs]
 import jwt
 import requests
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
+import backend.stats as stats
 
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 ALLOWED_ORIGINS = ['https://piratepantry.com', 'https://www.piratepantry.com', 'https://dev.piratepantry.com']
@@ -183,7 +187,17 @@ def define_routes(app: Flask, db: Database):
     @requires_at_least(None)
     def get_user(): # pyright: ignore[reportUnusedFunction]
         return jsonify(g.user.model_dump() if g.user else None)
+
     
+    @app.route('/auth/whoami', methods=['GET'])
+    @requires_at_least(None)
+    def whoami(): # pyright: ignore[reportUnusedFunction]
+        result = {'id': g.session.google_sub if g.session else None }
+        return jsonify(result)
+
+    # --------------------------------------------------
+    # ADMIN only methods
+    # --------------------------------------------------
     @app.route('/user', methods=['POST'])
     @requires_at_least(AccessLevel.ADMIN)
     def add_user(): # pyright: ignore[reportUnusedFunction]
@@ -194,20 +208,19 @@ def define_routes(app: Flask, db: Database):
         
         try:
             new_user = db.add_user(user.email, user.access_level, user.id)
-            return jsonify(new_user.model_dump()), 201
+            return jsonify({'message': 'New Authorized User Added!', 'new user': new_user.model_dump()}), 201
         except UserAlreadyExistsError as e:
             return jsonify({'error': str(e)}), 409
 
     
-    @app.route('/auth/whoami', methods=['GET'])
-    @requires_at_least(None)
-    def whoami(): # pyright: ignore[reportUnusedFunction]
-        result = {'id': g.session.google_sub if g.session else None }
-        return jsonify(result)
-
     @app.route('/users', methods=['GET'])
     @requires_at_least(AccessLevel.ADMIN)
     def get_users(): # pyright: ignore[reportUnusedFunction]
+        ''' GET method to view all authorized users and their roles
+
+            Returns:
+                Response (JSON): List of authorized users and their roles
+        '''
         return jsonify([u.model_dump() for u in db.all_users()])
 
     @app.route('/user/<user_id>', methods=['PATCH'])
@@ -225,7 +238,30 @@ def define_routes(app: Flask, db: Database):
             return jsonify({'error': str(e)}), 400
         except UserNotFoundError:
             return jsonify({'error': 'User not found'}), 404
+    
 
+    @app.route('/user/<user_id>', methods=['DELETE'])
+    @requires_at_least(AccessLevel.ADMIN)
+    def remove_user(user_id: str):  # pyright: ignore[reportUnusedFunction]
+        ''' DELETE method to remove an authorized user
+
+            Returns:
+                Response (JSON): Confirmation message
+        '''
+        try:
+            db.remove_user(user_id, g.user.id if g.user else None)
+            return jsonify({'message': 'Authorized User Removed!'}), 200
+
+        except UserNotFoundError:
+            return jsonify({'error': 'User not found'}), 404
+
+        except CannotDemoteOnlyAdminError as e:
+            return jsonify({'error': str(e)}), 409
+
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+        
+        
     @app.route('/sessions', methods=['GET'])
     @requires_at_least(AccessLevel.ADMIN)
     def list_sessions(): # pyright: ignore[reportUnusedFunction]
@@ -252,6 +288,55 @@ def define_routes(app: Flask, db: Database):
         db.revoke_session(session_id)
         return '', 204
 
+
+    @app.route('/export', methods=['POST'])
+    @requires_at_least(AccessLevel.ADMIN)
+    def export_stats():
+        ''' POST method to export inventory stats (e.g. total items, most common tags, etc.)
+            Source: https://matplotlib.org/stable/gallery/misc/multipage_pdf.html
+            
+            Request body (JSON):
+            - start (str): Start date in MM-DD-YYYY format
+            - end (str): End date in MM-DD-YYYY format
+
+            Returns:
+                Response (JSON): Inventory stats
+        '''
+        body: Any = request.json or {}
+        start = body.get('start')
+        end = body.get('end')
+        if not start or not end:
+            return jsonify({'error': 'Both start and end date are required.'}), 400
+        try:
+            # Total number of items checked out 
+            total_fig  = stats.total_range(start, end)
+            # Top 10 items that got checked out 
+            top_fig    = stats.top_item(start, end)
+            # Percentage of item tags checked out weekly (pie chart)
+            tags_fig   = stats.tag_range(start, end)
+            # Number of checkouts per day
+            daily_fig  = stats.checkout_daily(start, end)
+            # Number of checkouts per hour (separate bar graphs for each day)
+            hourly_fig = stats.checkout_hourly(start, end) 
+        except ValueError as e:
+            return jsonify({'error': str(e)}), 400
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+        try:
+            buffer = io.BytesIO()
+            with PdfPages(buffer) as pdf:
+                for fig in [total_fig, top_fig, tags_fig, daily_fig, hourly_fig]:
+                    if fig:
+                        pdf.savefig(fig)
+                        plt.close(fig)
+            buffer.seek(0)
+            return send_file(buffer, as_attachment=True,
+                            download_name=f'Pirate_Pantry_Stats_{start}_to_{end}.pdf',
+                            mimetype='application/pdf')
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+    
     # --------------------------------------------------
     # Settings
     # --------------------------------------------------
@@ -573,8 +658,9 @@ def define_routes(app: Flask, db: Database):
                 return jsonify({'error': e.errors()}), 400
             
             updated_products = []
-            
             products = body.products
+            checkout_id = stats.next_checkout_id()
+
             for product in products:
                 id = product.id
                 existing = db.product_from_id(id)
@@ -590,6 +676,14 @@ def define_routes(app: Flask, db: Database):
                     'id': id,
                     'quantity': new_quantity
                 })
+                
+                stats.new_checkout(
+                    checkout_id=checkout_id,
+                    id=existing.id,
+                    name=existing.name,
+                    brand=existing.brand,
+                    num_checked_out=product.amount
+                )
 
             return jsonify({'quantities': updated_products}), 200
 

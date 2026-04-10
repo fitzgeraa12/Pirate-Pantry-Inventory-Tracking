@@ -44,3 +44,12 @@ CREATE TABLE IF NOT EXISTS auth_codes (
     session_id TEXT NOT NULL,
     expires_at INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS total_checkouts (
+    checkout_id INTEGER UNIQUE PRIMARY KEY NOT NULL, --unique per checkout
+    id         INTEGER NOT NULL,
+    name       TEXT    NOT NULL,
+    brand      TEXT    NOT NULL DEFAULT '',
+    num_checked_out   INTEGER NOT NULL,
+    checkout_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
