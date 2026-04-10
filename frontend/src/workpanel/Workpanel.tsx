@@ -152,6 +152,7 @@ export default function Workpanel(): React.ReactNode {
                             )}
                             <div className="body-left-spacer" />
                             <hr className="body-left-divider" />
+                            <button className= "body-left-button" onClick={ () => navigate("/addItem")}> Add Item</button>
                             {user?.access_level === "admin" && (
                                 <button className="body-left-button">Export</button>
                             )}

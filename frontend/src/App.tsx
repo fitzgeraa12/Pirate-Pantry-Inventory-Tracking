@@ -9,6 +9,7 @@ import Checkout from './checkout/Checkout';
 import React from 'react';
 import { API } from './API';
 import StudentFacing from './checkout/StudentFacing';
+import AddItem from './workpanel/AddItem';
 
 // https://www.kindacode.com/article/ways-to-set-page-title-dynamically-in-react
 function App() {
@@ -25,6 +26,7 @@ function App() {
       <Route path="/" element={<HomeRedirect />} />
       <Route path="/workpanel" element={<Workpanel />} />
       <Route path="/pantry" element={<StudentFacing />}/>
+      <Route path="/addItem" element={<AddItem />}/>
       <Route path="/checkout" element={<Checkout />} />
       <Route path="*" element={<_404_></_404_>} />
     </Routes>
