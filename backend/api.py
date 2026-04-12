@@ -389,7 +389,7 @@ def define_routes(app: Flask, db: Database):
     # --------------------------------------------------
 
     @app.route('/products', methods=['GET'])
-    @requires_at_least(AccessLevel.TRUSTED)
+    @requires_at_least(None)
     def query_products(): # pyright: ignore[reportUnusedFunction]
         ''' GET method to retrieve products, optionally filtered by query parameters.
             All filters are combined with AND logic.
@@ -735,24 +735,24 @@ def define_routes(app: Flask, db: Database):
 
 
     @app.route('/products/available', methods=['GET'])
-    @requires_at_least(AccessLevel.TRUSTED)
+    @requires_at_least(None)
     def get_pantry_inventory(): # pyright: ignore[reportUnusedFunction]
         return jsonify(db.available_products())
 
 
     @app.route('/products/available/names', methods=['GET'])
-    @requires_at_least(AccessLevel.TRUSTED)
+    @requires_at_least(None)
     def get_pantry_names(): # pyright: ignore[reportUnusedFunction]
         return jsonify(db.available_product_names())
 
 
     @app.route('/products/available/brands', methods=['GET'])
-    @requires_at_least(AccessLevel.TRUSTED)
+    @requires_at_least(None)
     def get_pantry_brands(): # pyright: ignore[reportUnusedFunction]
         return jsonify(db.available_product_brands())
 
     @app.route('/products/available/tags', methods=['GET'])
-    @requires_at_least(AccessLevel.TRUSTED)
+    @requires_at_least(None)
     def get_pantry_tags(): # pyright: ignore[reportUnusedFunction]
         return jsonify(db.available_product_tags())
     
