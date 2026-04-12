@@ -1,0 +1,83 @@
+name: Deploy backend + migrate database
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create wrangler.toml
+        env:
+          D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID }}
+        run: |
+          cat > backend/wrangler.toml << EOF
+          name = "pirate-pantry-backend"
+
+          [[d1_databases]]
+          binding = "DB"
+          database_name = "pirate-pantry-db"
+          database_id = "$D1_DATABASE_ID"
+          migrations_dir = "migrations"
+          EOF
+
+      - name: Apply D1 migrations
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_WORKERS_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: backend
+          command: d1 migrations apply pirate-pantry-db --remote
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: migrate
+    steps:
+      - name: Pull latest code
+        uses: mcastell/pythonanywhere-deploy-action@v1
+        with:
+          pa_username: ${{ secrets.PYTHONANYWHERE_USERNAME }}
+          pa_api_token: ${{ secrets.PYTHONANYWHERE_API_TOKEN }}
+          pa_git_pull_command: "cd ~/myapp && git pull origin main"
+
+      # Install dependencies
+      - name: Install dependencies
+        uses: mcastell/pythonanywhere-deploy-action@v1
+        with:
+          pa_username: ${{ secrets.PYTHONANYWHERE_USERNAME }}
+          pa_api_token: ${{ secrets.PYTHONANYWHERE_API_TOKEN }}
+          pa_git_pull_command: "pip3.10 install -r ~/myapp/backend/requirements.txt --user"
+
+      # Reload the WSGI app via the PA REST API
+      - name: Reload web app
+        env:
+          PYTHONANYWHERE_API_TOKEN: ${{ secrets.PYTHONANYWHERE_API_TOKEN }}
+          PYTHONANYWHERE_USERNAME: ${{ secrets.PYTHONANYWHERE_USERNAME }}
+        run: |
+          curl -f -s -X POST \
+            -H "Authorization: Token $PYTHONANYWHERE_API_TOKEN" \
+            "https://www.pythonanywhere.com/api/v0/user/$PYTHONANYWHERE_USERNAME/webapps/$PYTHONANYWHERE_USERNAME.pythonanywhere.com/reload/"
+
+      # Build JSON with jq so that special characters in secret values can't
+      # break the payload (avoids injection via raw string interpolation)
+      - name: Update environment variables
+        env:
+          PYTHONANYWHERE_API_TOKEN: ${{ secrets.PYTHONANYWHERE_API_TOKEN }}
+          PYTHONANYWHERE_USERNAME: ${{ secrets.PYTHONANYWHERE_USERNAME }}
+          DEV_TOKEN: ${{ secrets.DEV_TOKEN }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+        run: |
+          payload=$(jq -n \
+            --arg dev_token "$DEV_TOKEN" \
+            --arg google_client_id "$GOOGLE_CLIENT_ID" \
+            '{"environment_variables": {"DEV_TOKEN": $dev_token, "GOOGLE_CLIENT_ID": $google_client_id}}')
+          curl -f -s -X PATCH \
+            -H "Authorization: Token $PYTHONANYWHERE_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$payload" \
+            "https://www.pythonanywhere.com/api/v0/user/$PYTHONANYWHERE_USERNAME/webapps/$PYTHONANYWHERE_USERNAME.pythonanywhere.com/"
