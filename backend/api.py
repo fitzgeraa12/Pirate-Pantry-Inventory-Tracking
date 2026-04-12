@@ -7,17 +7,17 @@ from typing import Any, Callable, Optional, cast
 from flask import Flask, jsonify, redirect, send_file, request, g, session as flask_session
 from flask_cors import CORS
 from pydantic import BaseModel, ValidationError, field_validator
-from backend.common import UNSET
+from common import UNSET
 from misc import env_get
-from backend.database import AccessLevel, Brand, CannotDemoteOnlyAdminError, Database, LocalDatabase, Product, ProductNotFoundError, NotEnoughProductStockError, Tag, User, UserAlreadyExistsError, UserNotFoundError, normalize_email
+from database import AccessLevel, Brand, CannotDemoteOnlyAdminError, Database, LocalDatabase, Product, ProductNotFoundError, NotEnoughProductStockError, Tag, User, UserAlreadyExistsError, UserNotFoundError, normalize_email
 from google_auth_oauthlib.flow import Flow # pyright: ignore[reportMissingTypeStubs]
 import jwt
 import requests
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
-import backend.stats as stats
+import stats
 
-os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+import subprocess
 ALLOWED_ORIGINS = ['https://piratepantry.com', 'https://www.piratepantry.com', 'https://dev.piratepantry.com']
 
 def create_app(db: Database, is_local: bool) -> Flask:
@@ -99,6 +99,29 @@ def define_routes(app: Flask, db: Database):
                 raise ValueError('Email must be a southwestern.edu address')
             return normalized
     
+    # --------------------------------------------------
+    # Internal deploy webhook (called by GitHub Actions)
+    # --------------------------------------------------
+
+    @app.route('/internal/deploy', methods=['POST'])
+    def deploy_webhook(): # pyright: ignore[reportUnusedFunction]
+        token = request.headers.get('X-Deploy-Token', '')
+        if not secrets.compare_digest(token, dev_token):
+            return jsonify({'error': 'unauthorized'}), 401
+        app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        result = subprocess.run(
+            ['git', 'pull', 'origin', 'main'],
+            cwd=app_dir,
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
+        return jsonify({
+            'stdout': result.stdout,
+            'stderr': result.stderr,
+            'returncode': result.returncode
+        }), (200 if result.returncode == 0 else 500)
+
     # --------------------------------------------------
     # Auth/Perms
     # --------------------------------------------------
