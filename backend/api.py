@@ -134,12 +134,13 @@ def define_routes(app: Flask, db: Database):
             redirect_uri=google_redirect_uri
         )
 
-        # Store code_verifier in state param (cookie-independent — works across devices/browsers)
-        code_verifier: str = flow.code_verifier # pyright: ignore[reportUnknownMemberType]
+        # Pre-generate verifier so we can embed it in state (cookie-independent)
+        code_verifier = secrets.token_urlsafe(40)
         auth_url, _ = cast(tuple[str, str], flow.authorization_url( # pyright: ignore[reportUnknownMemberType]
             access_type='offline',
             prompt='consent',
-            state=code_verifier,
+            code_verifier=code_verifier,  # oauthlib uses this instead of generating one
+            state=code_verifier,          # carried back to callback in ?state=
         ))
 
         return redirect(auth_url)
