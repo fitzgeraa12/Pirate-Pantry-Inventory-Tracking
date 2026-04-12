@@ -66,8 +66,8 @@ jobs:
             -d "executable=bash" -d "arguments=")
           echo "Console response: $CONSOLE_RESP"
 
-          CONSOLE_ID=$(echo "$CONSOLE_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
-          OUTPUT_URL=$(echo "$CONSOLE_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['output_url'])")
+          CONSOLE_ID=$(echo "$CONSOLE_RESP" | jq -r '.id')
+          OUTPUT_URL="$BASE/consoles/$CONSOLE_ID/get_output/"
           echo "Console ID: $CONSOLE_ID"
           sleep 3
 
