@@ -134,27 +134,21 @@ def define_routes(app: Flask, db: Database):
             redirect_uri=google_redirect_uri
         )
 
-        # Pre-generate verifier so we can embed it in state (cookie-independent)
-        code_verifier = secrets.token_urlsafe(40)
         auth_url, _ = cast(tuple[str, str], flow.authorization_url( # pyright: ignore[reportUnknownMemberType]
             access_type='offline',
             prompt='consent',
-            code_verifier=code_verifier,  # oauthlib uses this instead of generating one
-            state=code_verifier,          # carried back to callback in ?state=
         ))
 
         return redirect(auth_url)
 
     @app.route('/auth/google/callback')
     def google_auth_callback(): # pyright: ignore[reportUnusedFunction]
-        code_verifier = request.args.get('state')
         token_response = requests.post('https://oauth2.googleapis.com/token', data={
             'code': request.args.get('code'),
             'client_id': google_client_id,
             'client_secret': google_client_secret,
             'redirect_uri': google_redirect_uri,
             'grant_type': 'authorization_code',
-            'code_verifier': code_verifier,
         })
         token_data = token_response.json()
 
