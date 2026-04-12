@@ -40,6 +40,8 @@ jobs:
           workingDirectory: backend
           wranglerVersion: "4.81.1"
           command: d1 migrations apply pirate-pantry-db --remote
+        env:
+          CI: "true"
 
   deploy:
     runs-on: ubuntu-latest
