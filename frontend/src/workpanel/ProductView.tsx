@@ -57,9 +57,6 @@ export default function ProductView(): React.ReactNode {
                 image_link: { header: "Image" },
             },
             order: ["id", "image_link", "name", "brand", "quantity", "tags"],
-        }} actions={[
-            { label: "Edit", onClick: (rows) => console.log("Edit", rows) },
-            { label: "Delete", onClick: (rows) => console.log("Delete", rows) },
-        ]} />
+        }} />
     );
 }

@@ -1,12 +1,5 @@
 @echo off
 
-:: Find pip.exe
-set "pip="
-where pip >nul 2>&1
-if errorlevel 1 (echo 'pip' not found & exit /b 1)
-for /f "tokens=*" %%i in ('where pip') do set "pip=%%i"
-echo Found pip.exe at %pip%
-
 :: Find python.exe
 set "python="
 where python >nul 2>&1
@@ -21,10 +14,6 @@ if not exist "%backend%" (
     exit /b 1
 )
 
-:: Upgrade pip
-echo Upgrading pip...
-"%python%" -m pip install --upgrade pip
-
 :: Find requirements.txt
 set "requirements=%backend%\requirements.txt"
 if not exist "%requirements%" (
@@ -32,9 +21,19 @@ if not exist "%requirements%" (
     exit /b 1
 )
 
-:: Install dependencies
+:: Create venv if missing
+set "venv=%backend%\.venv"
+if not exist "%venv%" (
+    echo Creating virtual environment...
+    "%python%" -m venv "%venv%"
+)
+
+:: Activate venv
+call "%venv%\Scripts\activate.bat"
+
+:: Upgrade pip and install dependencies
 echo Installing dependencies...
-"%pip%" install -r "%requirements%"
+"%venv%\Scripts\pip.exe" install -r "%requirements%"
 
 :: Find main.py
 set "main=%backend%\main.py"
@@ -46,4 +45,4 @@ if not exist "%main%" (
 :: Run main backend script
 echo Hosting backend locally...
 echo.
-"%python%" "%main%" --local
+"%venv%\Scripts\python.exe" "%main%" --local

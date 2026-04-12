@@ -36,13 +36,8 @@ if [ ! -d "$VENV" ]; then
     "$PYTHON" -m venv "$VENV"
 fi
 
-source "$VENV/bin/activate"
-
-echo "Upgrading pip..."
-pip install --upgrade pip
-
 echo "Installing dependencies..."
-pip install -r "$REQUIREMENTS"
+"$VENV/bin/pip" install -r "$REQUIREMENTS"
 
 # Check main.py
 MAIN="$BACKEND/main.py"
@@ -53,4 +48,4 @@ fi
 
 echo ""
 echo "Hosting backend locally..."
-python "$MAIN" --local
+"$VENV/bin/python" "$MAIN" --local

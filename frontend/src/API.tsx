@@ -31,7 +31,6 @@ export type User = z.infer<typeof UserSchema>
 const WhoAmISchema = z.object({
     id: z.string().optional().nullable(),
 })
-type WhoAmI = z.infer<typeof WhoAmISchema>
 
 const BrandSchema = z.object({
     name: z.string(),
@@ -52,13 +51,6 @@ const ProductSchema = z.object({
     tags: z.array(z.string()),
 })
 export type Product = z.infer<typeof ProductSchema>
-
-function PaginatedRequestSchema<T extends z.ZodTypeAny>(item_schema: T) {
-    return z.union([z.object({
-        page: z.number(),
-        page_size: z.number(),
-    }), item_schema]);
-}
 
 type PaginatedRequest<T> = T & {
     page?: Optional<number>,
@@ -111,6 +103,7 @@ export namespace API {
         quantity?: Optional<string>,
         image_link?: Optional<string>,
         tags?: Optional<Array<string>>,
+        search?: Optional<string>,
     }
 
     interface GetBrandsArgs {

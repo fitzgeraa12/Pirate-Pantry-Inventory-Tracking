@@ -2,8 +2,6 @@ import { useState } from "react";
 import "./AddItem.css";
 import { useNavigate } from "react-router-dom";
 import { useLocation } from "react-router-dom";
-import React from "react";
-import { API } from "../API";
 
 
 const AddItem = () => {
@@ -21,7 +19,7 @@ const AddItem = () => {
         new Set(
             tags    
                 .split(",")
-                .map(t => t.trim())
+                .map((t: string) => t.trim())
                 .filter(Boolean)  
         )
     );
@@ -56,7 +54,7 @@ const AddItem = () => {
             throw new Error("Failed to add item");
         }
 
-        const data = await response.json();
+        await response.json();
          // try{
         //     console.log("Token being sent: ", localStorage.getItem("session"));
         //     const token = localStorage.getItem("session");

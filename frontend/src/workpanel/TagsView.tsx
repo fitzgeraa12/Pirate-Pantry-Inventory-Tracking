@@ -18,9 +18,6 @@ export default function TagView(): React.ReactNode {
                 label: { header: "Label" },
             },
             order: ["label"],
-        }} actions={[
-            { label: "Edit",   onClick: (rows) => console.log("Edit", rows) },
-            { label: "Delete", onClick: (rows) => console.log("Delete", rows) },
-        ]} />
+        }} />
     );
 }

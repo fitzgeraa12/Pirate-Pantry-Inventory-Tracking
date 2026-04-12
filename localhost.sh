@@ -11,42 +11,33 @@ if [ ! -f "$ENV_FILE" ]; then
     exit 1
 fi
 
-# Try tmux first (works in Codespaces and most Linux environments)
-if command -v tmux &>/dev/null; then
-    SESSION="ppit"
-
-    # Kill existing session if running
-    tmux kill-session -t "$SESSION" 2>/dev/null || true
-
-    tmux new-session -d -s "$SESSION" -x 220 -y 50
-
-    # First pane: backend
-    tmux rename-window -t "$SESSION:0" "backend"
-    tmux send-keys -t "$SESSION:0" "bash '$SCRIPT_DIR/scripts/backend-localhost.sh'" Enter
-
-    # Second pane: frontend (split horizontally)
-    tmux split-window -h -t "$SESSION:0"
-    tmux send-keys -t "$SESSION:0.1" "bash '$SCRIPT_DIR/scripts/frontend-localhost.sh'" Enter
-
-    echo "Started in tmux session '$SESSION'."
-    echo "  Attach with: tmux attach -t $SESSION"
-    echo "  Detach with: Ctrl+B then D"
-    echo "  Kill with:   tmux kill-session -t $SESSION"
-
-    # Set up trap to kill tmux session on Ctrl+C
-    trap "tmux kill-session -t $SESSION 2>/dev/null; exit 0" SIGINT
-
-    # If running interactively, attach immediately
-    if [ -t 0 ]; then
-        tmux attach -t "$SESSION"
+# Try to find a GUI terminal emulator
+launch_terminal() {
+    local title="$1"
+    local cmd="$2"
+    if command -v gnome-terminal &>/dev/null; then
+        gnome-terminal --title="$title" -- bash -c "$cmd; read -p 'Press Enter to close...'" &
+    elif command -v xfce4-terminal &>/dev/null; then
+        xfce4-terminal --title="$title" -e "bash -c \"$cmd; read -p 'Press Enter to close...'\"" &
+    elif command -v konsole &>/dev/null; then
+        konsole --title "$title" -e bash -c "$cmd; read -p 'Press Enter to close...'" &
+    elif command -v xterm &>/dev/null; then
+        xterm -title "$title" -e bash -c "$cmd; read -p 'Press Enter to close...'" &
+    else
+        return 1
     fi
+    disown
+}
 
+if launch_terminal "Pirate Pantry - Backend" "bash '$SCRIPT_DIR/scripts/backend-localhost.sh'" && \
+   launch_terminal "Pirate Pantry - Frontend" "bash '$SCRIPT_DIR/scripts/frontend-localhost.sh'"; then
+    echo "Launched backend and frontend in separate terminal windows."
 else
     # Fallback: run both in background, log to files
     LOGS="$SCRIPT_DIR/.logs"
     mkdir -p "$LOGS"
 
-    echo "tmux not found — running both processes in background."
+    echo "No GUI terminal found — running both processes in background."
     echo "Logs: $LOGS/backend.log and $LOGS/frontend.log"
     echo "Stop with: kill \$(cat $LOGS/backend.pid) \$(cat $LOGS/frontend.pid)"
 

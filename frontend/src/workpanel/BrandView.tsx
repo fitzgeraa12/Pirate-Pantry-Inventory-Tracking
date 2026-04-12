@@ -18,9 +18,6 @@ export default function BrandView(): React.ReactNode {
                 name: { header: "Name" },
             },
             order: ["name"],
-        }} actions={[
-            { label: "Edit",   onClick: (rows) => console.log("Edit", rows) },
-            { label: "Delete", onClick: (rows) => console.log("Delete", rows) },
-        ]} />
+        }} />
     );
 }
