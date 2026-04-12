@@ -52,7 +52,23 @@ jobs:
         run: |
           BASE="https://www.pythonanywhere.com/api/v0/user/$PA_USER"
 
-          # Create a bash console and capture the full response
+          # Kill all existing consoles to avoid hitting free-tier limit (max 2)
+          EXISTING=$(curl -s -H "Authorization: Token $PA_TOKEN" "$BASE/consoles/")
+          echo "$EXISTING" | python3 -c "
+import sys, json, urllib.request
+data = json.load(sys.stdin)
+for c in data:
+    req = urllib.request.Request(
+        'https://www.pythonanywhere.com/api/v0/user/' + '$PA_USER' + '/consoles/' + str(c['id']) + '/',
+        method='DELETE',
+        headers={'Authorization': 'Token $PA_TOKEN'}
+    )
+    print('Deleting console', c['id'])
+    urllib.request.urlopen(req)
+" || true
+          sleep 2
+
+          # Create a fresh bash console
           CONSOLE_RESP=$(curl -s -X POST \
             -H "Authorization: Token $PA_TOKEN" \
             "$BASE/consoles/" \
@@ -62,7 +78,6 @@ jobs:
           CONSOLE_ID=$(echo "$CONSOLE_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
           OUTPUT_URL=$(echo "$CONSOLE_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['output_url'])")
           echo "Console ID: $CONSOLE_ID"
-          echo "Output URL: $OUTPUT_URL"
           sleep 3
 
           # Send commands; echo marker when done
@@ -71,7 +86,7 @@ jobs:
             "$BASE/consoles/$CONSOLE_ID/send_input/" \
             --data-urlencode $'input=cd ~/myapp && git pull origin main && pip3.10 install -r backend/requirements.txt --user && echo "::DEPLOY_DONE::"\n'
 
-          # Poll up to 2.5 minutes using the output_url from the creation response
+          # Poll up to 2.5 minutes for the marker
           for i in $(seq 1 30); do
             sleep 5
             OUTPUT=$(curl -s -H "Authorization: Token $PA_TOKEN" "$OUTPUT_URL")
