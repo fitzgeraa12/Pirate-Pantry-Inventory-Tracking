@@ -649,7 +649,8 @@ class RemoteDatabase(Database):
             body["params"] = params
 
         response = requests.post(self.query_url, headers=self.headers, json=body)
-        response.raise_for_status()
+        if not response.ok:
+            raise RemoteQueryError({"status": response.status_code, "body": response.text, "sql": sql})
         data = response.json()
 
         if not data.get("success"):
