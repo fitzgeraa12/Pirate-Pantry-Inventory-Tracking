@@ -52,13 +52,17 @@ jobs:
         run: |
           BASE="https://www.pythonanywhere.com/api/v0/user/$PA_USER"
 
-          # Create a bash console
-          CONSOLE_ID=$(curl -s -X POST \
+          # Create a bash console and capture the full response
+          CONSOLE_RESP=$(curl -s -X POST \
             -H "Authorization: Token $PA_TOKEN" \
             "$BASE/consoles/" \
-            -d "executable=bash" -d "arguments=" \
-            | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
+            -d "executable=bash" -d "arguments=")
+          echo "Console response: $CONSOLE_RESP"
+
+          CONSOLE_ID=$(echo "$CONSOLE_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
+          OUTPUT_URL=$(echo "$CONSOLE_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['output_url'])")
           echo "Console ID: $CONSOLE_ID"
+          echo "Output URL: $OUTPUT_URL"
           sleep 3
 
           # Send commands; echo marker when done
@@ -67,11 +71,10 @@ jobs:
             "$BASE/consoles/$CONSOLE_ID/send_input/" \
             --data-urlencode $'input=cd ~/myapp && git pull origin main && pip3.10 install -r backend/requirements.txt --user && echo "::DEPLOY_DONE::"\n'
 
-          # Poll up to 2.5 minutes for the marker
+          # Poll up to 2.5 minutes using the output_url from the creation response
           for i in $(seq 1 30); do
             sleep 5
-            OUTPUT=$(curl -s -H "Authorization: Token $PA_TOKEN" \
-              "$BASE/consoles/$CONSOLE_ID/get_output/")
+            OUTPUT=$(curl -s -H "Authorization: Token $PA_TOKEN" "$OUTPUT_URL")
             echo "$OUTPUT"
             if echo "$OUTPUT" | grep -q "::DEPLOY_DONE::"; then
               echo "Deploy commands completed"
