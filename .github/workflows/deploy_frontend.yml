@@ -32,6 +32,10 @@ jobs:
 
       - name: Build
         working-directory: frontend
+        env:
+          VITE_API_URL: https://fitzgeraa12.pythonanywhere.com
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          WEBSITE_URL: https://piratepantry.com
         run: npm run build
 
       - name: Deploy to Cloudflare Pages
