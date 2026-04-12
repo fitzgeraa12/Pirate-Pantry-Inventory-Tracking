@@ -45,20 +45,48 @@ jobs:
     runs-on: ubuntu-latest
     needs: migrate
     steps:
-      - name: Pull latest code
-        uses: mcastell/pythonanywhere-deploy-action@v1
-        with:
-          pa_username: ${{ secrets.PYTHONANYWHERE_USERNAME }}
-          pa_api_token: ${{ secrets.PYTHONANYWHERE_API_TOKEN }}
-          pa_git_pull_command: "cd ~/myapp && git pull origin main"
+      - name: Pull code and install dependencies
+        env:
+          PA_TOKEN: ${{ secrets.PYTHONANYWHERE_API_TOKEN }}
+          PA_USER: ${{ secrets.PYTHONANYWHERE_USERNAME }}
+        run: |
+          BASE="https://www.pythonanywhere.com/api/v0/user/$PA_USER"
 
-      # Install dependencies
-      - name: Install dependencies
-        uses: mcastell/pythonanywhere-deploy-action@v1
-        with:
-          pa_username: ${{ secrets.PYTHONANYWHERE_USERNAME }}
-          pa_api_token: ${{ secrets.PYTHONANYWHERE_API_TOKEN }}
-          pa_git_pull_command: "pip3.10 install -r ~/myapp/backend/requirements.txt --user"
+          # Create a bash console
+          CONSOLE_ID=$(curl -s -X POST \
+            -H "Authorization: Token $PA_TOKEN" \
+            "$BASE/consoles/" \
+            -d "executable=bash" -d "arguments=" \
+            | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
+          echo "Console ID: $CONSOLE_ID"
+          sleep 3
+
+          # Send commands; echo marker when done
+          curl -s -X POST \
+            -H "Authorization: Token $PA_TOKEN" \
+            "$BASE/consoles/$CONSOLE_ID/send_input/" \
+            --data-urlencode $'input=cd ~/myapp && git pull origin main && pip3.10 install -r backend/requirements.txt --user && echo "::DEPLOY_DONE::"\n'
+
+          # Poll up to 2.5 minutes for the marker
+          for i in $(seq 1 30); do
+            sleep 5
+            OUTPUT=$(curl -s -H "Authorization: Token $PA_TOKEN" \
+              "$BASE/consoles/$CONSOLE_ID/get_output/")
+            echo "$OUTPUT"
+            if echo "$OUTPUT" | grep -q "::DEPLOY_DONE::"; then
+              echo "Deploy commands completed"
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "Timed out waiting for deploy commands"
+              exit 1
+            fi
+          done
+
+          # Clean up console
+          curl -s -X DELETE \
+            -H "Authorization: Token $PA_TOKEN" \
+            "$BASE/consoles/$CONSOLE_ID/" || true
 
       # Reload the WSGI app via the PA REST API
       - name: Reload web app
