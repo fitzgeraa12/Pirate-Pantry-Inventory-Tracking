@@ -35,7 +35,7 @@ jobs:
       - name: Apply D1 migrations
         uses: cloudflare/wrangler-action@v3.14.1
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_WORKERS_TOKEN }}
+          apiToken: ${{ secrets.CLOUDFLARE_D1_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: backend
           wranglerVersion: "4.81.1"
