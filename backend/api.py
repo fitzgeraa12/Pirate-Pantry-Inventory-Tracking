@@ -29,6 +29,7 @@ def create_app(db: Database, is_local: bool) -> Flask:
     
     CORS(app, origins=origins, supports_credentials=True)
     app.secret_key = env_get("FLASK_SECRET_KEY")
+    stats.init(db)
     define_routes(app, db)
     return app
 

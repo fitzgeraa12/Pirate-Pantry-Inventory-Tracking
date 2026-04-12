@@ -5,7 +5,25 @@ from datetime import datetime, timedelta
 from collections import Counter
 import matplotlib.pyplot as plt # pip install matplotlib
 
-from database import query, rows_to_list, get_tags_for_item
+from database import Database
+
+_db: Optional[Database] = None
+
+def init(db: Database) -> None:
+    global _db
+    _db = db
+
+def query(sql: str, params: list = []) -> list:
+    assert _db is not None, "stats.init(db) must be called before using stats"
+    return _db.query(sql, params)
+
+def rows_to_list(rows: list) -> list:
+    return [list(row.values()) for row in rows]
+
+def get_tags_for_item(id: int) -> list[str]:
+    assert _db is not None, "stats.init(db) must be called before using stats"
+    rows = _db.query("SELECT tag_label FROM product_tags WHERE product_id = ?", [id])
+    return [row['tag_label'] for row in rows]
 
 def next_checkout_id() -> int:
     '''Return the next checkout_id (max existing + 1, or 1 if table is empty).'''

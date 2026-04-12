@@ -30,8 +30,16 @@ if [ ! -f "$REQUIREMENTS" ]; then
     exit 1
 fi
 
+VENV="$BACKEND/.venv"
+if [ ! -d "$VENV" ]; then
+    echo "Creating virtual environment..."
+    "$PYTHON" -m venv "$VENV"
+fi
+
+source "$VENV/bin/activate"
+
 echo "Upgrading pip..."
-"$PYTHON" -m pip install --upgrade pip
+pip install --upgrade pip
 
 echo "Installing dependencies..."
 pip install -r "$REQUIREMENTS"
@@ -45,4 +53,4 @@ fi
 
 echo ""
 echo "Hosting backend locally..."
-"$PYTHON" "$MAIN" --local
+python "$MAIN" --local
