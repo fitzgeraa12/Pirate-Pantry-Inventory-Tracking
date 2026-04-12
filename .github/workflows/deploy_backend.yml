@@ -29,6 +29,8 @@ jobs:
             echo "database_id = \"$D1_DATABASE_ID\""
             echo 'migrations_dir = "migrations"'
           } > backend/wrangler.toml
+          echo "--- wrangler.toml contents (ID masked) ---"
+          sed 's/database_id = .*/database_id = [REDACTED]/' backend/wrangler.toml
 
       - name: Apply D1 migrations
         uses: cloudflare/wrangler-action@v3.14.1
