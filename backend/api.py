@@ -312,6 +312,12 @@ def define_routes(app: Flask, db: Database):
         db.revoke_session(session_id)
         return '', 204
 
+    @app.route('/sessions/purge', methods=['POST'])
+    @requires_at_least(AccessLevel.ADMIN)
+    def purge_sessions_route(): # pyright: ignore[reportUnusedFunction]
+        db.purge_expired_sessions()
+        return '', 204
+
 
     @app.route('/export', methods=['POST'])
     @requires_at_least(AccessLevel.ADMIN)

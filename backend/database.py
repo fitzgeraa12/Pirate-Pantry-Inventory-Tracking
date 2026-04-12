@@ -503,18 +503,47 @@ class Database(ABC):
             
             return (auth_code.session_id, auth_code.picture)
         
+    MAX_SESSIONS_PER_USER = 5
+
     def create_auth_session(self, user_id: Optional[str], google_sub: str, refresh_token: str) -> AuthSession:
         session_id = str(uuid.uuid4())
         created_at = int(time.time())
         timeout_days = int(self.get_setting("login_timeout_days") or SESSION_EXPIRY_IN_DAYS)
         expires_at = created_at + 60 * 60 * 24 * timeout_days
 
+        # Lazy cleanup: drop expired sessions for this user on every login
+        self.query(
+            "DELETE FROM auth_sessions WHERE google_sub = ? AND expires_at <= ?",
+            [google_sub, created_at]
+        )
+
+        # Enforce session cap: drop oldest sessions beyond (MAX-1) so the new one fits
+        existing = self.query(
+            "SELECT id FROM auth_sessions WHERE google_sub = ? ORDER BY created_at ASC",
+            [google_sub]
+        )
+        overflow = len(existing) - (self.MAX_SESSIONS_PER_USER - 1)
+        if overflow > 0:
+            ids_to_drop = [row["id"] for row in existing[:overflow]]
+            placeholders = ",".join("?" * len(ids_to_drop))
+            self.query(f"DELETE FROM auth_sessions WHERE id IN ({placeholders})", ids_to_drop)
+
         self.query(
             "INSERT INTO auth_sessions (id, user_id, google_sub, refresh_token, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)",
             [session_id, user_id, google_sub, refresh_token, created_at, expires_at]
         )
 
+        # Backfill any old visitor sessions (user_id=NULL) for this google_sub
+        if user_id:
+            self.query(
+                "UPDATE auth_sessions SET user_id = ? WHERE google_sub = ? AND user_id IS NULL",
+                [user_id, google_sub]
+            )
+
         return AuthSession(id=session_id, user_id=user_id, google_sub=google_sub, refresh_token=refresh_token, created_at=created_at, expires_at=expires_at)
+
+    def purge_expired_sessions(self):
+        self.query("DELETE FROM auth_sessions WHERE expires_at <= ?", [int(time.time())])
     
     def get_auth_session(self, session_id: str) -> Optional[AuthSession]:
         session = self.try_query_and_map_single(
