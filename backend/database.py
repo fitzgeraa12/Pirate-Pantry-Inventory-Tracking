@@ -629,7 +629,8 @@ def connect(locally: bool) -> Database:
 
 class RemoteQueryError(Exception):
     def __init__(self, data: Any):
-        super().__init__(f"D1 query failed: {data.get('errors')}")
+        errors = data.get('errors') or data.get('body') or data
+        super().__init__(f"D1 query failed: {errors}")
 
 class RemoteDatabase(Database):
     def __init__(self):
