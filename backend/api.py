@@ -3,14 +3,13 @@ import os
 import io
 import re
 import secrets
-from typing import Any, Callable, Optional, cast
+from typing import Any, Callable, Optional
 from flask import Flask, jsonify, redirect, send_file, request, g, session as flask_session
 from flask_cors import CORS
 from pydantic import BaseModel, ValidationError, field_validator
 from common import UNSET
 from misc import env_get
 from database import AccessLevel, Brand, CannotDemoteOnlyAdminError, Database, LocalDatabase, Product, ProductNotFoundError, NotEnoughProductStockError, Tag, User, UserAlreadyExistsError, UserNotFoundError, normalize_email
-from google_auth_oauthlib.flow import Flow # pyright: ignore[reportMissingTypeStubs]
 import jwt
 import requests
 import matplotlib.pyplot as plt
@@ -47,15 +46,6 @@ def define_routes(app: Flask, db: Database):
     google_redirect_uri = f"{backend_url}/auth/google/callback"
     google_client_id = env_get("VITE_GOOGLE_CLIENT_ID")
     google_client_secret = env_get("GOOGLE_CLIENT_SECRET")
-    flow_config: dict[str, dict[str, Any]] = {
-        "web": {
-            "client_id": google_client_id,
-            "client_secret": google_client_secret,
-            "redirect_uris": [google_redirect_uri],
-            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-            "token_uri": "https://oauth2.googleapis.com/token"
-        }
-    }
 
     def requires_at_least(required_access_level: Optional[AccessLevel]):
         def decorator(fn: Callable[..., Any]):
@@ -128,18 +118,16 @@ def define_routes(app: Flask, db: Database):
 
     @app.route('/auth/google')
     def google_auth(): # pyright: ignore[reportUnusedFunction]
-        flow = Flow.from_client_config( # pyright: ignore[reportUnknownMemberType]
-            flow_config,
-            scopes=['openid', 'email', 'profile'],
-            redirect_uri=google_redirect_uri
-        )
-
-        auth_url, _ = cast(tuple[str, str], flow.authorization_url( # pyright: ignore[reportUnknownMemberType]
-            access_type='offline',
-            prompt='consent',
-        ))
-
-        return redirect(auth_url)
+        from urllib.parse import urlencode
+        params = urlencode({
+            'client_id': google_client_id,
+            'redirect_uri': google_redirect_uri,
+            'response_type': 'code',
+            'scope': 'openid email profile',
+            'access_type': 'offline',
+            'prompt': 'consent',
+        })
+        return redirect(f'https://accounts.google.com/o/oauth2/v2/auth?{params}')
 
     @app.route('/auth/google/callback')
     def google_auth_callback(): # pyright: ignore[reportUnusedFunction]
