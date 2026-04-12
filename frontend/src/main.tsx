@@ -5,6 +5,7 @@ import { API } from './API'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import RequireAuth from './auth/RequireAuth'
 import AuthCallback from './auth/AuthCallback'
+import Unauthorized from './auth/Unauthorized'
 import { CartProvider } from './misc/CartContext'
 
 createRoot(document.getElementById('root')!).render(
@@ -14,6 +15,7 @@ createRoot(document.getElementById('root')!).render(
         <BrowserRouter>
           <Routes>
             <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="/auth/unauthorized" element={<Unauthorized />} />
             <Route path="*" element={
               <RequireAuth>
                 <App />

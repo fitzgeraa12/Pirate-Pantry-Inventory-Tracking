@@ -10,6 +10,7 @@ const API_URL = API_PORT ? `${import.meta.env.VITE_API_URL}:${API_PORT}` : impor
 
 export const api_base = axios.create({
     baseURL: API_URL,
+    withCredentials: true,
 });
 
 api_base.interceptors.request.use((config) => {

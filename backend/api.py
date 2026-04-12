@@ -23,7 +23,7 @@ ALLOWED_ORIGINS = ['https://piratepantry.com', 'https://www.piratepantry.com', '
 def create_app(db: Database, is_local: bool) -> Flask:
     app = Flask(__name__)
     
-    origins = ['https://piratepantry.com', 'https://www.piratepantry.com', 'https://dev.piratepantry.com']
+    origins = ['https://piratepantry.com', 'https://www.piratepantry.com', 'https://dev.piratepantry.com', 'https://pirate-pantry-website.pages.dev']
     if is_local:
         origins.append('http://localhost:5173')
     
