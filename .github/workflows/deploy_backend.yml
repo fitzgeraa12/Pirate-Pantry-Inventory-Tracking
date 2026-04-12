@@ -53,19 +53,10 @@ jobs:
           BASE="https://www.pythonanywhere.com/api/v0/user/$PA_USER"
 
           # Kill all existing consoles to avoid hitting free-tier limit (max 2)
-          EXISTING=$(curl -s -H "Authorization: Token $PA_TOKEN" "$BASE/consoles/")
-          echo "$EXISTING" | python3 -c "
-import sys, json, urllib.request
-data = json.load(sys.stdin)
-for c in data:
-    req = urllib.request.Request(
-        'https://www.pythonanywhere.com/api/v0/user/' + '$PA_USER' + '/consoles/' + str(c['id']) + '/',
-        method='DELETE',
-        headers={'Authorization': 'Token $PA_TOKEN'}
-    )
-    print('Deleting console', c['id'])
-    urllib.request.urlopen(req)
-" || true
+          EXISTING_IDS=$(curl -s -H "Authorization: Token $PA_TOKEN" "$BASE/consoles/" | jq -r '.[].id')
+          for ID in $EXISTING_IDS; do
+            curl -s -X DELETE -H "Authorization: Token $PA_TOKEN" "$BASE/consoles/$ID/" || true
+          done
           sleep 2
 
           # Create a fresh bash console
