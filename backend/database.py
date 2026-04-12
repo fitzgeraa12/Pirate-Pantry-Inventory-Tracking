@@ -665,13 +665,10 @@ class RemoteDatabase(Database):
     
     @contextmanager
     def transaction(self):
-        self.query("BEGIN TRANSACTION")
-        try:
-            yield
-            self.query("COMMIT")
-        except Exception:
-            self.query("ROLLBACK")
-            raise
+        # D1 REST API doesn't support explicit transaction management via SQL
+        # (BEGIN/COMMIT/ROLLBACK). Each HTTP request is an isolated connection.
+        # Operations run in autocommit mode.
+        yield
     
 class LocalDatabase(Database):
     LOCAL_DATABASE_PATH = os.path.join(os.path.dirname(__file__), "__local__", "local_db.sqlite3")

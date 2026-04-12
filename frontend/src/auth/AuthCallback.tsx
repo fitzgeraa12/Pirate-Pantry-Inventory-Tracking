@@ -18,6 +18,9 @@ export default function AuthCallback(): React.ReactNode {
             if (data.picture) localStorage.setItem("user-picture", data.picture);
             else localStorage.removeItem("user-picture");
             navigate("/");
+        }).catch((err) => {
+            console.error("Auth exchange failed:", err);
+            navigate("/auth/unauthorized");
         });
         }
     }, []);
