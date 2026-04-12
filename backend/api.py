@@ -133,30 +133,35 @@ def define_routes(app: Flask, db: Database):
             scopes=['openid', 'email', 'profile'],
             redirect_uri=google_redirect_uri
         )
-        
+
+        # Store code_verifier in state param (cookie-independent — works across devices/browsers)
+        code_verifier: str = flow.code_verifier # pyright: ignore[reportUnknownMemberType]
         auth_url, _ = cast(tuple[str, str], flow.authorization_url( # pyright: ignore[reportUnknownMemberType]
             access_type='offline',
             prompt='consent',
+            state=code_verifier,
         ))
-
-        flask_session['code_verifier'] = flow.code_verifier # pyright: ignore[reportUnknownMemberType]
 
         return redirect(auth_url)
 
     @app.route('/auth/google/callback')
     def google_auth_callback(): # pyright: ignore[reportUnusedFunction]
+        code_verifier = request.args.get('state')
         token_response = requests.post('https://oauth2.googleapis.com/token', data={
             'code': request.args.get('code'),
             'client_id': google_client_id,
             'client_secret': google_client_secret,
             'redirect_uri': google_redirect_uri,
             'grant_type': 'authorization_code',
-            'code_verifier': flask_session.get('code_verifier'),
+            'code_verifier': code_verifier,
         })
         token_data = token_response.json()
 
-        raw_id_token: str = str(token_data.get('id_token'))
-        id_info = jwt.decode(raw_id_token, options={"verify_signature": False})
+        raw_id_token = token_data.get('id_token')
+        if not raw_id_token:
+            log(f'Google token exchange failed: {token_data.get("error")}: {token_data.get("error_description")}')
+            return jsonify({'error': 'Google token exchange failed', 'details': token_data.get('error_description')}), 502
+        id_info = jwt.decode(str(raw_id_token), options={"verify_signature": False})
 
         email = normalize_email(str(id_info['email']))
         if not email.endswith('@southwestern.edu'):
