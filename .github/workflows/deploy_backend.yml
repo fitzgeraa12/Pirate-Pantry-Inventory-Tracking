@@ -7,6 +7,9 @@ on:
       - "backend/**"
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   migrate:
     runs-on: ubuntu-latest
@@ -17,18 +20,22 @@ jobs:
         env:
           D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID }}
         run: |
-          cat > backend/wrangler.toml << EOF
+          cat > backend/wrangler.toml << 'EOF'
           name = "pirate-pantry-backend"
 
           [[d1_databases]]
           binding = "DB"
           database_name = "pirate-pantry-db"
-          database_id = "$D1_DATABASE_ID"
+          database_id = "${D1_DATABASE_ID}"
           migrations_dir = "migrations"
           EOF
+          # Strip leading spaces introduced by YAML indentation
+          sed -i 's/^          //' backend/wrangler.toml
+          # Substitute the env var manually since we used single-quote heredoc
+          sed -i "s|\${D1_DATABASE_ID}|$D1_DATABASE_ID|" backend/wrangler.toml
 
       - name: Apply D1 migrations
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v3.14.1
         with:
           apiToken: ${{ secrets.CLOUDFLARE_WORKERS_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
