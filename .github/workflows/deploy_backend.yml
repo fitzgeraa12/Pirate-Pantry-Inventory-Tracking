@@ -18,7 +18,7 @@ jobs:
 
       - name: Create wrangler.toml
         env:
-          D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID }}
+          D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
         run: |
           {
             echo 'name = "pirate-pantry-backend"'
