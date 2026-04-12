@@ -41,7 +41,7 @@ def host(db: Database, is_local: bool):
 def define_routes(app: Flask, db: Database):
     dev_token = env_get("DEV_TOKEN")
     frontend_port = os.environ.get("WEBSITE_PORT")
-    frontend_url = f"{env_get('WEBSITE_URL')}:{frontend_port}" if frontend_port else env_get('WEBSITE_URL')
+    frontend_url = f"{env_get('WEBSITE_URL').rstrip('/')}:{frontend_port}" if frontend_port else env_get('WEBSITE_URL').rstrip('/')
     backend_port = os.environ.get("VITE_API_PORT")
     backend_url = f"{env_get('VITE_API_URL')}:{backend_port}" if backend_port else env_get('VITE_API_URL')
     google_redirect_uri = f"{backend_url}/auth/google/callback"
