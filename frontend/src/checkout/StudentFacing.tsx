@@ -5,6 +5,8 @@ import BrandView from "../workpanel/BrandView";
 import TagView from "../workpanel/TagsView";
 import SettingsView from "../workpanel/SettingsView";
 import PantryView from './PantryView';
+
+const THEME_LABELS = { light: "☀  Light", dark: "🌙  Dark", auto: "⊙  System" };
 import { useCart } from "../misc/CartContext"; 
 import { useTheme } from "../misc/useTheme";
 import { API, type User } from "../API";
@@ -28,9 +30,9 @@ export default function StudentFacing(): React.ReactNode {
     // const navigate = useNavigate();
     // if (auth.is_none()) return null;
 
-    const [_theme, _cycleTheme] = useTheme();
+    const [theme, cycleTheme] = useTheme();
     const [panel, _setPanel] = React.useState<Panel>("products");
-    const [_user, setUser] = React.useState<User | null>(null);
+    const [user, setUser] = React.useState<User | null>(null);
     const navigate = useNavigate();
     const api = React.useContext(API.Context);
 
@@ -50,6 +52,12 @@ export default function StudentFacing(): React.ReactNode {
                         onChange={(e)=> setSearchTerm(e.target.value)}
                     />
                     <div id= "header-top-right">
+                        <button className="header-button" onClick={cycleTheme} data-active={theme !== "auto" ? "" : undefined}>
+                            Theme: {THEME_LABELS[theme]}
+                        </button>
+                        {user && (
+                            <button className="header-button" onClick={() => navigate("/workpanel")}>Workpanel</button>
+                        )}
                         <button onClick={ () => navigate("/checkout")}>Checkout</button>
                         {/* <button id= "log-out" className="header-button"
                             onClick={(auth.expect("no augh in student facing").logout)}>Log Out
