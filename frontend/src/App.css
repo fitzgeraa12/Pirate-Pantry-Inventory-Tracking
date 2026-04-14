@@ -10,6 +10,15 @@
     background-color: var(--background);
 }
 
+html, body, #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    /* override skeleton.css which sets html to 62.5% and breaks em/rem sizing */
+    font-size: 16px;
+}
+
 @media (prefers-color-scheme: light) {
     :root {
         --background: #e8e800;
