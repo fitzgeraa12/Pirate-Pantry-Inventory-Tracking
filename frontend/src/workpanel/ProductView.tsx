@@ -2,6 +2,8 @@ import React from "react";
 import TableView from "./TableView";
 import type { Optional } from "../misc/misc";
 import { API, type Product } from "../API";
+import { useSearchParams } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 
 export default function ProductView(): React.ReactNode {
     const api = React.useContext(API.Context);
@@ -13,8 +15,10 @@ export default function ProductView(): React.ReactNode {
     const [total, setTotal] = React.useState(0);
     const [totalPages, setTotalPages] = React.useState(1);
     const pageSize = parseInt(localStorage.getItem("table-page-size") ?? "20") || 20;
-
+    const [searchParams] = useSearchParams();
     const searchRef = React.useRef<HTMLInputElement>(null);
+    const location = useLocation();
+    const refresh = location.state?.refresh;
 
     React.useEffect(() => {
         const timer = setTimeout(() => { setSearch(inputValue.trim()); setPage(1); }, 300);
@@ -31,7 +35,7 @@ export default function ProductView(): React.ReactNode {
             setIsLoading(false);
             if (wasFocused) searchRef.current?.focus();
         });
-    }, [search, page]);
+    }, [search, page, refresh]);
 
     const toolbar = (
         <input

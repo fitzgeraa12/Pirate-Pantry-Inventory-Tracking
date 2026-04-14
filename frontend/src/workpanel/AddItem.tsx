@@ -14,6 +14,7 @@ const AddItem = () => {
     const [quantity, setQuantity] = useState(item.quantity || "");
     const [brand, setBrand] = useState(item.brand || "");
     const [tags, setTags] = useState(item.tags || "");
+    const [showDialog, setShowDialog] = useState(false);
 
     const parsedTags = Array.from(
         new Set(
@@ -23,6 +24,19 @@ const AddItem = () => {
                 .filter(Boolean)  
         )
     );
+
+    const handleYes = () => {
+            setId("");
+            setItemName("");
+            setQuantity("");
+            setBrand("");
+            setTags("");
+            setShowDialog(false);
+    }
+
+    const handleNo = () => {
+        navigate("/workpanel", {state: {refresh: true}});
+    };
     
 
     const handleSubmit = async () => {
@@ -87,7 +101,8 @@ const AddItem = () => {
             setBrand("");
             setTags("");
 
-            navigate("/workpanel");
+            setShowDialog(true);
+            // navigate("/workpanel", {state: {refresh: true}});
 
         } catch (error){
             console.error(error);
@@ -95,57 +110,71 @@ const AddItem = () => {
     };
 
     return (
-        <div className="add-item-page">
-            <div className="add-item-card">
-                <button className="placeholder-button"> Scan</button>
-                <div className="add-item-form">
-                    <input
-                        className="add-item-input"
-                        type="text"
-                        placeholder="Id"
-                        value={id}
-                        onChange={(e) => setId(e.target.value)}
-                    />
-                    <input
-                        className="add-item-input"
-                        type="text"
-                        placeholder="Name"
-                        value={itemName}
-                        onChange={(e) => setItemName(e.target.value)}
-                    />
-                    <input
-                        className="add-item-input"
-                        type="text"
-                        placeholder="Quantity"
-                        value={quantity}
-                        onChange={(e) => setQuantity(e.target.value)}
-                    />
-                    <input
-                        className="add-item-input"
-                        type="text"
-                        placeholder="Brand"
-                        value={brand}
-                        onChange={(e) => setBrand(e.target.value)}
-                    />
-                    <input
-                        className="add-item-input"
-                        type="text"
-                        placeholder="Tags"
-                        value={tags}
-                        onChange={(e) => setTags(e.target.value)}
-                    />    
+        <>
+            <div className="add-item-page">
+                <div className="add-item-card">
+                    <button className="placeholder-button"> Scan</button>
+                    <div className="add-item-form">
+                        <input
+                            className="add-item-input"
+                            type="text"
+                            placeholder="Id"
+                            value={id}
+                            onChange={(e) => setId(e.target.value)}
+                        />
+                        <input
+                            className="add-item-input"
+                            type="text"
+                            placeholder="Name"
+                            value={itemName}
+                            onChange={(e) => setItemName(e.target.value)}
+                        />
+                        <input
+                            className="add-item-input"
+                            type="text"
+                            placeholder="Quantity"
+                            value={quantity}
+                            onChange={(e) => setQuantity(e.target.value)}
+                        />
+                        <input
+                            className="add-item-input"
+                            type="text"
+                            placeholder="Brand"
+                            value={brand}
+                            onChange={(e) => setBrand(e.target.value)}
+                        />
+                        <input
+                            className="add-item-input"
+                            type="text"
+                            placeholder="Tags"
+                            value={tags}
+                            onChange={(e) => setTags(e.target.value)}
+                        />    
 
-                    <button
-                        className="done-button"
-                        onClick={handleSubmit}
-                    >Done</button>
-                    <button
-                        className="done-button"
-                        onClick={() => navigate("/workpanel")}
-                    > Back</button>    
+                        <button
+                            className="done-button"
+                            onClick={handleSubmit}
+                        >Done</button>
+                        <button
+                            className="done-button"
+                            onClick={() => navigate("/workpanel")}
+                        > Back</button>    
+                    </div>
                 </div>
             </div>
-        </div>
+
+            {showDialog && (
+                <div className="dialog-overlay">
+                    <div className="dialog-box">
+                        <p> Add another item?</p>
+                        <div className="dialog-buttons">
+                            <button onClick={handleYes}>Yes</button>
+                            <button onClick={handleNo}>No</button>                
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>    
     );
 };    
 export default AddItem;

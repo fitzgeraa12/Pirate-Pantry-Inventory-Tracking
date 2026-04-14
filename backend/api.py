@@ -3,7 +3,7 @@ import os
 import io
 import re
 import secrets
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, cast
 from flask import Flask, jsonify, redirect, send_file, request, g, session as flask_session
 from flask_cors import CORS
 from pydantic import BaseModel, ValidationError, field_validator
