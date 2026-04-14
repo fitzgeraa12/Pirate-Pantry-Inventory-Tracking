@@ -28,6 +28,7 @@ export function CartProvider({ children }: { children: ReactNode }){
 
     const addToCart = (id: number, name: string, maxQuantity: number)=> {
         setCart(prev =>{
+            if (maxQuantity <= 0) return prev;
             const existing = prev.find(item => item.id === id);
             // If more than in inventory is attempted to be added, deny it 
             if(existing && existing.quantity >= maxQuantity) {

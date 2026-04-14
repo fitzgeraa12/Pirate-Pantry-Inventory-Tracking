@@ -1,9 +1,12 @@
+import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useCart } from "../misc/CartContext";
+import { API } from "../API";
 
 function Checkout() {
     const navigate = useNavigate();
     const { cart = [], clearCart } = useCart() || {};
+    const api = React.useContext(API.Context)!;
 
     const handleConfirm = async () => {
         if (cart.length === 0) {
@@ -12,39 +15,27 @@ function Checkout() {
         }
 
         try {
-            const response = await fetch("http://localhost:5000/products/checkout", {
-                method: "PATCH",
-                headers: {
-                    "Content-Type": "application/json",
-                    // "Authorization": `Bearer ${TRUSTED}`
-                },
-                body: JSON.stringify({
-                    products: cart.map(item => ({
-                        id: item.id,
-                        amount: item.quantity
-                    }))
-                })
-            });
+            const quantities = await api.checkout(
+                cart.map(item => ({ id: item.id, amount: item.quantity }))
+            );
 
-            const data = await response.json();
-
-            if (!response.ok) {
-                console.error(data);
-                alert("Checkout failed!");
-                return;
-            }
-
-            console.log("Updated quantities:", data);
-
-            // ✅ ONLY clear cart after successful backend update
+            console.log("Updated quantities:", quantities);
             clearCart();
-
             alert("Checkout successful!");
             navigate("/pantry");
 
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            alert("Error connecting to server");
+            const data = error?.response?.data;
+            console.error("Server error:", data);
+            if (data?.error === 'not_enough_stock' && data?.out_of_stock?.length) {
+                const names = data.out_of_stock.map((p: any) =>
+                    `${p.name} (requested ${p.requested}, only ${p.available} available)`
+                ).join('\n');
+                alert(`Some items are out of stock:\n\n${names}`);
+            } else {
+                alert("Checkout failed!");
+            }
         }
     };
 

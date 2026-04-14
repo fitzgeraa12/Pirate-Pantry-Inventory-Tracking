@@ -30,6 +30,12 @@ def create_app(db: Database, is_local: bool) -> Flask:
     app.secret_key = env_get("FLASK_SECRET_KEY")
     stats.init(db)
     define_routes(app, db)
+
+    @app.errorhandler(Exception)
+    def handle_exception(e: Exception):
+        import traceback
+        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
+
     return app
 
 def host(db: Database, is_local: bool):
@@ -47,31 +53,34 @@ def define_routes(app: Flask, db: Database):
     google_client_id = env_get("VITE_GOOGLE_CLIENT_ID")
     google_client_secret = env_get("GOOGLE_CLIENT_SECRET")
 
-    def requires_at_least(required_access_level: Optional[AccessLevel]):
+    def requires_auth(fn: Callable[..., Any]):
+        '''Requires a valid session. Sets g.session and g.user.'''
+        @wraps(fn)
+        def wrapper(*args: Any, **kwargs: Any):
+            token = request.headers.get("Authorization")
+            if not token:
+                return jsonify({'error': 'No token found.'}), 401
+            if token == dev_token:
+                g.session = None
+                g.user = User.DEV
+                return fn(*args, **kwargs)
+            session = db.get_auth_session(token)
+            if not session:
+                return jsonify({'error': 'Invalid session'}), 401
+            g.session = session
+            g.user = db.get_user(session.user_id) if session.user_id else None
+            return fn(*args, **kwargs)
+        return wrapper
+
+    def requires_role(role: AccessLevel):
+        '''Requires g.user to have at least the given access level. Stack after @requires_auth.'''
         def decorator(fn: Callable[..., Any]):
             @wraps(fn)
             def wrapper(*args: Any, **kwargs: Any):
-                token = request.headers.get("Authorization")
-                if not token:
-                    return jsonify({'error': 'No token found.'}), 401
-
-                if token == dev_token:
-                    g.session = None
-                    g.user = User.DEV
-                    return fn(*args, **kwargs)
-
-                session = db.get_auth_session(token)
-                if required_access_level and not session:
-                    return jsonify({'error': 'Invalid session'}), 401
-
-                user = db.get_user(session.user_id) if session and session.user_id else None
-                access_level = user.access_level if session and user else None
-
-                if required_access_level and (not access_level or not access_level.at_least(required_access_level)):
+                user = getattr(g, 'user', None)
+                access_level = user.access_level if user else None
+                if not access_level or not access_level.at_least(role):
                     return jsonify({'error': 'Unauthorized'}), 403
-
-                g.session = session
-                g.user = user
                 return fn(*args, **kwargs)
             return wrapper
         return decorator
@@ -196,13 +205,13 @@ def define_routes(app: Flask, db: Database):
         return jsonify({'session': session_id, 'picture': picture})
 
     @app.route('/user', methods=['GET'])
-    @requires_at_least(None)
+    @requires_auth
     def get_user(): # pyright: ignore[reportUnusedFunction]
         return jsonify(g.user.model_dump() if g.user else None)
 
     
     @app.route('/auth/whoami', methods=['GET'])
-    @requires_at_least(None)
+    @requires_auth
     def whoami(): # pyright: ignore[reportUnusedFunction]
         result = {'id': g.session.google_sub if g.session else None }
         return jsonify(result)
@@ -211,7 +220,8 @@ def define_routes(app: Flask, db: Database):
     # ADMIN only methods
     # --------------------------------------------------
     @app.route('/user', methods=['POST'])
-    @requires_at_least(AccessLevel.ADMIN)
+    @requires_auth
+    @requires_role(AccessLevel.ADMIN)
     def add_user(): # pyright: ignore[reportUnusedFunction]
         try:
             user = AddUserRequest.model_validate(request.args.to_dict())
@@ -226,7 +236,8 @@ def define_routes(app: Flask, db: Database):
 
     
     @app.route('/users', methods=['GET'])
-    @requires_at_least(AccessLevel.ADMIN)
+    @requires_auth
+    @requires_role(AccessLevel.ADMIN)
     def get_users(): # pyright: ignore[reportUnusedFunction]
         ''' GET method to view all authorized users and their roles
 
@@ -236,7 +247,8 @@ def define_routes(app: Flask, db: Database):
         return jsonify([u.model_dump() for u in db.all_users()])
 
     @app.route('/user/<user_id>', methods=['PATCH'])
-    @requires_at_least(AccessLevel.ADMIN)
+    @requires_auth
+    @requires_role(AccessLevel.ADMIN)
     def update_user(user_id: str): # pyright: ignore[reportUnusedFunction]
         body: Any = request.json or {}
         try:
@@ -253,7 +265,8 @@ def define_routes(app: Flask, db: Database):
     
 
     @app.route('/user/<user_id>', methods=['DELETE'])
-    @requires_at_least(AccessLevel.ADMIN)
+    @requires_auth
+    @requires_role(AccessLevel.ADMIN)
     def remove_user(user_id: str):  # pyright: ignore[reportUnusedFunction]
         ''' DELETE method to remove an authorized user
 
@@ -275,7 +288,8 @@ def define_routes(app: Flask, db: Database):
         
         
     @app.route('/sessions', methods=['GET'])
-    @requires_at_least(AccessLevel.ADMIN)
+    @requires_auth
+    @requires_role(AccessLevel.ADMIN)
     def list_sessions(): # pyright: ignore[reportUnusedFunction]
         sessions = db.all_sessions()
         users_by_id = {u.id: u for u in db.all_users()}
@@ -293,7 +307,8 @@ def define_routes(app: Flask, db: Database):
         return jsonify(result)
 
     @app.route('/session/<session_id>', methods=['DELETE'])
-    @requires_at_least(AccessLevel.ADMIN)
+    @requires_auth
+    @requires_role(AccessLevel.ADMIN)
     def revoke_session_route(session_id: str): # pyright: ignore[reportUnusedFunction]
         if g.session and g.session.id == session_id:
             return jsonify({'error': 'Cannot revoke your own session'}), 400
@@ -301,14 +316,16 @@ def define_routes(app: Flask, db: Database):
         return '', 204
 
     @app.route('/sessions/purge', methods=['POST'])
-    @requires_at_least(AccessLevel.ADMIN)
+    @requires_auth
+    @requires_role(AccessLevel.ADMIN)
     def purge_sessions_route(): # pyright: ignore[reportUnusedFunction]
         db.purge_expired_sessions()
         return '', 204
 
 
     @app.route('/export', methods=['POST'])
-    @requires_at_least(AccessLevel.ADMIN)
+    @requires_auth
+    @requires_role(AccessLevel.ADMIN)
     def export_stats():
         ''' POST method to export inventory stats (e.g. total items, most common tags, etc.)
             Source: https://matplotlib.org/stable/gallery/misc/multipage_pdf.html
@@ -362,12 +379,14 @@ def define_routes(app: Flask, db: Database):
     ALLOWED_SETTINGS = {'login_timeout_days', 'page_size'}
 
     @app.route('/settings', methods=['GET'])
-    @requires_at_least(AccessLevel.TRUSTED)
+    @requires_auth
+    @requires_role(AccessLevel.TRUSTED)
     def get_settings(): # pyright: ignore[reportUnusedFunction]
         return jsonify(db.get_all_settings())
 
     @app.route('/settings', methods=['PATCH'])
-    @requires_at_least(AccessLevel.TRUSTED)
+    @requires_auth
+    @requires_role(AccessLevel.TRUSTED)
     def update_settings(): # pyright: ignore[reportUnusedFunction]
         body: Any = request.json or {}
         updated = {}
@@ -383,7 +402,7 @@ def define_routes(app: Flask, db: Database):
     # --------------------------------------------------
 
     @app.route('/products', methods=['GET'])
-    @requires_at_least(None)
+    @requires_auth
     def query_products(): # pyright: ignore[reportUnusedFunction]
         ''' GET method to retrieve products, optionally filtered by query parameters.
             All filters are combined with AND logic.
@@ -488,7 +507,8 @@ def define_routes(app: Flask, db: Database):
             })
 
     @app.route('/products', methods=['POST'])
-    @requires_at_least(AccessLevel.TRUSTED)
+    @requires_auth
+    @requires_role(AccessLevel.TRUSTED)
     def post_products():  # pyright: ignore[reportUnusedFunction]
         class PostProductSchema(BaseModel):
             id: Optional[int] = None
@@ -609,7 +629,8 @@ def define_routes(app: Flask, db: Database):
             return jsonify({'added': results, 'errors': errors}), 201 if not errors else 207
         
     @app.route('/products', methods=['DELETE'])
-    @requires_at_least(AccessLevel.TRUSTED)
+    @requires_auth
+    @requires_role(AccessLevel.TRUSTED)
     def delete_products(): # pyright: ignore[reportUnusedFunction]
         ''' DELETE method to remove a list of products by ID.
             Also removes all associated product_tags entries.
@@ -651,7 +672,7 @@ def define_routes(app: Flask, db: Database):
             return jsonify({'deleted': results, 'errors': errors}), 200 if not errors else 207
 
     @app.route('/products/checkout', methods=['PATCH'])
-    # @requires_at_least(AccessLevel.TRUSTED)
+    @requires_auth
     def checkout_products(): # pyright: ignore[reportUnusedFunction]
         ''' PATCH method to check items out (decrease items' quantities)
 
@@ -679,22 +700,31 @@ def define_routes(app: Flask, db: Database):
             products = body.products
             checkout_id = stats.next_checkout_id()
 
+            out_of_stock = []
+            for product in products:
+                existing = db.product_from_id(product.id)
+                if product.amount > existing.quantity:
+                    out_of_stock.append({
+                        'id': existing.id,
+                        'name': existing.name,
+                        'requested': product.amount,
+                        'available': existing.quantity,
+                    })
+
+            if out_of_stock:
+                return jsonify({'error': 'not_enough_stock', 'out_of_stock': out_of_stock}), 400
+
             for product in products:
                 id = product.id
                 existing = db.product_from_id(id)
-
-                old_quantity = existing.quantity
-                new_quantity = old_quantity - product.amount
-
-                if product.amount > existing.quantity:
-                    return jsonify({'error': NotEnoughProductStockError(id, product.amount, old_quantity)}), 400
+                new_quantity = existing.quantity - product.amount
 
                 db.query('UPDATE products SET quantity = ? WHERE id = ?', [new_quantity, id])
                 updated_products.append({
                     'id': id,
                     'quantity': new_quantity
                 })
-                
+
                 stats.new_checkout(
                     checkout_id=checkout_id,
                     id=existing.id,
@@ -706,47 +736,50 @@ def define_routes(app: Flask, db: Database):
             return jsonify({'quantities': updated_products}), 200
 
     # @app.route('/products/all', methods=['GET'])
-    # @requires_at_least(AccessLevel.TRUSTED)
+    # @requires_role(AccessLevel.TRUSTED)
     # def get_all_products(): # pyright: ignore[reportUnusedFunction]
     #     return jsonify(db.all_products())
 
     @app.route('/products/all/names', methods=['GET'])
-    @requires_at_least(AccessLevel.TRUSTED)
+    @requires_auth
+    @requires_role(AccessLevel.TRUSTED)
     def get_all_product_names(): # pyright: ignore[reportUnusedFunction]
         return jsonify(db.all_product_names())
 
 
     @app.route('/products/all/brands', methods=['GET'])
-    @requires_at_least(AccessLevel.TRUSTED)
+    @requires_auth
+    @requires_role(AccessLevel.TRUSTED)
     def get_all_product_brands(): # pyright: ignore[reportUnusedFunction]
         return jsonify(db.all_product_brands())
 
 
     @app.route('/products/all/tags', methods=['GET'])
-    @requires_at_least(AccessLevel.TRUSTED)
+    @requires_auth
+    @requires_role(AccessLevel.TRUSTED)
     def get_all_product_tags(): # pyright: ignore[reportUnusedFunction]
         return jsonify(db.all_product_tags())
 
 
     @app.route('/products/available', methods=['GET'])
-    @requires_at_least(None)
+    @requires_auth
     def get_pantry_inventory(): # pyright: ignore[reportUnusedFunction]
         return jsonify(db.available_products())
 
 
     @app.route('/products/available/names', methods=['GET'])
-    @requires_at_least(None)
+    @requires_auth
     def get_pantry_names(): # pyright: ignore[reportUnusedFunction]
         return jsonify(db.available_product_names())
 
 
     @app.route('/products/available/brands', methods=['GET'])
-    @requires_at_least(None)
+    @requires_auth
     def get_pantry_brands(): # pyright: ignore[reportUnusedFunction]
         return jsonify(db.available_product_brands())
 
     @app.route('/products/available/tags', methods=['GET'])
-    @requires_at_least(None)
+    @requires_auth
     def get_pantry_tags(): # pyright: ignore[reportUnusedFunction]
         return jsonify(db.available_product_tags())
     
@@ -755,7 +788,8 @@ def define_routes(app: Flask, db: Database):
     # --------------------------------------------------
 
     @app.route('/tags', methods=['GET'])
-    @requires_at_least(AccessLevel.TRUSTED)
+    @requires_auth
+    @requires_role(AccessLevel.TRUSTED)
     def get_tags(): # pyright: ignore[reportUnusedFunction]
         ''' GET method to retrieve tags, optionally filtered by query parameters.
 
@@ -805,7 +839,8 @@ def define_routes(app: Flask, db: Database):
         })
 
     @app.route('/tags', methods=['POST'])
-    @requires_at_least(AccessLevel.TRUSTED)
+    @requires_auth
+    @requires_role(AccessLevel.TRUSTED)
     def post_tags(): # pyright: ignore[reportUnusedFunction]
         ''' POST method to add a list of tags.
 
@@ -853,7 +888,8 @@ def define_routes(app: Flask, db: Database):
         return jsonify({'added': results, 'errors': errors}), 201 if not errors else 207
 
     @app.route('/tags', methods=['DELETE'])
-    @requires_at_least(AccessLevel.TRUSTED)
+    @requires_auth
+    @requires_role(AccessLevel.TRUSTED)
     def delete_tags(): # pyright: ignore[reportUnusedFunction]
         ''' DELETE method to remove a list of tags by label.
             Also removes all associated product_tags entries.
@@ -898,7 +934,8 @@ def define_routes(app: Flask, db: Database):
     # --------------------------------------------------
 
     @app.route('/brands', methods=['GET'])
-    @requires_at_least(AccessLevel.TRUSTED)
+    @requires_auth
+    @requires_role(AccessLevel.TRUSTED)
     def get_brands(): # pyright: ignore[reportUnusedFunction]
         ''' GET method to retrieve brands, optionally filtered by query parameters.
 
@@ -949,7 +986,8 @@ def define_routes(app: Flask, db: Database):
             })
     
     @app.route('/brands', methods=['POST'])
-    @requires_at_least(AccessLevel.TRUSTED)
+    @requires_auth
+    @requires_role(AccessLevel.TRUSTED)
     def post_brands(): # pyright: ignore[reportUnusedFunction]
         ''' POST method to add a list of brands.
 
@@ -997,7 +1035,8 @@ def define_routes(app: Flask, db: Database):
         return jsonify({'added': results, 'errors': errors}), 201 if not errors else 207
 
     @app.route('/brands', methods=['DELETE'])
-    @requires_at_least(AccessLevel.TRUSTED)
+    @requires_auth
+    @requires_role(AccessLevel.TRUSTED)
     def delete_brands(): # pyright: ignore[reportUnusedFunction]
         ''' DELETE method to remove a list of brands by name.
 

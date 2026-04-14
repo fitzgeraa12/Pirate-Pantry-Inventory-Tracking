@@ -31,8 +31,9 @@ if [ ! -f "$REQUIREMENTS" ]; then
 fi
 
 VENV="$BACKEND/.venv"
-if [ ! -d "$VENV" ]; then
+if [ ! -d "$VENV" ] || [ ! -x "$VENV/bin/pip" ]; then
     echo "Creating virtual environment..."
+    rm -rf "$VENV"
     "$PYTHON" -m venv "$VENV"
 fi
 

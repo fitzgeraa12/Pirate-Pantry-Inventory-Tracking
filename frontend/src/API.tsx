@@ -94,6 +94,7 @@ export namespace API {
         update_user: (id: string, patch: { access_level: AccessLevel }) => Promise<User>,
         get_sessions: () => Promise<Array<Session>>,
         revoke_session: (id: string) => Promise<void>,
+        checkout: (products: Array<{ id: number, amount: number }>) => Promise<Array<{ id: number, quantity: number }>>,
     }
 
     interface GetProductsArgs {
@@ -172,6 +173,10 @@ export namespace API {
 
                 revoke_session: async (id: string): Promise<void> => {
                     await api_base.delete(`/session/${id}`);
+                },
+
+                checkout: async (products: Array<{ id: number, amount: number }>): Promise<Array<{ id: number, quantity: number }>> => {
+                    return (await api_base.patch("/products/checkout", { products })).data.quantities;
                 },
             }
         }, []);

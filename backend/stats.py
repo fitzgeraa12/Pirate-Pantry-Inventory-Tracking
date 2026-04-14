@@ -41,7 +41,7 @@ def new_checkout(
 ):
     if checkout_time is None:
         checkout_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    query('INSERT INTO total_checkouts VALUES (?, ?, ?, ?, ?, ?)', [checkout_id, id, name, brand, num_checked_out, checkout_time])
+    query('INSERT INTO total_checkouts (checkout_id, id, name, brand, num_checked_out, checkout_time) VALUES (?, ?, ?, ?, ?, ?)', [checkout_id, id, name, brand or '', num_checked_out, checkout_time])
 
 def parse_date(date:str):
     '''Convert MM-DD-YYYY to YYYY-MM-DD for SQL comparisons '''
