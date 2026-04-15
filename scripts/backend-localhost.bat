@@ -21,10 +21,11 @@ if not exist "%requirements%" (
     exit /b 1
 )
 
-:: Create venv if missing
+:: Create venv if missing or corrupt
 set "venv=%backend%\.venv"
-if not exist "%venv%" (
+if not exist "%venv%\Scripts\pip.exe" (
     echo Creating virtual environment...
+    if exist "%venv%" rmdir /s /q "%venv%"
     "%python%" -m venv "%venv%"
 )
 

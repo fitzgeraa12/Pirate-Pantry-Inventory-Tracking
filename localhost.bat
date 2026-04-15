@@ -7,8 +7,8 @@ if not exist "%env%" (
     exit /b 1
 )
 
-call :launch frontend
 call :launch backend
+call :launch frontend
 exit /b 0
 
 :launch
