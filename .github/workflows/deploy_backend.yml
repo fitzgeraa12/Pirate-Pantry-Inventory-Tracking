@@ -1,0 +1,92 @@
+name: Deploy backend + migrate database
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create wrangler.toml
+        env:
+          D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
+        run: |
+          {
+            echo 'name = "pirate-pantry-backend"'
+            echo ''
+            echo '[[d1_databases]]'
+            echo 'binding = "DB"'
+            echo 'database_name = "pirate-pantry-db"'
+            echo "database_id = \"$D1_DATABASE_ID\""
+            echo 'migrations_dir = "migrations"'
+          } > backend/wrangler.toml
+          echo "--- wrangler.toml contents (ID masked) ---"
+          sed 's/database_id = .*/database_id = [REDACTED]/' backend/wrangler.toml
+
+      - name: Apply D1 migrations
+        uses: cloudflare/wrangler-action@v3.14.1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_D1_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: backend
+          wranglerVersion: "4.81.1"
+          command: d1 migrations apply pirate-pantry-db --remote
+        env:
+          CI: "true"
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: migrate
+    steps:
+      - name: Pull latest code via deploy webhook
+        env:
+          DEV_TOKEN: ${{ secrets.DEV_TOKEN }}
+          PYTHONANYWHERE_USERNAME: ${{ secrets.PYTHONANYWHERE_USERNAME }}
+        run: |
+          RESPONSE=$(curl -f -s -X POST \
+            -H "X-Deploy-Token: $DEV_TOKEN" \
+            "https://$PYTHONANYWHERE_USERNAME.pythonanywhere.com/internal/deploy")
+          echo "$RESPONSE"
+          RC=$(echo "$RESPONSE" | jq -r '.returncode')
+          if [ "$RC" != "0" ]; then
+            echo "git pull failed with return code $RC"
+            exit 1
+          fi
+
+      # Reload the WSGI app via the PA REST API
+      - name: Reload web app
+        env:
+          PYTHONANYWHERE_API_TOKEN: ${{ secrets.PYTHONANYWHERE_API_TOKEN }}
+          PYTHONANYWHERE_USERNAME: ${{ secrets.PYTHONANYWHERE_USERNAME }}
+        run: |
+          curl -f -s -X POST \
+            -H "Authorization: Token $PYTHONANYWHERE_API_TOKEN" \
+            "https://www.pythonanywhere.com/api/v0/user/$PYTHONANYWHERE_USERNAME/webapps/$PYTHONANYWHERE_USERNAME.pythonanywhere.com/reload/"
+
+      # Build JSON with jq so that special characters in secret values can't
+      # break the payload (avoids injection via raw string interpolation)
+      - name: Update environment variables
+        env:
+          PYTHONANYWHERE_API_TOKEN: ${{ secrets.PYTHONANYWHERE_API_TOKEN }}
+          PYTHONANYWHERE_USERNAME: ${{ secrets.PYTHONANYWHERE_USERNAME }}
+          DEV_TOKEN: ${{ secrets.DEV_TOKEN }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+        run: |
+          payload=$(jq -n \
+            --arg dev_token "$DEV_TOKEN" \
+            --arg google_client_id "$GOOGLE_CLIENT_ID" \
+            '{"environment_variables": {"DEV_TOKEN": $dev_token, "GOOGLE_CLIENT_ID": $google_client_id}}')
+          curl -f -s -X PATCH \
+            -H "Authorization: Token $PYTHONANYWHERE_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$payload" \
+            "https://www.pythonanywhere.com/api/v0/user/$PYTHONANYWHERE_USERNAME/webapps/$PYTHONANYWHERE_USERNAME.pythonanywhere.com/"
