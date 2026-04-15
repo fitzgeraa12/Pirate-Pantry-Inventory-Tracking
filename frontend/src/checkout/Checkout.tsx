@@ -54,7 +54,9 @@ function Checkout() {
                     </button>
                 </div>
             </div>
-
+            <div>
+                Help
+            </div>
             <div id="body">
                 <div id="view">
 
