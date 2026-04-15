@@ -672,7 +672,7 @@ def define_routes(app: Flask, db: Database):
             return jsonify({'deleted': results, 'errors': errors}), 200 if not errors else 207
 
     @app.route('/products/checkout', methods=['PATCH'])
-    @requires_auth
+    @requires_at_least(None)
     def checkout_products(): # pyright: ignore[reportUnusedFunction]
         ''' PATCH method to check items out (decrease items' quantities)
 
