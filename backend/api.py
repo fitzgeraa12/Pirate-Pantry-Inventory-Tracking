@@ -606,7 +606,7 @@ def define_routes(app: Flask, db: Database):
 
                         quantity = (
                             products_query.quantity
-                            if ('quantity' in fields_set and products_query.quantity is not None)
+                            if ('quantity' in fields_set and products_query.quantity is not None and products_query.quantity >= 0)
                             else UNSET
                         )
 
@@ -622,8 +622,9 @@ def define_routes(app: Flask, db: Database):
                         )
 
                         if existing is None:
+                            p_id = products_query.id if products_query.id else generate_id(db)
                             product = db.add_product(
-                                id=products_query.id,
+                                id=p_id,
                                 name=products_query.name or "",
                                 brand=None if products_query.brand == "" else products_query.brand,
                                 quantity=products_query.quantity,
@@ -1151,3 +1152,12 @@ def validate_symbol(name: str, symbol_name: str) -> Optional[str]:
 def log(data: Any):
     print(data)
     pass # TODO: logging
+
+def generate_id(db: Database) -> str:
+        '''Auto-increment from 900000000000000 for item with no barcode'''
+        result = db.query('SELECT MAX(CAST(id AS UNSIGNED)) as max_id FROM products WHERE CAST(id AS UNSIGNED) >= 900000000000000')
+        id = result[0]['max_id']
+        if id:
+            return str(id + 1)
+        else:
+            return '900000000000000'
