@@ -226,6 +226,8 @@ class Database(ABC):
         image_link: Optional[str],
         tags: Optional[list[str]]
     ) -> Product:
+        if quantity < 0:
+            raise InvalidQuantityError(quantity) 
         with self.transaction():
             # Insert brand and image link first
             if brand:
@@ -237,9 +239,8 @@ class Database(ABC):
                 "INSERT INTO products (id, name, brand, quantity, image_link) VALUES (?, ?, ?, ?, ?)",
                 [id, name, brand, quantity, image_link]
             )
-
+            
             product = self.product_from_id(id)
-
             return product
 
     def update_product(

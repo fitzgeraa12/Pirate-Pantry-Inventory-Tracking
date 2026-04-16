@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS products (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    id         TEXT PRIMARY KEY,
     name       TEXT    NOT NULL COLLATE NOCASE,
     brand      TEXT    DEFAULT NULL REFERENCES brands(name) ON DELETE SET NULL,
     quantity   INTEGER NOT NULL DEFAULT 0 CHECK(quantity >= 0),
@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS image_links (
 );
 
 CREATE TABLE IF NOT EXISTS product_tags (
-    product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    product_id TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
     tag_label  TEXT    NOT NULL REFERENCES tags(label)  ON DELETE CASCADE,
     PRIMARY KEY (product_id, tag_label)
 );
