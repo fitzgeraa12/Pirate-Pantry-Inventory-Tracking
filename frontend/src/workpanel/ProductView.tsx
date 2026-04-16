@@ -4,6 +4,9 @@ import type { Optional } from "../misc/misc";
 import { API, type Product } from "../API";
 import { useSearchParams } from "react-router-dom";
 import { useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { he } from "zod/locales";
+
 
 export default function ProductView(): React.ReactNode {
     const api = React.useContext(API.Context);
@@ -19,6 +22,7 @@ export default function ProductView(): React.ReactNode {
     const searchRef = React.useRef<HTMLInputElement>(null);
     const location = useLocation();
     const refresh = location.state?.refresh;
+    const navigate = useNavigate();
 
     React.useEffect(() => {
         const timer = setTimeout(() => { setSearch(inputValue.trim()); setPage(1); }, 300);
@@ -59,8 +63,16 @@ export default function ProductView(): React.ReactNode {
                 quantity: { header: "Quantity" },
                 tags: { header: "Tags", cell: (val: Array<string>) => <>{val.join(", ")}</> },
                 image_link: { header: "Image" },
+
+                actions: {
+                    header: "Actions",
+                    cell: (_: any, row: Product) => (
+                        <button onClick={ () => navigate("/AddItem", { state: { product: row } }) 
+                        }> Edit </button>
+                    ),
+                },    
             },
-            order: ["id", "image_link", "name", "brand", "quantity", "tags"],
+            order: ["id", "actions", "image_link", "name", "brand", "quantity", "tags"],
         }} />
     );
 }

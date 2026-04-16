@@ -261,6 +261,9 @@ class Database(ABC):
                 params.append(name)
 
             if brand is not UNSET:
+                # Create brand first if it doesn't exist
+                if brand is not None:
+                    self.query("INSERT OR IGNORE INTO brands (name) VALUES (?)", [brand])
                 fields.append("brand = ?")
                 params.append(brand)
 
@@ -285,6 +288,8 @@ class Database(ABC):
                     self.query("DELETE FROM product_tags WHERE product_id = ?", [id])
 
                     for tag in tags:
+                        # Create tag first if it doesn't exist
+                        self.query("INSERT OR IGNORE INTO tags (label) VALUES (?)", [tag])
                         self.query(
                             "INSERT INTO product_tags (product_id, tag_label) VALUES (?, ?)",
                             [id, tag]

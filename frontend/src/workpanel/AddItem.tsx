@@ -2,18 +2,35 @@ import { useState } from "react";
 import "./AddItem.css";
 import { useNavigate } from "react-router-dom";
 import { useLocation } from "react-router-dom";
+import { useEffect } from "react";
 
 
 const AddItem = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const editingProduct = location.state?.product;
     const item = location.state || {};
+    const isEditing = !!editingProduct;
 
-    const [id, setId] = useState(item.id || "");
-    const [itemName, setItemName] = useState(item.itemName || "");
-    const [quantity, setQuantity] = useState(item.quantity || "");
-    const [brand, setBrand] = useState(item.brand || "");
-    const [tags, setTags] = useState(item.tags || "");
+    const [id, setId] = useState("");
+    const [itemName, setItemName] = useState("");
+    const [quantity, setQuantity] = useState("");
+    const [brand, setBrand] = useState("");
+    const [tags, setTags] = useState("");
+
+    useEffect(() => {
+       if(editingProduct){
+            console.log("Loading product for edit:", editingProduct);
+            setId(editingProduct.id?.toString() || "");
+            setItemName(editingProduct.name || "");
+            setQuantity(editingProduct.quantity?.toString() || "");
+            setBrand(editingProduct.brand || "");
+            setTags(editingProduct.tags ? editingProduct.tags.join(", ") : "");
+            console.log("Brand set to:", editingProduct.brand);
+            console.log("Tags set to:", editingProduct.tags ? editingProduct.tags.join(", ") : "");
+        }
+    }, [editingProduct]);
+
     const [showDialog, setShowDialog] = useState(false);
 
     const parsedTags = Array.from(
@@ -45,11 +62,11 @@ const AddItem = () => {
                 id: id,
                 name: itemName,
                 quantity: Number(quantity),
-                brand,
-                tags: parsedTags
+                brand: brand || null,
+                tags: parsedTags.length > 0 ? parsedTags : null
             };
 
-        console.log("New Item: ", newItem);
+        console.log("Submitting item:", JSON.stringify([newItem], null, 2));
 
         const token = localStorage.getItem("session");
 
@@ -62,13 +79,13 @@ const AddItem = () => {
                 body: JSON.stringify([newItem])
         });
 
+        const responseData = await response.json();
+        console.log("Response from server: ", responseData);
+
         if(!response.ok){
-            const err = await response.json();
-            console.error("Backend error: ", err);
+            console.error("Backend error: ", responseData);
             throw new Error("Failed to add item");
         }
-
-        await response.json();
          // try{
         //     console.log("Token being sent: ", localStorage.getItem("session"));
         //     const token = localStorage.getItem("session");
