@@ -239,6 +239,13 @@ class Database(ABC):
                 "INSERT INTO products (id, name, brand, quantity, image_link) VALUES (?, ?, ?, ?, ?)",
                 [id, name, brand, quantity, image_link]
             )
+            if tags:
+                for tag in tags:
+                    self.query("INSERT OR IGNORE INTO tags (label) VALUES (?)", [tag])
+                    self.query(
+                        "INSERT INTO product_tags (product_id, tag_label) VALUES (?, ?)",
+                        [id, tag]
+                    )
             
             product = self.product_from_id(id)
             return product

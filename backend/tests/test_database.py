@@ -39,7 +39,7 @@ def test_add_product_and_product_from_id(db):
 
     assert product.name == "Test Cereal"
     assert product.brand == "Test Brand"
-    #assert set(product.tags) == {"tag_1", "tag_2"}
+    assert set(product.tags) == {"tag_1", "tag_2"}
 
     loaded = db.product_from_id(product.id)
     assert loaded == product #Ensures product is in the table
@@ -89,7 +89,7 @@ def test_checkout(db):
     product = db.add_product("234234", "Green Beans", None, 50, None, ['tag_!', 'tag_?'])
     assert product.name == "Green Beans"
     assert product.brand == None
-    #assert set(product.tags) == {"tag_!", "tag_?"}
+    assert set(product.tags) == {"tag_!", "tag_?"}
 
     loaded = db.product_from_id(product.id)
     assert loaded == product #Ensures product is in the table
@@ -106,7 +106,7 @@ def test_checkout(db):
     assert updated_product.quantity == 4
     assert updated_product.name == "Green Beans"
     assert updated_product.brand == None
-    #assert set(updated_product.tags) == {"tag_!", "tag_?"}
+    assert set(updated_product.tags) == {"tag_!", "tag_?"}
     
     with pytest.raises(InvalidQuantityError): #Ensures invalid quantity can't be checkedout
         db.checkout_product(product.id, 47)
