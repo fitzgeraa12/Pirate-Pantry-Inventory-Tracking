@@ -10,6 +10,10 @@ from common import UNSET, Unset
 from misc import env_get
 import requests
 import sqlite3
+import pickle
+from pathlib import Path
+
+
 
 SESSION_EXPIRY_IN_DAYS = 30
 
@@ -55,6 +59,11 @@ class UserAlreadyExistsError(Exception):
 class CannotDemoteOnlyAdminError(Exception):
     def __init__(self):
         super().__init__("You cannot revoke your own admin privileges while you are the only admin")
+
+class NotImplementedError(Exception):
+    def __init__(self):
+        super().__init__("Can only save a local or remote database")
+
 
 # --------------------------------------------------
 # Schema
@@ -187,7 +196,7 @@ class Database(ABC):
     
     def all_product_tags(self) -> list[str]:
         return self.query_and_map_rows(
-            "SELECT DISTINCT tag_label FROM product_tags pt JOIN products p ON pt.product_id = p.id WHERE p.quantity > 0",
+            "SELECT DISTINCT tag_label FROM product_tags pt JOIN products p ON pt.product_id = p.id",
             lambda row: str(row["tag_label"])
         )
     
@@ -479,6 +488,14 @@ class Database(ABC):
             self.query("DELETE FROM tags WHERE label = ?", [tag])
 
     #------------------------------
+    # Save
+    #------------------------------
+
+    def save_table(self, destination_folder: Optional[str] = None) -> str:
+        """Save a backup of the database to a separate folder."""
+        raise NotImplementedError()
+
+    #------------------------------
     # Auth
     #------------------------------
 
@@ -666,6 +683,7 @@ class RemoteQueryError(Exception):
         super().__init__(f"D1 query failed: {errors}")
 
 class RemoteDatabase(Database):
+    """Database hosted through cloudflare"""
     def __init__(self):
         account_id = env_get("CLOUDFLARE_ACCOUNT_ID")
         db_id = env_get("CLOUDFLARE_D1_DATABASE_ID")
@@ -702,6 +720,51 @@ class RemoteDatabase(Database):
         # (BEGIN/COMMIT/ROLLBACK). Each HTTP request is an isolated connection.
         # Operations run in autocommit mode.
         yield
+
+    def save_table(self, destination_folder: Optional[str] = None) -> str:
+        """Export the remote database to a local SQLite backup file."""
+        backup_folder = Path(os.path.dirname(__file__)) / "backups"
+        backup_folder.mkdir(parents=True, exist_ok=True)
+
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        #backup_path = backup_folder / f"remote_db_backup_{timestamp}.sqlite3"
+        backup_path = backup_folder / f"remote_db_backup.sqlite3"
+
+        if backup_path.exists():
+            backup_path.unlink() #Removes exisiting saved table
+
+        with sqlite3.connect(str(backup_path)) as backup_conn:
+            backup_conn.row_factory = sqlite3.Row
+            backup_conn.execute("PRAGMA foreign_keys = ON")
+
+            # Build schema locally from the same migration files used by LocalDatabase.
+            migration_dir = os.path.join(os.path.dirname(__file__), "migrations")
+            migration_files = sorted(os.listdir(migration_dir))
+            for filename in migration_files:
+                if not filename.endswith(".sql"):
+                    continue
+                with open(os.path.join(migration_dir, filename), "r") as f:
+                    backup_conn.executescript(f.read())
+
+            # Export each table from the remote database.
+            table_rows = backup_conn.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
+            tables = [row[0] for row in table_rows.fetchall()]
+
+            for table in tables:
+                rows = self.query(f"SELECT * FROM {table}")
+                if not rows:
+                    continue
+
+                columns = list(rows[0].keys())
+                placeholders = ",".join("?" for _ in columns)
+                insert_sql = f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({placeholders})"
+
+                with backup_conn:
+                    for row in rows:
+                        backup_conn.execute(insert_sql, [row[col] for col in columns])
+
+        return str(backup_path)
     
 class LocalDatabase(Database):
     LOCAL_DATABASE_PATH = os.path.join(os.path.dirname(__file__), "__local__", "local_db.sqlite3")
@@ -714,6 +777,20 @@ class LocalDatabase(Database):
         self.conn.execute("PRAGMA journal_mode=WAL")
         self.conn.execute("PRAGMA foreign_keys = ON")
         self._run_migrations()
+
+    def save_table(self, destination_folder: Optional[str] = None) -> str:
+        backup_folder = Path(os.path.dirname(__file__)) / "backups"
+        backup_folder.mkdir(parents=True, exist_ok=True)
+
+        timestamp = time.strftime("%Y%m%d_%H%M%S") #TODO: Do we want timestamps?
+        backup_path = backup_folder / f"local_db_backup.sqlite3"
+        #backup_path = backup_folder / f"product_backup_{timestamp}.sqlite3"
+
+        self.conn.commit()
+        with sqlite3.connect(str(backup_path)) as file_conn: #adds table to file
+            self.conn.backup(file_conn)
+
+        return str(backup_path)
 
     def _run_migrations(self):
         self.conn.executescript("""
