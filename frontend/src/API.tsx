@@ -86,6 +86,7 @@ export namespace API {
         get_users: () => Promise<Array<User>>,
         whoami: () => Promise<Optional<string>>,
         get_products: (args?: PaginatedRequest<GetProductsArgs>) => Promise<PaginatedResponse<Product>>,
+        add_products: (products: Array<Partial<Product>>) => Promise<Array<Product>>,
         get_brands: (args?: PaginatedRequest<GetBrandsArgs>) => Promise<PaginatedResponse<Brand>>,
         get_tags: (args?: PaginatedRequest<GetTagsArgs>) => Promise<PaginatedResponse<Tag>>,
         get_settings: () => Promise<Record<string, string>>,
@@ -141,6 +142,10 @@ export namespace API {
 
                 get_products: async(args?: PaginatedRequest<GetProductsArgs>): Promise<PaginatedResponse<Product>> => {
                     return await api_get("products", PaginatedResponseSchema(ProductSchema), args);
+                },
+
+                add_products: async (products: Array<Partial<Product>>): Promise<Array<Product>> => {
+                    return (await api_base.post("/products", products)).data;
                 },
 
                 get_brands: async(args?: PaginatedRequest<GetBrandsArgs>): Promise<PaginatedResponse<Brand>> => {

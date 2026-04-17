@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import "./AddItem.css";
-import { type Product } from "../API";
+import { API, type Product } from "../API";
 
 
 const AddItem = ({ editingProduct, onBack }: { editingProduct?: Product | null; onBack: () => void }) => {
@@ -12,6 +12,7 @@ const AddItem = ({ editingProduct, onBack }: { editingProduct?: Product | null; 
     const [tags, setTags] = useState("");
 
     const isEditing = !!editingProduct;
+    const api = React.useContext(API.Context);
 
     useEffect(() => {
        if(editingProduct){
@@ -58,54 +59,13 @@ const AddItem = ({ editingProduct, onBack }: { editingProduct?: Product | null; 
                 name: itemName,
                 quantity: Number(quantity),
                 brand: brand || null,
-                tags: parsedTags.length > 0 ? parsedTags : null
+                tags: parsedTags.length > 0 ? parsedTags : undefined
             };
 
         console.log("Submitting item:", JSON.stringify([newItem], null, 2));
 
-        const token = localStorage.getItem("session");
-
-        const response = await fetch("http://localhost:5000/products", {
-                method: "POST",
-                headers: { 
-                    "Content-Type": "application/json",
-                    "Authorization" : token || ""
-                },
-                body: JSON.stringify([newItem])
-        });
-
-        const responseData = await response.json();
-        console.log("Response from server: ", responseData);
-
-        if(!response.ok){
-            console.error("Backend error: ", responseData);
-            throw new Error("Failed to add item");
-        }
-         // try{
-        //     console.log("Token being sent: ", localStorage.getItem("session"));
-        //     const token = localStorage.getItem("session");
-        //     const response = await fetch("http://localhost:5000/products", {
-        //         method: "POST",
-        //         credentials: "include",
-        //         headers: { 
-        //             "Content-Type": "application/json",
-        //             "Authorizatoin" : token || ""
-        //         },
-        //         body: JSON.stringify({
-        //             id: Number(id),
-        //             name: itemName,
-        //             quantity: Number(quantity),
-        //             brand,
-        //             tags: tags.split(",").map(tag => tag.trim())
-        //         }),
-        //     });
-   
-
-        //     if(!response.ok){
-        //         throw new Error("Failed to add item");
-        //     }    
-        //     const data = await response.json();
-        //     console.log("Saved", data);
+            const responseData = await api!.add_products([newItem]);
+            console.log("Response from server: ", responseData);
 
             if (isEditing) {
                 onBack();
