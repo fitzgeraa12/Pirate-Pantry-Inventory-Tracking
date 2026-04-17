@@ -255,3 +255,57 @@
     min-width: 60px;
     text-align: center;
 }
+
+/* ── Light mode overrides ─────────────────────────────────────────────── */
+[data-theme="light"] .pantry-card {
+    border-color: #ccc;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .pantry-card:hover {
+    border-color: #9a8200;
+    box-shadow: 0 2px 14px rgba(120, 100, 0, 0.18);
+}
+
+[data-theme="light"] .pantry-card-image {
+    background-color: #ebebeb;
+}
+
+[data-theme="light"] .pantry-card-tag {
+    background-color: rgba(110, 90, 0, 0.1);
+    color: #5e4d00;
+    border-color: rgba(110, 90, 0, 0.35);
+}
+
+[data-theme="light"] .pantry-card-tag--more {
+    background-color: rgba(110, 90, 0, 0.15);
+}
+
+[data-theme="light"] .pantry-card-tag--more:hover {
+    background-color: rgba(110, 90, 0, 0.28);
+}
+
+[data-theme="light"] .pantry-card-btn--add:not(:disabled) {
+    border-color: #9a8200;
+    color: #7a6600;
+}
+
+[data-theme="light"] .pantry-card-btn:hover:not(:disabled) {
+    border-color: #9a8200;
+    color: #7a6600;
+    background-color: rgba(110, 90, 0, 0.1);
+}
+
+[data-theme="light"] .pantry-card-cart-qty {
+    color: #7a6600;
+}
+
+[data-theme="light"] .pantry-pagination-btn:hover:not(:disabled) {
+    border-color: #9a8200;
+    color: #7a6600;
+    background-color: rgba(110, 90, 0, 0.08);
+}
+
+[data-theme="light"] .pantry-grid::-webkit-scrollbar-thumb:hover {
+    background-color: #9a8200;
+}

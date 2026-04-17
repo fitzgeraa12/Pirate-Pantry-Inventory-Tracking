@@ -730,7 +730,6 @@ def define_routes(app: Flask, db: Database):
             
             updated_products = []
             products = body.products
-            checkout_id = stats.next_checkout_id()
 
             out_of_stock = []
             for product in products:
@@ -758,7 +757,7 @@ def define_routes(app: Flask, db: Database):
                 })
 
                 stats.new_checkout(
-                    checkout_id=checkout_id,
+                    checkout_id=stats.next_checkout_id(),
                     id=existing.id,
                     name=existing.name,
                     brand=existing.brand,
