@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS auth_codes (
 );
 
 CREATE TABLE IF NOT EXISTS total_checkouts (
-    checkout_id INTEGER UNIQUE PRIMARY KEY NOT NULL, --unique per checkout
+    checkout_id TEXT PRIMARY KEY, --unique per checkout
     id         INTEGER NOT NULL,
     name       TEXT    NOT NULL,
     brand      TEXT    NOT NULL DEFAULT '',
