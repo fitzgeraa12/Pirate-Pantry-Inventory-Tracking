@@ -3,6 +3,7 @@ import type { Optional } from "../misc/misc";
 import { useCart } from "../misc/CartContext";
 import { Spinner } from "../misc/misc";
 import { createColumnHelper, flexRender, getCoreRowModel, getPaginationRowModel, getFilteredRowModel, useReactTable, type ColumnDef, type RowData } from "@tanstack/react-table";
+import { type Product } from "../API";
 import './StuTable.css'
 
 type BoxedPrimitive<T> = { value: T };
@@ -120,7 +121,20 @@ export default function TableView<
         getCoreRowModel: getCoreRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
-        globalFilterFn: "includesString",
+        globalFilterFn: (row, columnId, filterValue) => {
+            const search = String(filterValue).toLowerCase();
+            const original = row.original as Product;
+
+            const valuesToSearch = [
+                original.id,
+                original.name,
+                original.brand,
+            ];
+
+            return valuesToSearch.some(val =>
+                String(val).toLowerCase().includes(search)
+            );
+        },
         initialState: { pagination: { pageSize } },
         manualPagination: serverPagination !== undefined,
         ...(serverPagination !== undefined && { pageCount: serverPagination.totalPages }),

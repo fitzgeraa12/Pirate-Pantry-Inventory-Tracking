@@ -7,19 +7,20 @@ import TagView from "./TagsView";
 import UserView from "./UserView";
 import AdminView from "./AdminView";
 import SettingsView from "./SettingsView";
+import AddItem from "./AddItem";
 import { useTheme } from "../misc/useTheme";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { API, type User } from "../API";
+import { API, type User, type Product } from "../API";
 import './Workpanel.css'
 
 const THEME_LABELS = { light: "☀  Light", dark: "🌙  Dark", auto: "⊙  System" };
 
-type Panel = "products" | "brands" | "tags" | "users" | "admin" | "settings";
+type Panel = "products" | "brands" | "tags" | "users" | "admin" | "settings" | "addItem";
 
 const DEFAULT_PANEL: Panel = "products";
 
 function is_panel(value: string | null): value is Panel {
-    return value === "products" || value === "brands" || value === "tags" || value === "users" || value === "admin" || value === "settings";
+    return value === "products" || value === "brands" || value === "tags" || value === "users" || value === "admin" || value === "settings" || value === "addItem";
 }
 
 function can_access_panel(panel: Panel, user: User | null): boolean {
@@ -73,17 +74,6 @@ function UserMenu({ user }: { user: User }): React.ReactNode {
     );
 }
 
-function PanelContent({ panel }: { panel: Panel }): React.ReactNode {
-    switch (panel) {
-        case "products":  return <ProductView />;
-        case "brands":    return <BrandView />;
-        case "tags":      return <TagView />;
-        case "users":     return <UserView />;
-        case "admin":     return <AdminView />;
-        case "settings":  return <SettingsView />;
-    }
-}
-
 export default function Workpanel(): React.ReactNode {
     const [searchParams, setSearchParams] = useSearchParams();
     const [theme, cycleTheme] = useTheme();
@@ -92,8 +82,21 @@ export default function Workpanel(): React.ReactNode {
         return is_panel(candidate) ? candidate : DEFAULT_PANEL;
     });
     const [user, setUser] = React.useState<User | null>(null);
+    const [editingProduct, setEditingProduct] = React.useState<Product | null>(null);
     const navigate = useNavigate();
     const api = React.useContext(API.Context);
+
+    function PanelContent({ panel }: { panel: Panel }): React.ReactNode {
+        switch (panel) {
+            case "products":  return <ProductView onEdit={(p) => { setEditingProduct(p); setPanel("addItem"); }} />;
+            case "brands":    return <BrandView />;
+            case "tags":      return <TagView />;
+            case "users":     return <UserView />;
+            case "admin":     return <AdminView />;
+            case "settings":  return <SettingsView />;
+            case "addItem":   return <AddItem editingProduct={editingProduct} onBack={() => setPanel("products")} />;
+        }
+    }
 
     React.useEffect(() => {
         api!.get_user().then(u => { if (u) setUser(u); });
@@ -152,7 +155,7 @@ export default function Workpanel(): React.ReactNode {
                             )}
                             <div className="body-left-spacer" />
                             <hr className="body-left-divider" />
-                            <button className= "body-left-button" onClick={ () => navigate("/addItem")}> Add Item</button>
+                            <button className= "body-left-button" onClick={ () => setPanelAndUrl("addItem")}> Add Item</button>
                             {user?.access_level === "admin" && (
                                 <button className="body-left-button">Export</button>
                             )}

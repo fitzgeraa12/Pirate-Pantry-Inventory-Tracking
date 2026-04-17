@@ -43,7 +43,7 @@ const TagSchema = z.object({
 export type Tag = z.infer<typeof TagSchema>
 
 const ProductSchema = z.object({
-    id: z.number(),
+    id: z.string(),
     name: z.string(),
     brand: z.string().nullable().optional(),
     quantity: z.number(),
@@ -86,6 +86,7 @@ export namespace API {
         get_users: () => Promise<Array<User>>,
         whoami: () => Promise<Optional<string>>,
         get_products: (args?: PaginatedRequest<GetProductsArgs>) => Promise<PaginatedResponse<Product>>,
+        add_products: (products: Array<Partial<Product>>) => Promise<Array<Product>>,
         get_brands: (args?: PaginatedRequest<GetBrandsArgs>) => Promise<PaginatedResponse<Brand>>,
         get_tags: (args?: PaginatedRequest<GetTagsArgs>) => Promise<PaginatedResponse<Tag>>,
         get_settings: () => Promise<Record<string, string>>,
@@ -94,11 +95,11 @@ export namespace API {
         update_user: (id: string, patch: { access_level: AccessLevel }) => Promise<User>,
         get_sessions: () => Promise<Array<Session>>,
         revoke_session: (id: string) => Promise<void>,
-        checkout: (products: Array<{ id: number, amount: number }>) => Promise<Array<{ id: number, quantity: number }>>,
+        checkout: (products: Array<{ id: string, amount: number }>) => Promise<Array<{ id: string, quantity: number }>>,
     }
 
     interface GetProductsArgs {
-        id?: Optional<number>,
+        id?: Optional<string>,
         name?: Optional<string>,
         brand?: Optional<string>,
         quantity?: Optional<string>,
@@ -143,6 +144,10 @@ export namespace API {
                     return await api_get("products", PaginatedResponseSchema(ProductSchema), args);
                 },
 
+                add_products: async (products: Array<Partial<Product>>): Promise<Array<Product>> => {
+                    return (await api_base.post("/products", products)).data;
+                },
+
                 get_brands: async(args?: PaginatedRequest<GetBrandsArgs>): Promise<PaginatedResponse<Brand>> => {
                     return await api_get("brands", PaginatedResponseSchema(BrandSchema), args);
                 },
@@ -175,7 +180,7 @@ export namespace API {
                     await api_base.delete(`/session/${id}`);
                 },
 
-                checkout: async (products: Array<{ id: number, amount: number }>): Promise<Array<{ id: number, quantity: number }>> => {
+                checkout: async (products: Array<{ id: string, amount: number }>): Promise<Array<{ id: string, quantity: number }>> => {
                     return (await api_base.patch("/products/checkout", { products })).data.quantities;
                 },
             }

@@ -5,7 +5,8 @@ import { API, type Product } from "../API";
 import { useSearchParams } from "react-router-dom";
 import { useLocation } from "react-router-dom";
 
-export default function ProductView(): React.ReactNode {
+
+export default function ProductView({ onEdit }: { onEdit?: (product: Product) => void }): React.ReactNode {
     const api = React.useContext(API.Context);
     const [products, set_products] = React.useState<Optional<Array<Product>>>(null);
     const [isLoading, setIsLoading] = React.useState(false);
@@ -26,15 +27,25 @@ export default function ProductView(): React.ReactNode {
     }, [inputValue]);
 
     React.useEffect(() => {
-        const wasFocused = document.activeElement === searchRef.current;
-        setIsLoading(true);
-        api!.get_products({ name: search ? `%${search}%` : undefined, page, page_size: pageSize }).then((prods) => {
-            set_products(prods.data);
-            setTotal(prods.total);
-            setTotalPages(prods.total_pages);
-            setIsLoading(false);
-            if (wasFocused) searchRef.current?.focus();
-        });
+        const loadProducts = async () => {
+            const wasFocused = document.activeElement === searchRef.current;
+            setIsLoading(true);
+            try {
+                const prods = await api!.get_products({ search: search || undefined, page, page_size: pageSize });
+                set_products(prods.data);
+                setTotal(prods.total);
+                setTotalPages(prods.total_pages);
+                setIsLoading(false);
+                if (wasFocused) searchRef.current?.focus();
+            } catch (error) {
+                console.error("Failed to load products:", error);
+                set_products(null);
+                setIsLoading(false);
+                // Optionally show an error message to the user
+                alert("Failed to load products. Please try again.");
+            }
+        };
+        loadProducts();
     }, [search, page, refresh]);
 
     const toolbar = (
@@ -59,8 +70,16 @@ export default function ProductView(): React.ReactNode {
                 quantity: { header: "Quantity" },
                 tags: { header: "Tags", cell: (val: Array<string>) => <>{val.join(", ")}</> },
                 image_link: { header: "Image" },
+
+                actions: {
+                    header: "Actions",
+                    cell: (_: any, row: Product) => (
+                        <button onClick={ () => onEdit?.(row) 
+                        }> Edit </button>
+                    ),
+                },    
             },
-            order: ["id", "image_link", "name", "brand", "quantity", "tags"],
+            order: ["id", "actions", "image_link", "name", "brand", "quantity", "tags"],
         }} />
     );
 }

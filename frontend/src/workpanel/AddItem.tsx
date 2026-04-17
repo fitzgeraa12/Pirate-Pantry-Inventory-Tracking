@@ -1,19 +1,32 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./AddItem.css";
-import { useNavigate } from "react-router-dom";
-import { useLocation } from "react-router-dom";
+import { API, type Product } from "../API";
 
 
-const AddItem = () => {
-    const navigate = useNavigate();
-    const location = useLocation();
-    const item = location.state || {};
+const AddItem = ({ editingProduct, onBack }: { editingProduct?: Product | null; onBack: () => void }) => {
 
-    const [id, setId] = useState(item.id || "");
-    const [itemName, setItemName] = useState(item.itemName || "");
-    const [quantity, setQuantity] = useState(item.quantity || "");
-    const [brand, setBrand] = useState(item.brand || "");
-    const [tags, setTags] = useState(item.tags || "");
+    const [id, setId] = useState("");
+    const [itemName, setItemName] = useState("");
+    const [quantity, setQuantity] = useState("");
+    const [brand, setBrand] = useState("");
+    const [tags, setTags] = useState("");
+
+    const isEditing = !!editingProduct;
+    const api = React.useContext(API.Context);
+
+    useEffect(() => {
+       if(editingProduct){
+            console.log("Loading product for edit:", editingProduct);
+            setId(editingProduct.id?.toString() || "");
+            setItemName(editingProduct.name || "");
+            setQuantity(editingProduct.quantity?.toString() || "");
+            setBrand(editingProduct.brand || "");
+            setTags(editingProduct.tags ? editingProduct.tags.join(", ") : "");
+            console.log("Brand set to:", editingProduct.brand);
+            console.log("Tags set to:", editingProduct.tags ? editingProduct.tags.join(", ") : "");
+        }
+    }, [editingProduct]);
+
     const [showDialog, setShowDialog] = useState(false);
 
     const parsedTags = Array.from(
@@ -35,74 +48,35 @@ const AddItem = () => {
     }
 
     const handleNo = () => {
-        navigate("/workpanel", {state: {refresh: true}});
+        onBack();
     };
     
 
     const handleSubmit = async () => {
         try{
             const newItem = {
-                id: Number(id),
+                id: id,
                 name: itemName,
                 quantity: Number(quantity),
-                brand,
-                tags: parsedTags
+                brand: brand || null,
+                tags: parsedTags.length > 0 ? parsedTags : undefined
             };
 
-        console.log("New Item: ", newItem);
+        console.log("Submitting item:", JSON.stringify([newItem], null, 2));
 
-        const token = localStorage.getItem("session");
+            const responseData = await api!.add_products([newItem]);
+            console.log("Response from server: ", responseData);
 
-        const response = await fetch("http://localhost:5000/products", {
-                method: "POST",
-                headers: { 
-                    "Content-Type": "application/json",
-                    "Authorization" : token || ""
-                },
-                body: JSON.stringify([newItem])
-        });
-
-        if(!response.ok){
-            const err = await response.json();
-            console.error("Backend error: ", err);
-            throw new Error("Failed to add item");
-        }
-
-        await response.json();
-         // try{
-        //     console.log("Token being sent: ", localStorage.getItem("session"));
-        //     const token = localStorage.getItem("session");
-        //     const response = await fetch("http://localhost:5000/products", {
-        //         method: "POST",
-        //         credentials: "include",
-        //         headers: { 
-        //             "Content-Type": "application/json",
-        //             "Authorizatoin" : token || ""
-        //         },
-        //         body: JSON.stringify({
-        //             id: Number(id),
-        //             name: itemName,
-        //             quantity: Number(quantity),
-        //             brand,
-        //             tags: tags.split(",").map(tag => tag.trim())
-        //         }),
-        //     });
-   
-
-        //     if(!response.ok){
-        //         throw new Error("Failed to add item");
-        //     }    
-        //     const data = await response.json();
-        //     console.log("Saved", data);
-
-            setId("");
-            setItemName("");
-            setQuantity("");
-            setBrand("");
-            setTags("");
-
-            setShowDialog(true);
-            // navigate("/workpanel", {state: {refresh: true}});
+            if (isEditing) {
+                onBack();
+            } else {
+                setId("");
+                setItemName("");
+                setQuantity("");
+                setBrand("");
+                setTags("");
+                setShowDialog(true);
+            }
 
         } catch (error){
             console.error(error);
@@ -157,7 +131,7 @@ const AddItem = () => {
                         >Done</button>
                         <button
                             className="done-button"
-                            onClick={() => navigate("/workpanel")}
+                            onClick={onBack}
                         > Back</button>    
                     </div>
                 </div>

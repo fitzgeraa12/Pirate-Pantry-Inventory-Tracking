@@ -10,7 +10,7 @@ from pydantic import BaseModel, ValidationError, field_validator
 from common import UNSET
 from misc import env_get
 from database import AccessLevel, Brand, CannotDemoteOnlyAdminError, Database, LocalDatabase, Product, ProductNotFoundError, NotEnoughProductStockError, Tag, User, UserAlreadyExistsError, UserNotFoundError, normalize_email
-import jwt
+import jwt as jwt
 import requests
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
@@ -52,6 +52,26 @@ def define_routes(app: Flask, db: Database):
     google_redirect_uri = f"{backend_url}/auth/google/callback"
     google_client_id = env_get("VITE_GOOGLE_CLIENT_ID")
     google_client_secret = env_get("GOOGLE_CLIENT_SECRET")
+
+    def acquire_auth(fn: Callable[..., Any]):
+        @wraps(fn)
+        def wrapper(*args: Any, **kwargs: Any):
+            token = request.headers.get("Authorization")
+            if not token:
+                return jsonify({'error': 'No token found.'}), 401
+            if token == dev_token:
+                g.session = None
+                g.user = User.DEV
+                return fn(*args, **kwargs)
+            session = db.get_auth_session(token)
+            if not session:
+                g.session = None
+                g.user = None
+                return fn(*args, **kwargs)
+            g.session = session
+            g.user = db.get_user(session.user_id) if session.user_id else None
+            return fn(*args, **kwargs)
+        return wrapper
 
     def requires_auth(fn: Callable[..., Any]):
         '''Requires a valid session. Sets g.session and g.user.'''
@@ -211,7 +231,7 @@ def define_routes(app: Flask, db: Database):
 
     
     @app.route('/auth/whoami', methods=['GET'])
-    @requires_auth
+    @acquire_auth
     def whoami(): # pyright: ignore[reportUnusedFunction]
         result = {'id': g.session.google_sub if g.session else None }
         return jsonify(result)
@@ -230,12 +250,12 @@ def define_routes(app: Flask, db: Database):
         
         try:
             new_user = db.add_user(user.email, user.access_level, user.id)
-            return jsonify({'message': 'New Authorized User Added!', 'new user': new_user.model_dump()}), 201
+            return jsonify(new_user.model_dump()), 201
         except UserAlreadyExistsError as e:
             return jsonify({'error': str(e)}), 409
 
     
-    @app.route('/users', methods=['GET'])
+    @app.route('/user', methods=['GET'])
     @requires_auth
     @requires_role(AccessLevel.ADMIN)
     def get_users(): # pyright: ignore[reportUnusedFunction]
@@ -426,7 +446,7 @@ def define_routes(app: Flask, db: Database):
         '''
         class GetProductsSchema(BaseModel):
             search: Optional[str] = None
-            id: Optional[int] = None
+            id: Optional[str] = None
             name: Optional[str] = None
             brand: Optional[str] = None
             quantity: Optional[str] = None
@@ -458,7 +478,7 @@ def define_routes(app: Flask, db: Database):
             if products_query.search:
                 like = f"%{products_query.search}%"
                 conditions.append("""
-                                  (p.name LIKE?
+                                  (p.name LIKE ?
                                   OR p.brand LIKE ?
                                   OR CAST(p.id AS TEXT) LIKE?)
                                   """)
@@ -511,12 +531,21 @@ def define_routes(app: Flask, db: Database):
     @requires_role(AccessLevel.TRUSTED)
     def post_products():  # pyright: ignore[reportUnusedFunction]
         class PostProductSchema(BaseModel):
-            id: Optional[int] = None
+            id: Optional[str] = None
             name: Optional[str] = None
             brand: Optional[str] = None  # "" = set NULL
             quantity: Optional[int] = None
             image_link: Optional[str] = None  # "" = set NULL
             tags: Optional[list[str]] = None  # [] = Remove all tags
+
+            @field_validator('id')
+            @classmethod
+            def validate_id_field(cls, v: Optional[str]) -> Optional[str]:
+                if v is None:
+                    return v
+                if not v.isdecimal():
+                    raise ValueError("id must be a numeric string")
+                return v
 
             @field_validator('name')
             @classmethod
@@ -562,13 +591,13 @@ def define_routes(app: Flask, db: Database):
                         fields_set = products_query.model_fields_set
 
                         existing: Optional[Product] = None
-                        if products_query.id:
+                        if products_query.id is not None:
                             try:
                                 existing = db.product_from_id(products_query.id)
                             except ProductNotFoundError:
                                 existing = None
 
-                        if existing is None and not products_query.name:
+                        if existing is None and products_query.name is None:
                             errors.append({'error': 'Name is required for new products', 'item': raw_products_query})
                             continue
 
@@ -587,7 +616,7 @@ def define_routes(app: Flask, db: Database):
 
                         quantity = (
                             products_query.quantity
-                            if ('quantity' in fields_set and products_query.quantity is not None)
+                            if ('quantity' in fields_set and products_query.quantity is not None and products_query.quantity >= 0)
                             else UNSET
                         )
 
@@ -603,9 +632,10 @@ def define_routes(app: Flask, db: Database):
                         )
 
                         if existing is None:
+                            p_id = products_query.id if products_query.id is not None else generate_id(db)
                             product = db.add_product(
-                                id=products_query.id,
-                                name=products_query.name if products_query.name is not None else "",
+                                id=p_id,
+                                name=products_query.name or "",
                                 brand=None if products_query.brand == "" else products_query.brand,
                                 quantity=products_query.quantity,
                                 image_link=None if products_query.image_link == "" else products_query.image_link,
@@ -613,7 +643,7 @@ def define_routes(app: Flask, db: Database):
                             )
                         else:
                             product = db.update_product(
-                                id=cast(int, products_query.id),
+                                id=products_query.id,
                                 name=name,
                                 brand=brand,
                                 quantity=quantity,
@@ -646,7 +676,7 @@ def define_routes(app: Flask, db: Database):
                 200 if all succeeded, 207 if some failed.
         '''
         class DeleteProductsSchema(BaseModel):
-            ids: list[int]
+            ids: list[str]
 
         with db.transaction():
             data: Any = request.get_json()
@@ -680,7 +710,7 @@ def define_routes(app: Flask, db: Database):
                 Response (JSON): Updated quantity for each item after checkout
         '''
         class CheckoutProductSchema(BaseModel):
-            id: int
+            id: str
             amount: int
 
         class CheckoutProductsSchema(BaseModel):
@@ -1132,3 +1162,12 @@ def validate_symbol(name: str, symbol_name: str) -> Optional[str]:
 def log(data: Any):
     print(data)
     pass # TODO: logging
+
+def generate_id(db: Database) -> str:
+        '''Auto-increment from 900000000000000 for item with no barcode'''
+        result = db.query('SELECT MAX(CAST(id AS UNSIGNED)) as max_id FROM products WHERE CAST(id AS UNSIGNED) >= 900000000000000')
+        id = result[0]['max_id']
+        if id:
+            return str(id + 1)
+        else:
+            return '900000000000000'

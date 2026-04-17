@@ -25,11 +25,11 @@ class NotFoundError(Exception):
         super().__init__(f"{object} with {field} `{val}` not found")
 
 class ProductNotFoundError(NotFoundError):
-    def __init__(self, id: int):
+    def __init__(self, id: str):
         super().__init__("Product", "id", id)
 
 class NotEnoughProductStockError(Exception):
-    def __init__(self, id: int, amount: int, quantity: int):
+    def __init__(self, id: str, amount: int, quantity: int):
         super().__init__(f"Product with id `{id}` is out of stock. Tried to check out `{amount}` items but only `{quantity}` were in stock")
 
 class BrandNotFoundError(NotFoundError):
@@ -67,7 +67,7 @@ class Tag(BaseModel):
     label: str
 
 class Product(BaseModel):
-    id: int
+    id: str
     name: str
     brand: Optional[str]
     quantity: int
@@ -219,13 +219,15 @@ class Database(ABC):
 
     def add_product(
         self,
-        id: Optional[int],
+        id: str,
         name: str,
         brand: Optional[str],
         quantity: Optional[int],
         image_link: Optional[str],
         tags: Optional[list[str]]
     ) -> Product:
+        if quantity < 0:
+            raise InvalidQuantityError(quantity) 
         with self.transaction():
             # Insert brand and image link first
             if brand:
@@ -237,23 +239,20 @@ class Database(ABC):
                 "INSERT INTO products (id, name, brand, quantity, image_link) VALUES (?, ?, ?, ?, ?)",
                 [id, name, brand, quantity, image_link]
             )
-
-            product_id = self.query("SELECT last_insert_rowid() as id")[0]["id"]
             if tags:
                 for tag in tags:
                     self.query("INSERT OR IGNORE INTO tags (label) VALUES (?)", [tag])
                     self.query(
                         "INSERT INTO product_tags (product_id, tag_label) VALUES (?, ?)",
-                        [product_id, tag]
+                        [id, tag]
                     )
             
-            product = self.product_from_id(product_id)
-
+            product = self.product_from_id(id)
             return product
 
     def update_product(
         self,
-        id: int,
+        id: str,
         name: Union[str, None, Unset] = UNSET,
         brand: Union[str, None, Unset] = UNSET,
         quantity: Union[int, Unset] = UNSET,
@@ -270,6 +269,9 @@ class Database(ABC):
                 params.append(name)
 
             if brand is not UNSET:
+                # Create brand first if it doesn't exist
+                if brand is not None:
+                    self.query("INSERT OR IGNORE INTO brands (name) VALUES (?)", [brand])
                 fields.append("brand = ?")
                 params.append(brand)
 
@@ -294,6 +296,8 @@ class Database(ABC):
                     self.query("DELETE FROM product_tags WHERE product_id = ?", [id])
 
                     for tag in tags:
+                        # Create tag first if it doesn't exist
+                        self.query("INSERT OR IGNORE INTO tags (label) VALUES (?)", [tag])
                         self.query(
                             "INSERT INTO product_tags (product_id, tag_label) VALUES (?, ?)",
                             [id, tag]
@@ -301,7 +305,7 @@ class Database(ABC):
 
             return self.product_from_id(id)
     
-    def checkout_product(self, id: int, amount: int) -> int:
+    def checkout_product(self, id: str, amount: int) -> int:
         """
         Check out a specific quantity of a product given its ID.
 
@@ -354,7 +358,7 @@ class Database(ABC):
     # Viewing singles
     #------------------------------
 
-    def product_from_id(self, id: int) -> Product:
+    def product_from_id(self, id: str) -> Product:
         """
         Fetch a product by its ID.
 
