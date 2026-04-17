@@ -87,6 +87,11 @@ input[type="text"].add-item-input {
     border-color: var(--su-yellow);
 }
 
+.add-item-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 /* ── Buttons ── */
 .add-item-actions {
     display: flex;
@@ -104,6 +109,14 @@ input[type="text"].add-item-input {
     text-align: center;
     transition: background 0.15s, border-color 0.15s, color 0.15s;
     flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.add-item-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 .add-item-btn--primary {

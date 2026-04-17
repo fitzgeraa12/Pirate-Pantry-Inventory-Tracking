@@ -17,6 +17,18 @@ from matplotlib.backends.backend_pdf import PdfPages
 import stats
 
 import subprocess
+
+def _pydantic_errors(e: ValidationError) -> list[dict]:
+    """Pydantic v2 puts raw Exception objects in err['ctx']['error']; strip them."""
+    result = []
+    for err in e.errors():
+        err = dict(err)
+        if isinstance(err.get('ctx'), dict):
+            err['ctx'] = {k: str(v) if isinstance(v, Exception) else v
+                          for k, v in err['ctx'].items()}
+        result.append(err)
+    return result
+
 ALLOWED_ORIGINS = ['https://piratepantry.com', 'https://www.piratepantry.com', 'https://dev.piratepantry.com']
 
 def create_app(db: Database, is_local: bool) -> Flask:
@@ -248,7 +260,7 @@ def define_routes(app: Flask, db: Database):
         try:
             user = AddUserRequest.model_validate(request.args.to_dict())
         except ValidationError as e:
-            return jsonify({'error': e.errors()}), 400
+            return jsonify({'error': _pydantic_errors(e)}), 400
         
         try:
             new_user = db.add_user(user.email, user.access_level, user.id)
@@ -464,7 +476,7 @@ def define_routes(app: Flask, db: Database):
             try:
                 products_query = GetProductsSchema.model_validate(request.args.to_dict())
             except ValidationError as e:
-                return jsonify({'error': e.errors()}), 400
+                return jsonify({'error': _pydantic_errors(e)}), 400
 
             tag_list = [t.strip() for t in products_query.tags.split(',') if t.strip()] if products_query.tags else []
 
@@ -596,7 +608,7 @@ def define_routes(app: Flask, db: Database):
                 try:
                     products_query = PostProductSchema.model_validate(raw_products_query)
                 except ValidationError as e:
-                    errors.append({'error': e.errors(), 'item': raw_products_query})
+                    errors.append({'error': _pydantic_errors(e), 'item': raw_products_query})
                     continue
 
                 try:
@@ -699,7 +711,7 @@ def define_routes(app: Flask, db: Database):
             try:
                 body = DeleteProductsSchema.model_validate(data)
             except ValidationError as e:
-                return jsonify({'error': e.errors()}), 400
+                return jsonify({'error': _pydantic_errors(e)}), 400
 
             results: list[int] = []
             errors: list[Any] = []
@@ -737,7 +749,7 @@ def define_routes(app: Flask, db: Database):
             try:
                 body = CheckoutProductsSchema.model_validate(data)
             except ValidationError as e:
-                return jsonify({'error': e.errors()}), 400
+                return jsonify({'error': _pydantic_errors(e)}), 400
             
             updated_products = []
             products = body.products
@@ -849,7 +861,7 @@ def define_routes(app: Flask, db: Database):
         try:
             tags_query = GetTagsQuery.model_validate(request.args.to_dict())
         except ValidationError as e:
-            return jsonify({'error': e.errors()}), 400
+            return jsonify({'error': _pydantic_errors(e)}), 400
 
         conditions: list[str] = []
         params: list[Any] = []
@@ -915,7 +927,7 @@ def define_routes(app: Flask, db: Database):
         try:
             body = PostTagsSchema.model_validate(data)
         except ValidationError as e:
-            return jsonify({'error': e.errors()}), 400
+            return jsonify({'error': _pydantic_errors(e)}), 400
 
         results: list[str] = []
         errors: list[Any] = []
@@ -956,7 +968,7 @@ def define_routes(app: Flask, db: Database):
         try:
             body = DeleteTagsSchema.model_validate(data)
         except ValidationError as e:
-            return jsonify({'error': e.errors()}), 400
+            return jsonify({'error': _pydantic_errors(e)}), 400
 
         results: list[str] = []
         errors: list[Any] = []
@@ -996,7 +1008,7 @@ def define_routes(app: Flask, db: Database):
             try:
                 brands_query = GetBrandsQuery.model_validate(request.args.to_dict())
             except ValidationError as e:
-                return jsonify({'error': e.errors()}), 400
+                return jsonify({'error': _pydantic_errors(e)}), 400
 
             conditions: list[str] = []
             params: list[Any] = []
@@ -1062,7 +1074,7 @@ def define_routes(app: Flask, db: Database):
         try:
             body = PostTagsSchema.model_validate(data)
         except ValidationError as e:
-            return jsonify({'error': e.errors()}), 400
+            return jsonify({'error': _pydantic_errors(e)}), 400
 
         results: list[str] = []
         errors: list[Any] = []
@@ -1102,7 +1114,7 @@ def define_routes(app: Flask, db: Database):
         try:
             body = DeleteBrandsSchema.model_validate(data)
         except ValidationError as e:
-            return jsonify({'error': e.errors()}), 400
+            return jsonify({'error': _pydantic_errors(e)}), 400
 
         results: list[str] = []
         errors: list[Any] = []
@@ -1147,7 +1159,7 @@ def define_routes(app: Flask, db: Database):
         try:
             body = SubmitReportSchema.model_validate(data)
         except ValidationError as e:
-            return jsonify({'error': e.errors()}), 400
+            return jsonify({'error': _pydantic_errors(e)}), 400
 
         report = db.add_report(g.session.user_id if g.session else None, g.user.email, body.message)
         return jsonify(report.model_dump()), 201

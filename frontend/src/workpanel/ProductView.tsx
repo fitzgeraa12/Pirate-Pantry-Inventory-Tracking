@@ -2,31 +2,44 @@ import React from "react";
 import ReactDOM from "react-dom";
 import TableView from "./TableView";
 import type { Optional } from "../misc/misc";
+import { Spinner } from "../misc/misc";
 import { API, type Product } from "../API";
 import "./AddItem.css";
 import { useSearchParams } from "react-router-dom";
 import { useLocation } from "react-router-dom";
 import { parseSearch, SORT_LABELS, type SortBy, type SortDir } from "../misc/searchParser";import SortDropdown from '../misc/SortDropdown';
 
-function DeleteConfirmModal({ product, onConfirm, onCancel }: { product: Product; onConfirm: () => void; onCancel: () => void }): React.ReactNode {
+function DeleteConfirmModal({ product, onConfirm, onCancel }: { product: Product; onConfirm: () => Promise<void>; onCancel: () => void }): React.ReactNode {
+    const [loading, setLoading] = React.useState(false);
+
+    async function handleConfirm() {
+        setLoading(true);
+        try {
+            await onConfirm();
+        } finally {
+            setLoading(false);
+        }
+    }
+
     return ReactDOM.createPortal(
-        <div className="add-item-overlay" onClick={onCancel}>
+        <div className="add-item-overlay" onClick={loading ? undefined : onCancel}>
             <div className="add-item-modal" style={{ width: 340 }} onClick={e => e.stopPropagation()}>
                 <div className="add-item-modal-header">
                     <h2 className="add-item-modal-title">Delete Product</h2>
-                    <button className="add-item-close" onClick={onCancel}>✕</button>
+                    <button className="add-item-close" onClick={onCancel} disabled={loading}>✕</button>
                 </div>
                 <div className="add-item-form">
                     <p style={{ margin: 0, fontSize: '0.92em', color: 'var(--chrome-text)' }}>
                         Delete <strong>{product.name}</strong>? This cannot be undone.
                     </p>
                     <div className="add-item-actions">
-                        <button className="add-item-btn add-item-btn--secondary" onClick={onCancel}>Cancel</button>
+                        <button className="add-item-btn add-item-btn--secondary" onClick={onCancel} disabled={loading}>Cancel</button>
                         <button
                             className="add-item-btn add-item-btn--primary"
                             style={{ backgroundColor: '#c0392b', borderColor: '#c0392b', color: '#fff' }}
-                            onClick={onConfirm}
-                        >Delete</button>
+                            onClick={handleConfirm}
+                            disabled={loading}
+                        >{loading ? <Spinner className="spinner--sm" /> : "Delete"}</button>
                     </div>
                 </div>
             </div>
