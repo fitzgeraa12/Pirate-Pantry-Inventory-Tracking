@@ -62,16 +62,6 @@ jobs:
             exit 1
           fi
 
-      # Reload the WSGI app via the PA REST API
-      - name: Reload web app
-        env:
-          PYTHONANYWHERE_API_TOKEN: ${{ secrets.PYTHONANYWHERE_API_TOKEN }}
-          PYTHONANYWHERE_USERNAME: ${{ secrets.PYTHONANYWHERE_USERNAME }}
-        run: |
-          curl -f -s -X POST \
-            -H "Authorization: Token $PYTHONANYWHERE_API_TOKEN" \
-            "https://www.pythonanywhere.com/api/v0/user/$PYTHONANYWHERE_USERNAME/webapps/$PYTHONANYWHERE_USERNAME.pythonanywhere.com/reload/"
-
       # Build JSON with jq so that special characters in secret values can't
       # break the payload (avoids injection via raw string interpolation)
       - name: Update environment variables
@@ -100,3 +90,13 @@ jobs:
             -H "Content-Type: application/json" \
             -d "$payload" \
             "https://www.pythonanywhere.com/api/v0/user/$PYTHONANYWHERE_USERNAME/webapps/$PYTHONANYWHERE_USERNAME.pythonanywhere.com/"
+
+      # Reload the WSGI app AFTER env vars are updated so new values take effect
+      - name: Reload web app
+        env:
+          PYTHONANYWHERE_API_TOKEN: ${{ secrets.PYTHONANYWHERE_API_TOKEN }}
+          PYTHONANYWHERE_USERNAME: ${{ secrets.PYTHONANYWHERE_USERNAME }}
+        run: |
+          curl -f -s -X POST \
+            -H "Authorization: Token $PYTHONANYWHERE_API_TOKEN" \
+            "https://www.pythonanywhere.com/api/v0/user/$PYTHONANYWHERE_USERNAME/webapps/$PYTHONANYWHERE_USERNAME.pythonanywhere.com/reload/"
