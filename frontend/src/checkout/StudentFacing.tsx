@@ -5,6 +5,7 @@ import BrandView from "../workpanel/BrandView";
 import TagView from "../workpanel/TagsView";
 import SettingsView from "../workpanel/SettingsView";
 import PantryView from './PantryView';
+import CheckoutPanel from './CheckoutPanel';
 import { SORT_LABELS, type SortBy, type SortDir } from '../misc/searchParser';
 import SortDropdown from '../misc/SortDropdown';
 
@@ -75,9 +76,9 @@ function PantryUserMenu({ user }: { user: User | null }): React.ReactNode {
 
 type Panel = "products" | "brands" | "tags" | "settings";
 
-function PanelContent({ panel, searchTerm, sortBy, sortDir }: { panel: Panel, searchTerm: string, sortBy: SortBy, sortDir: SortDir }): React.ReactNode {
+function PanelContent({ panel, searchTerm, sortBy, sortDir, refreshKey }: { panel: Panel, searchTerm: string, sortBy: SortBy, sortDir: SortDir, refreshKey: number }): React.ReactNode {
     switch (panel) {
-        case "products":  return <PantryView searchTerm={searchTerm} sortBy={sortBy} sortDir={sortDir} />;
+        case "products":  return <PantryView searchTerm={searchTerm} sortBy={sortBy} sortDir={sortDir} refreshKey={refreshKey} />;
         case "brands":    return <BrandView />;
         case "tags":      return <TagView />;
         case "settings":  return <SettingsView />;
@@ -95,6 +96,8 @@ export default function StudentFacing(): React.ReactNode {
     const [user, setUser] = React.useState<User | null>(null);
     const [sortBy, setSortBy] = React.useState<SortBy>('name');
     const [sortDir, setSortDir] = React.useState<SortDir>('asc');
+    const [showCheckout, setShowCheckout] = React.useState(false);
+    const [refreshKey, setRefreshKey] = React.useState(0);
     const navigate = useNavigate();
     const api = React.useContext(API.Context);
 
@@ -135,7 +138,7 @@ export default function StudentFacing(): React.ReactNode {
                                 <span className="cart-label">items in cart</span>
                             </div>
                             <button className="cart-clear-btn" onClick={() => clearCart()}>Clear Cart</button>
-                            <button className="cart-checkout-btn" onClick={() => navigate("/checkout")}>Checkout ⇒</button>
+                            <button className="cart-checkout-btn" onClick={() => setShowCheckout(true)}>Checkout ⇒</button>
                         </div>
                     </div>
                     {user && <span className="header-separator" />}
@@ -148,7 +151,7 @@ export default function StudentFacing(): React.ReactNode {
                     </div>
                 </div>
                 <div id="body">
-                    <PanelContent panel={panel} searchTerm={searchTerm} sortBy={sortBy} sortDir={sortDir} />
+                    <PanelContent panel={panel} searchTerm={searchTerm} sortBy={sortBy} sortDir={sortDir} refreshKey={refreshKey} />
                 </div>
                 <div id="footer">
                     <div id="footer-left">
@@ -169,6 +172,7 @@ export default function StudentFacing(): React.ReactNode {
                     <div id="pagination-slot"></div>
                 </div>
             </div>
+            {showCheckout && <CheckoutPanel onClose={() => setShowCheckout(false)} onSuccess={() => setRefreshKey(k => k + 1)} />}
         </Titled>
     );
 

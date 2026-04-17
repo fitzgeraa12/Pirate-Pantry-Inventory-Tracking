@@ -28,6 +28,7 @@
     padding: 16px;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(min(175px, 100%), 1fr));
+    grid-auto-rows: minmax(280px, 1fr);
     gap: 16px;
 }
 
@@ -102,6 +103,7 @@
     font-weight: 600;
     color: var(--chrome-text-hover);
     line-height: 1.3;
+    min-height: calc(2 * 1.3em);
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;

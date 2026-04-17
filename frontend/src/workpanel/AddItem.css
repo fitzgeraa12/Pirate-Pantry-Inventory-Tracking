@@ -212,3 +212,62 @@ input[type="date"].add-item-input {
         font-size: 16px;
     }
 }
+
+/* ── Checkout modal ── */
+.checkout-modal {
+    width: 460px;
+}
+
+.checkout-modal-empty {
+    padding: 24px 20px;
+    color: var(--chrome-text-muted);
+    font-style: italic;
+    text-align: center;
+}
+
+.checkout-modal-items {
+    padding: 8px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 50vh;
+    overflow-y: auto;
+}
+
+.checkout-modal-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background-color: var(--chrome-bg-secondary);
+    border: 1px solid var(--chrome-border);
+    border-radius: 6px;
+}
+
+.checkout-modal-item-name {
+    color: var(--chrome-text);
+    font-size: 0.9em;
+}
+
+.checkout-modal-item-qty {
+    color: var(--su-yellow);
+    font-weight: 600;
+    font-size: 0.9em;
+    flex-shrink: 0;
+    margin-left: 12px;
+}
+
+.checkout-modal-footer {
+    padding: 12px 20px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    border-top: 1px solid var(--chrome-border);
+    margin-top: 8px;
+}
+
+.checkout-modal-total {
+    font-size: 0.85em;
+    color: var(--chrome-text-muted);
+    text-align: right;
+}

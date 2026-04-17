@@ -8,7 +8,7 @@ import "./PantryGrid.css";
 
 const PAGE_SIZE = 18;
 
-export default function PantryView({searchTerm, sortBy, sortDir}: {searchTerm: string, sortBy: SortBy, sortDir: SortDir}): React.ReactNode {
+export default function PantryView({searchTerm, sortBy, sortDir, refreshKey}: {searchTerm: string, sortBy: SortBy, sortDir: SortDir, refreshKey?: number}): React.ReactNode {
     const api = React.useContext(API.Context);
     const [products, setProducts] = React.useState<Array<Product>>([]);
     const [isLoading, setIsLoading] = React.useState(false);
@@ -45,7 +45,7 @@ export default function PantryView({searchTerm, sortBy, sortDir}: {searchTerm: s
             setIsLoading(false);
         });
         return () => { cancelled = true; };
-    }, [searchTerm, page, sortBy, sortDir, api]);
+    }, [searchTerm, page, sortBy, sortDir, api, refreshKey]);
 
     return (
         <div className="pantry-grid-outer">
