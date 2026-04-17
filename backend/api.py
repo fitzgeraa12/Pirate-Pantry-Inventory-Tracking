@@ -10,7 +10,7 @@ from pydantic import BaseModel, ValidationError, field_validator
 from common import UNSET
 from misc import env_get
 from database import AccessLevel, Brand, CannotDemoteOnlyAdminError, Database, LocalDatabase, Product, ProductNotFoundError, NotEnoughProductStockError, Tag, User, UserAlreadyExistsError, UserNotFoundError, normalize_email
-import jwt
+import jwt as jwt
 import requests
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
@@ -250,12 +250,12 @@ def define_routes(app: Flask, db: Database):
         
         try:
             new_user = db.add_user(user.email, user.access_level, user.id)
-            return jsonify({'message': 'New Authorized User Added!', 'new user': new_user.model_dump()}), 201
+            return jsonify(new_user.model_dump()), 201
         except UserAlreadyExistsError as e:
             return jsonify({'error': str(e)}), 409
 
     
-    @app.route('/users', methods=['GET'])
+    @app.route('/user', methods=['GET'])
     @requires_auth
     @requires_role(AccessLevel.ADMIN)
     def get_users(): # pyright: ignore[reportUnusedFunction]
@@ -531,12 +531,21 @@ def define_routes(app: Flask, db: Database):
     @requires_role(AccessLevel.TRUSTED)
     def post_products():  # pyright: ignore[reportUnusedFunction]
         class PostProductSchema(BaseModel):
-            id: str
+            id: Optional[str] = None
             name: Optional[str] = None
             brand: Optional[str] = None  # "" = set NULL
             quantity: Optional[int] = None
             image_link: Optional[str] = None  # "" = set NULL
             tags: Optional[list[str]] = None  # [] = Remove all tags
+
+            @field_validator('id')
+            @classmethod
+            def validate_id_field(cls, v: Optional[str]) -> Optional[str]:
+                if v is None:
+                    return v
+                if not v.isdecimal():
+                    raise ValueError("id must be a numeric string")
+                return v
 
             @field_validator('name')
             @classmethod
@@ -582,10 +591,11 @@ def define_routes(app: Flask, db: Database):
                         fields_set = products_query.model_fields_set
 
                         existing: Optional[Product] = None
-                        try:
-                            existing = db.product_from_id(products_query.id)
-                        except ProductNotFoundError:
-                            existing = None
+                        if products_query.id is not None:
+                            try:
+                                existing = db.product_from_id(products_query.id)
+                            except ProductNotFoundError:
+                                existing = None
 
                         if existing is None and products_query.name is None:
                             errors.append({'error': 'Name is required for new products', 'item': raw_products_query})
@@ -622,7 +632,7 @@ def define_routes(app: Flask, db: Database):
                         )
 
                         if existing is None:
-                            p_id = products_query.id if products_query.id else generate_id(db)
+                            p_id = products_query.id if products_query.id is not None else generate_id(db)
                             product = db.add_product(
                                 id=p_id,
                                 name=products_query.name or "",

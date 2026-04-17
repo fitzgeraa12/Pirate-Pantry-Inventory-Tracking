@@ -25,14 +25,14 @@ def get_tags_for_item(id: str) -> list[str]:
     rows = _db.query("SELECT tag_label FROM product_tags WHERE product_id = ?", [id])
     return [row['tag_label'] for row in rows]
 
-def next_checkout_id() -> int:
+def next_checkout_id() -> str:
     '''Return the next checkout_id (max existing + 1, or 1 if table is empty).'''
-    rows = query('SELECT MAX(checkout_id) AS max_id FROM total_checkouts')
-    max_id = rows[0]['max_id'] if rows and rows[0]['max_id'] is not None else 0
-    return max_id + 1
+    rows = query('SELECT MAX(CAST(checkout_id AS UNSIGNED)) AS max_id FROM total_checkouts')
+    max_id = rows[0]['max_id'] if rows and rows[0]['max_id'] is not None else -1
+    return str(max_id + 1)
 
 def new_checkout(
-        checkout_id: int,
+        checkout_id: str,
         id: Optional[str] = None,
         name: str = '',
         brand: Optional[str] = '',
@@ -47,7 +47,7 @@ def parse_date(date:str):
     '''Convert MM-DD-YYYY to YYYY-MM-DD for SQL comparisons '''
     return datetime.strptime(date, '%m-%d-%Y').strftime('%Y-%m-%d')
 
-def total_range(start: str, end: str) -> int:
+def total_range(start: str, end: str):
     '''Text figure of total number of items checked out from start to end date'''
     s, e = parse_date(start), parse_date(end)
     rows = query("SELECT SUM(num_checked_out)\

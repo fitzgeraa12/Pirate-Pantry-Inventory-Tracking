@@ -47,6 +47,7 @@ def client(db: Database, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("VITE_API_URL", "http://localhost")
     monkeypatch.setenv("VITE_GOOGLE_CLIENT_ID", "http://localhost")
     monkeypatch.setenv("GOOGLE_CLIENT_SECRET", "http://localhost")
+    monkeypatch.setenv("FLASK_SECRET_KEY", "http://localhost")
     app = api.create_app(db, is_local=True)
     app.config["TESTING"] = True
     with app.test_client() as client:
@@ -160,7 +161,11 @@ def test_purge_sessions_route(client: FlaskClient):
     assert response.status_code == 200
 
 def test_export_stats(client: FlaskClient):
-    response = client.get("/stats/export", headers={"Authorization": DEV_TOKEN})
+    response = client.post("/export", json={
+        "start": "05-01-2026",
+        "end": "06-01-2026",
+    }, headers={"Authorization": DEV_TOKEN})
+    print(response.json)
     assert response.status_code == 200
 # --------------------------------------------------
 # Products
