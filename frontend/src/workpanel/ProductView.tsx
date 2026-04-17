@@ -4,11 +4,9 @@ import type { Optional } from "../misc/misc";
 import { API, type Product } from "../API";
 import { useSearchParams } from "react-router-dom";
 import { useLocation } from "react-router-dom";
-import { useNavigate } from "react-router-dom";
-import { he } from "zod/locales";
 
 
-export default function ProductView(): React.ReactNode {
+export default function ProductView({ onEdit }: { onEdit?: (product: Product) => void }): React.ReactNode {
     const api = React.useContext(API.Context);
     const [products, set_products] = React.useState<Optional<Array<Product>>>(null);
     const [isLoading, setIsLoading] = React.useState(false);
@@ -22,7 +20,6 @@ export default function ProductView(): React.ReactNode {
     const searchRef = React.useRef<HTMLInputElement>(null);
     const location = useLocation();
     const refresh = location.state?.refresh;
-    const navigate = useNavigate();
 
     React.useEffect(() => {
         const timer = setTimeout(() => { setSearch(inputValue.trim()); setPage(1); }, 300);
@@ -67,7 +64,7 @@ export default function ProductView(): React.ReactNode {
                 actions: {
                     header: "Actions",
                     cell: (_: any, row: Product) => (
-                        <button onClick={ () => navigate("/AddItem", { state: { product: row } }) 
+                        <button onClick={ () => onEdit?.(row) 
                         }> Edit </button>
                     ),
                 },    
