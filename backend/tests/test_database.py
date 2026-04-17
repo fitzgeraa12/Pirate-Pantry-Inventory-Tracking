@@ -1,3 +1,4 @@
+import sqlite3
 import sys
 from pathlib import Path
 
@@ -23,6 +24,42 @@ def db(tmp_path, monkeypatch):
     db_path = tmp_path / "local_db.sqlite3"
     monkeypatch.setattr(database.LocalDatabase, "LOCAL_DATABASE_PATH", str(db_path))
     return database.LocalDatabase()
+
+def test_upload(db, tmp_path):
+    db.add_product(str("121212"), "Cheeseburger", "Test Brand", 2, None, ["tag_1", "tag_2"])
+    backup_folder = tmp_path / "backups"
+
+    backup_path = db.save_table()
+
+    assert Path(backup_path).exists()
+    assert backup_path.endswith(".sqlite3")
+
+
+def test_remote_save_table_builds_backup_from_schema(db, tmp_path, monkeypatch):
+    monkeypatch.setattr(database, "env_get", lambda key: "dummy")
+
+    def fake_query(self, sql: str, params: database.QueryParams = []):
+        return []
+
+    monkeypatch.setattr(database.RemoteDatabase, "query", fake_query)
+
+    remote_db = database.RemoteDatabase()
+    backup_path = remote_db.save_table()
+
+    assert Path(backup_path).exists()
+
+    with sqlite3.connect(backup_path) as conn:
+        tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")}
+    assert "products" in tables
+    assert "users" in tables
+
+    db.add_product(str("121212"), "Test Cereal", "Test Brand", 2, None, ["tag_1", "tag_2"])
+    db.add_product(str("4243243"), "Test Cereal", "Test Brand", 4, None, ["tag_1", "tag_2"])
+    db.add_product(str("55555"), "Test Cereal", "New Brand", 3, None, ["tag_2"])
+    db.add_product(str("939284"), "Test Cereal", "Test Brand", 0, None, ["tag_1", "tag_2"])
+    db.save_table()
+    #override prev saved
+    #assert saved items are in table
 
 
 def test_query_and_map_rows(db):
