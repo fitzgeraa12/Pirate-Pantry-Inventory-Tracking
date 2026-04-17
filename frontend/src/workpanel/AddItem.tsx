@@ -1,22 +1,17 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import "./AddItem.css";
-import { useNavigate } from "react-router-dom";
-import { useLocation } from "react-router-dom";
-import { useEffect } from "react";
+import { type Product } from "../API";
 
 
-const AddItem = () => {
-    const navigate = useNavigate();
-    const location = useLocation();
-    const editingProduct = location.state?.product;
-    const item = location.state || {};
-    const isEditing = !!editingProduct;
+const AddItem = ({ editingProduct, onBack }: { editingProduct?: Product | null; onBack: () => void }) => {
 
     const [id, setId] = useState("");
     const [itemName, setItemName] = useState("");
     const [quantity, setQuantity] = useState("");
     const [brand, setBrand] = useState("");
     const [tags, setTags] = useState("");
+
+    const isEditing = !!editingProduct;
 
     useEffect(() => {
        if(editingProduct){
@@ -52,7 +47,7 @@ const AddItem = () => {
     }
 
     const handleNo = () => {
-        navigate("/workpanel", {state: {refresh: true}});
+        onBack();
     };
     
 
@@ -112,14 +107,16 @@ const AddItem = () => {
         //     const data = await response.json();
         //     console.log("Saved", data);
 
-            setId("");
-            setItemName("");
-            setQuantity("");
-            setBrand("");
-            setTags("");
-
-            setShowDialog(true);
-            // navigate("/workpanel", {state: {refresh: true}});
+            if (isEditing) {
+                onBack();
+            } else {
+                setId("");
+                setItemName("");
+                setQuantity("");
+                setBrand("");
+                setTags("");
+                setShowDialog(true);
+            }
 
         } catch (error){
             console.error(error);
@@ -174,7 +171,7 @@ const AddItem = () => {
                         >Done</button>
                         <button
                             className="done-button"
-                            onClick={() => navigate("/workpanel")}
+                            onClick={onBack}
                         > Back</button>    
                     </div>
                 </div>
