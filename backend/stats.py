@@ -1,6 +1,7 @@
 from typing import Optional
 import os
 import sys
+import uuid
 from datetime import datetime, timedelta
 from collections import Counter
 import matplotlib.pyplot as plt # pip install matplotlib
@@ -26,10 +27,8 @@ def get_tags_for_item(id: str) -> list[str]:
     return [row['tag_label'] for row in rows]
 
 def next_checkout_id() -> str:
-    '''Return the next checkout_id (max existing + 1, or 1 if table is empty).'''
-    rows = query('SELECT MAX(CAST(checkout_id AS UNSIGNED)) AS max_id FROM total_checkouts')
-    max_id = rows[0]['max_id'] if rows and rows[0]['max_id'] is not None else -1
-    return str(max_id + 1)
+    '''Return a unique checkout_id (UUID).'''
+    return str(uuid.uuid4())
 
 def new_checkout(
         checkout_id: str,

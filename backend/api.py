@@ -34,7 +34,9 @@ def create_app(db: Database, is_local: bool) -> Flask:
     @app.errorhandler(Exception)
     def handle_exception(e: Exception):
         import traceback
-        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
+        tb = traceback.format_exc()
+        app.logger.error(tb)
+        return jsonify({'error': str(e), 'traceback': tb}), 500
 
     return app
 
@@ -728,7 +730,6 @@ def define_routes(app: Flask, db: Database):
             
             updated_products = []
             products = body.products
-            checkout_id = stats.next_checkout_id()
 
             out_of_stock = []
             for product in products:
@@ -756,7 +757,7 @@ def define_routes(app: Flask, db: Database):
                 })
 
                 stats.new_checkout(
-                    checkout_id=checkout_id,
+                    checkout_id=stats.next_checkout_id(),
                     id=existing.id,
                     name=existing.name,
                     brand=existing.brand,

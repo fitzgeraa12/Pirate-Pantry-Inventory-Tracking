@@ -58,10 +58,12 @@ function Checkout() {
             <div id="body">
                 <div id="view">
 
-                
+                    <div id="body-header">
+                        <span>Checkout</span>
+                    </div>
                     <div id="checkout-container">
                         {cart.length === 0 ?(
-                            <div>  Your cart is empty. </div>
+                            <div>Your cart is empty. </div>
                         ) : (
                             <>
                                 {cart.map((item) =>(

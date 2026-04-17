@@ -1,0 +1,7 @@
+name = "pirate-pantry-backend"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "pirate-pantry-db"
+database_id = "d1d0b616-65a6-43a0-ae6b-304c82d6e925"
+migrations_dir = "migrations"
