@@ -43,7 +43,7 @@ const TagSchema = z.object({
 export type Tag = z.infer<typeof TagSchema>
 
 const ProductSchema = z.object({
-    id: z.number(),
+    id: z.string(),
     name: z.string(),
     brand: z.string().nullable().optional(),
     quantity: z.number(),
@@ -94,10 +94,11 @@ export namespace API {
         update_user: (id: string, patch: { access_level: AccessLevel }) => Promise<User>,
         get_sessions: () => Promise<Array<Session>>,
         revoke_session: (id: string) => Promise<void>,
+        checkout: (products: Array<{ id: string, amount: number }>) => Promise<Array<{ id: string, quantity: number }>>,
     }
 
     interface GetProductsArgs {
-        id?: Optional<number>,
+        id?: Optional<string>,
         name?: Optional<string>,
         brand?: Optional<string>,
         quantity?: Optional<string>,
@@ -172,6 +173,10 @@ export namespace API {
 
                 revoke_session: async (id: string): Promise<void> => {
                     await api_base.delete(`/session/${id}`);
+                },
+
+                checkout: async (products: Array<{ id: string, amount: number }>): Promise<Array<{ id: string, quantity: number }>> => {
+                    return (await api_base.patch("/products/checkout", { products })).data.quantities;
                 },
             }
         }, []);

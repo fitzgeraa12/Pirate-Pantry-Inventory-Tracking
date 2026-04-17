@@ -2,6 +2,11 @@ import React from "react";
 import TableView from "./TableView";
 import type { Optional } from "../misc/misc";
 import { API, type Product } from "../API";
+import { useSearchParams } from "react-router-dom";
+import { useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { he } from "zod/locales";
+
 
 export default function ProductView(): React.ReactNode {
     const api = React.useContext(API.Context);
@@ -13,8 +18,11 @@ export default function ProductView(): React.ReactNode {
     const [total, setTotal] = React.useState(0);
     const [totalPages, setTotalPages] = React.useState(1);
     const pageSize = parseInt(localStorage.getItem("table-page-size") ?? "20") || 20;
-
+    const [searchParams] = useSearchParams();
     const searchRef = React.useRef<HTMLInputElement>(null);
+    const location = useLocation();
+    const refresh = location.state?.refresh;
+    const navigate = useNavigate();
 
     React.useEffect(() => {
         const timer = setTimeout(() => { setSearch(inputValue.trim()); setPage(1); }, 300);
@@ -24,14 +32,14 @@ export default function ProductView(): React.ReactNode {
     React.useEffect(() => {
         const wasFocused = document.activeElement === searchRef.current;
         setIsLoading(true);
-        api!.get_products({ name: search ? `%${search}%` : undefined, page, page_size: pageSize }).then((prods) => {
+        api!.get_products({ search: search || undefined, page, page_size: pageSize }).then((prods) => {
             set_products(prods.data);
             setTotal(prods.total);
             setTotalPages(prods.total_pages);
             setIsLoading(false);
             if (wasFocused) searchRef.current?.focus();
         });
-    }, [search, page]);
+    }, [search, page, refresh]);
 
     const toolbar = (
         <input
@@ -55,8 +63,16 @@ export default function ProductView(): React.ReactNode {
                 quantity: { header: "Quantity" },
                 tags: { header: "Tags", cell: (val: Array<string>) => <>{val.join(", ")}</> },
                 image_link: { header: "Image" },
+
+                actions: {
+                    header: "Actions",
+                    cell: (_: any, row: Product) => (
+                        <button onClick={ () => navigate("/AddItem", { state: { product: row } }) 
+                        }> Edit </button>
+                    ),
+                },    
             },
-            order: ["id", "image_link", "name", "brand", "quantity", "tags"],
+            order: ["id", "actions", "image_link", "name", "brand", "quantity", "tags"],
         }} />
     );
 }

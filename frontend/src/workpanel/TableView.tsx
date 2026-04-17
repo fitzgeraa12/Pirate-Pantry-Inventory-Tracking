@@ -86,9 +86,21 @@ export default function TableView<
     const table = useReactTable({
         data: data ?? [],
         columns,
+        // state: {globalFilter: searchTerm,},
+        // onGlobalFilterChange: () => {}, // No need to update state since we're controlling it externally
         getCoreRowModel: getCoreRowModel(),
-        getFilteredRowModel: getFilteredRowModel(),
+        // getFilteredRowModel: getFilteredRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
+        // globalFilterFn: (row, _, filterValue) => {
+        //     const search = String(filterValue).toLowerCase();
+
+        //     const { id, name, brand } = row.original as any;
+
+        //     return [id, name, brand].some(val =>
+        //         val !== undefined &&
+        //         String(val).toLowerCase().includes(search)
+        //     );
+        // },        
         initialState: { pagination: { pageSize } },
         manualPagination: serverPagination !== undefined,
         ...(serverPagination !== undefined && { pageCount: serverPagination.totalPages }),

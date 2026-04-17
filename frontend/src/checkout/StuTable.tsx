@@ -120,7 +120,19 @@ export default function TableView<
         getCoreRowModel: getCoreRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
-        globalFilterFn: "includesString",
+        globalFilterFn: (row, columnId, filterValue) => {
+            const search = String(filterValue).toLowerCase();
+
+            const valuesToSearch = [
+                row.original.id,
+                row.original.name,
+                row.original.brand,
+            ];
+
+            return valuesToSearch.some(val =>
+                String(val).toLowerCase().includes(search)
+            );
+        },
         initialState: { pagination: { pageSize } },
         manualPagination: serverPagination !== undefined,
         ...(serverPagination !== undefined && { pageCount: serverPagination.totalPages }),

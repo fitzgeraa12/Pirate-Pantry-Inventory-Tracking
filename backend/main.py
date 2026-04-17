@@ -3,7 +3,13 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import dotenv
 import api
+from flask_cors import CORS
+from flask import Flask
 import database
+
+app = Flask(__name__)
+
+CORS(app)
 
 def main():
     valid_args = {"--local"}
