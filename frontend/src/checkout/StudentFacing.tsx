@@ -5,26 +5,24 @@ import BrandView from "../workpanel/BrandView";
 import TagView from "../workpanel/TagsView";
 import SettingsView from "../workpanel/SettingsView";
 import PantryView from './PantryView';
-import CheckoutPanel from './CheckoutPanel';
+import { SORT_LABELS, type SortBy, type SortDir } from '../misc/searchParser';
+import SortDropdown from '../misc/SortDropdown';
 
-const THEME_LABELS = { light: "☀  Light", dark: "🌙  Dark", auto: "⊙  System" };
-import { useCart } from "../misc/CartContext"; 
+const THEME_ICONS = { light: "☀", dark: "🌙", auto: "⊙" };
+const THEME_NAMES = { light: "Light", dark: "Dark", auto: "System" };
+import { useCart } from "../misc/CartContext";
 import { useTheme } from "../misc/useTheme";
 import { API, type User } from "../API";
 import { useNavigate } from 'react-router-dom';
 
-function initials(email: string): string {
-    const name = email.split("@")[0];
-    const parts = name.split(/[._-]/).filter(Boolean);
-    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-    return name.slice(0, 2).toUpperCase();
-}
+const API_PORT = import.meta.env.VITE_API_PORT;
+const API_URL = API_PORT ? `${import.meta.env.VITE_API_URL}:${API_PORT}` : import.meta.env.VITE_API_URL;
 
-function UserMenu({ user }: { user: User }): React.ReactNode {
+function PantryUserMenu({ user }: { user: User | null }): React.ReactNode {
     const [open, setOpen] = React.useState(false);
     const ref = React.useRef<HTMLDivElement>(null);
-    const navigate = useNavigate();
     const api = React.useContext(API.Context);
+    const picture = user ? localStorage.getItem("user-picture") : null;
 
     React.useEffect(() => {
         function onClickOutside(e: MouseEvent) {
@@ -35,79 +33,54 @@ function UserMenu({ user }: { user: User }): React.ReactNode {
     }, []);
 
     function logOut() {
-        api!.logout();
-        navigate("/");
+        localStorage.removeItem("session");
+        localStorage.removeItem("user-picture");
+        window.location.href = "/";
     }
 
-    const picture = localStorage.getItem("user-picture");
+    async function revokeSession() {
+        const sessionId = localStorage.getItem("session");
+        if (sessionId) {
+            try { await api!.revoke_session(sessionId); } catch {}
+        }
+        localStorage.removeItem("session");
+        window.location.href = `${API_URL}/auth/google`;
+    }
 
     return (
-        <div className="user-menu" ref={ref}>
-            <button className="user-avatar" onClick={() => setOpen(o => !o)} aria-label="Account menu">
-                {picture
-                    ? <img src={picture} alt={user.email} className="user-avatar-img" referrerPolicy="no-referrer" />
-                    : initials(user.email)
+        <div className="pantry-user-menu" ref={ref}>
+            <button className="pantry-avatar pantry-avatar-btn" onClick={() => setOpen(o => !o)} aria-label="Account menu">
+                {user
+                    ? (picture
+                        ? <img src={picture} alt={user.email} className="pantry-avatar-img" referrerPolicy="no-referrer" />
+                        : <span className="pantry-avatar-initials">{user.email[0].toUpperCase()}</span>)
+                    : <span className="pantry-avatar-guest">?</span>
                 }
             </button>
             {open && (
-                <div className="user-menu-dropdown">
-                    <div className="user-menu-email">{user.email}</div>
-                    <div className="user-menu-badge">{user.access_level}</div>
-                    <hr className="user-menu-divider" />
-                    <button className="user-menu-item" onClick={logOut}>Log Out</button>
+                <div className="pantry-menu-dropdown">
+                    <div className="pantry-menu-email">{user ? user.email : "Visitor"}</div>
+                    {user && <div className="pantry-menu-badge">{user.access_level}</div>}
+                    <hr className="pantry-menu-divider" />
+                    {user
+                        ? <button className="pantry-menu-item" onClick={logOut}>Log Out</button>
+                        : <button className="pantry-menu-item" onClick={revokeSession}>Revoke Session</button>
+                    }
                 </div>
             )}
         </div>
     );
 }
 
-function ReportModal({ isOpen, onClose, onSubmit }: { isOpen: boolean, onClose: () => void, onSubmit: (message: string) => void }): React.ReactNode {
-    const [message, setMessage] = React.useState("");
 
-    function handleSubmit(e: React.FormEvent) {
-        e.preventDefault();
-        if (message.trim()) {
-            onSubmit(message.trim());
-            setMessage("");
-            onClose();
-        }
-    }
+type Panel = "products" | "brands" | "tags" | "settings";
 
-    if (!isOpen) return null;
-
-    return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                <h3>Report an Issue</h3>
-                <form onSubmit={handleSubmit}>
-                    <textarea
-                        value={message}
-                        onChange={(e) => setMessage(e.target.value)}
-                        placeholder="Describe the issue you encountered..."
-                        rows={4}
-                        maxLength={1000}
-                        required
-                    />
-                    <div className="modal-buttons">
-                        <button type="button" onClick={onClose}>Cancel</button>
-                        <button type="submit" disabled={!message.trim()}>Submit Report</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
-}
-
-
-type Panel = "products" | "brands" | "tags" | "settings" | "checkout";
-
-function PanelContent({ panel, searchTerm }: { panel: Panel, searchTerm: string }): React.ReactNode {
+function PanelContent({ panel, searchTerm, sortBy, sortDir }: { panel: Panel, searchTerm: string, sortBy: SortBy, sortDir: SortDir }): React.ReactNode {
     switch (panel) {
-        case "products":  return <PantryView searchTerm={searchTerm} />;
+        case "products":  return <PantryView searchTerm={searchTerm} sortBy={sortBy} sortDir={sortDir} />;
         case "brands":    return <BrandView />;
         case "tags":      return <TagView />;
         case "settings":  return <SettingsView />;
-        case "checkout":  return <CheckoutPanel />;
     }
 }
 
@@ -118,88 +91,86 @@ export default function StudentFacing(): React.ReactNode {
     // if (auth.is_none()) return null;
 
     const [theme, cycleTheme] = useTheme();
-    const [panel, setPanel] = React.useState<Panel>("products");
+    const [panel, _setPanel] = React.useState<Panel>("products");
     const [user, setUser] = React.useState<User | null>(null);
-    const [showReportModal, setShowReportModal] = React.useState(false);
+    const [sortBy, setSortBy] = React.useState<SortBy>('name');
+    const [sortDir, setSortDir] = React.useState<SortDir>('asc');
     const navigate = useNavigate();
     const api = React.useContext(API.Context);
+
+    const toggleSort = (field: SortBy) => {
+        if (sortBy === field) {
+            setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortBy(field);
+            setSortDir('asc');
+        }
+    };
 
     React.useEffect(() => {
         api!.get_user().then(u => { if (u) setUser(u); });
     }, [api]);
 
-    function handleReportSubmit(message: string) {
-        api!.submit_report(message).catch(err => {
-            console.error("Failed to submit report:", err);
-            alert("Failed to submit report. Please try again.");
-        });
-    }    
-
     return (
         <Titled title="Pantry">
-            <div id="container">
+            <div id="container" className="pantry-page">
                 <div id="header">
                     <div id="title">Pirate Pantry</div>
-                    <input // search bar
-                        type="text"
-                        placeholder="Search for items..."
-                        value={searchTerm}
-                        onChange={(e)=> setSearchTerm(e.target.value)}
-                    />
-                    <div id= "header-top-right">
-                        <button className="header-button" onClick={cycleTheme} data-active={theme !== "auto" ? "" : undefined}>
-                            Theme: {THEME_LABELS[theme]}
-                        </button>
+                    <div id="header-center">
+                        <div className="search-row">
+                            <input // search bar
+                                type="text"
+                                placeholder="Search… or try name:, brand:, qty>N, qty<N"
+                                value={searchTerm}
+                                onChange={(e)=> setSearchTerm(e.target.value)}
+                            />
+                            <SortDropdown sortBy={sortBy} sortDir={sortDir} onToggle={toggleSort} />
+                        </div>
+                    </div>
+                    <div id="header-top-right">
+                        <div className="cart-group">
+                            <div className="cart-icon">
+                                🛒
+                                <span className="cart-badge">{getCartCount()}</span>
+                                <span className="cart-label">items in cart</span>
+                            </div>
+                            <button className="cart-clear-btn" onClick={() => clearCart()}>Clear Cart</button>
+                            <button className="cart-checkout-btn" onClick={() => navigate("/checkout")}>Checkout ⇒</button>
+                        </div>
+                    </div>
+                    {user && <span className="header-separator" />}
+                    <div className="nav-group">
                         {user && (
-                            <button className="header-button" onClick={() => navigate("/workpanel")}>Workpanel</button>
+                            <button className="header-button" onClick={() => navigate("/workpanel")}>To Workpanel ➜</button>
                         )}
-                        {user && <UserMenu user={user} />}
+                        <span className="header-separator" />
+                        <PantryUserMenu user={user} />
                     </div>
                 </div>
                 <div id="body">
-                    <div id="body-left">
-                        <span className="body-left-section-label">Pantry</span>
-                        <button className="body-left-button body-left-sub-button" onClick={() => setPanel("products")} data-active={panel === "products" ? "" : undefined}>Products</button>
-                        <button className="body-left-button body-left-sub-button" onClick={() => setPanel("brands")} data-active={panel === "brands" ? "" : undefined}>Brands</button>
-                        <button className="body-left-button body-left-sub-button" onClick={() => setPanel("tags")} data-active={panel === "tags" ? "" : undefined}>Tags</button>
-                        <div className="body-left-spacer" />
-                        <hr className="body-left-divider" />
-                        <button className="body-left-button" onClick={() => setPanel("checkout")} data-active={panel === "checkout" ? "" : undefined}>
-                            🛒 Checkout ({getCartCount()})
-                        </button>
-                        <button className="body-left-button" onClick={() => setPanel("settings")} data-active={panel === "settings" ? "" : undefined}>Settings</button>
-                        <button className="body-left-button" onClick={() => setShowReportModal(true)}>Report Issue</button>
-                        <div className="body-left-spacer" />
-                        <hr className="body-left-divider" />
-                        <span className="body-left-section-label">Appearance</span>
-                        <button className="body-left-button body-left-button--sm" onClick={cycleTheme} data-active={theme !== "auto" ? "" : undefined}>
-                            Theme: {THEME_LABELS[theme]}
-                        </button>
-                    </div>
-                    <div className="panel-container">
-                        {panel === "products" && (
-                            <div className="search-bar-container">
-                                <input
-                                    type="text"
-                                    placeholder="Search for items..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="search-bar"
-                                />
-                            </div>
-                        )}
-                        <PanelContent panel={panel} searchTerm={searchTerm} />
-                    </div>
+                    <PanelContent panel={panel} searchTerm={searchTerm} sortBy={sortBy} sortDir={sortDir} />
                 </div>
-                <ReportModal
-                    isOpen={showReportModal}
-                    onClose={() => setShowReportModal(false)}
-                    onSubmit={handleReportSubmit}
-                />
+                <div id="footer">
+                    <div id="footer-left">
+                        <button
+                            id="theme-toggle"
+                            onClick={cycleTheme}
+                            data-active={theme !== "auto" ? "" : undefined}
+                        >
+                            <span className="theme-icon">{THEME_ICONS[theme]}</span>
+                            <span className="theme-name">{" "}{THEME_NAMES[theme]}</span>
+                        </button>
+                        {!user && (
+                            <span id="anon-note">
+                                🔒 Pantry is anonymous — checkouts are not tied to your identity.
+                            </span>
+                        )}
+                    </div>
+                    <div id="pagination-slot"></div>
+                </div>
             </div>
         </Titled>
     );
 
 };
-
 

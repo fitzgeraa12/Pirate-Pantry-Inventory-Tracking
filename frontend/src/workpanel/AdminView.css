@@ -1,10 +1,51 @@
 .admin-view {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 24px 32px;
     display: flex;
     flex-direction: column;
     gap: 32px;
+}
+
+.admin-view::-webkit-scrollbar {
+    width: 10px;
+}
+
+.admin-view::-webkit-scrollbar-track {
+    background-color: var(--chrome-bg);
+}
+
+.admin-view::-webkit-scrollbar-thumb {
+    background-color: var(--chrome-text-muted);
+    border-radius: 4px;
+    border: 2px solid var(--chrome-bg);
+}
+
+.admin-view::-webkit-scrollbar-thumb:hover {
+    background-color: var(--su-yellow);
+}
+
+.admin-section::-webkit-scrollbar {
+    height: 10px;
+}
+
+.admin-section::-webkit-scrollbar-track {
+    background-color: var(--chrome-bg-secondary);
+}
+
+.admin-section::-webkit-scrollbar-thumb {
+    background-color: var(--chrome-text-muted);
+    border-radius: 4px;
+    border: 2px solid var(--chrome-bg-secondary);
+}
+
+.admin-section::-webkit-scrollbar-thumb:hover {
+    background-color: var(--su-yellow);
+}
+
+.admin-section::-webkit-scrollbar-corner {
+    background-color: var(--chrome-bg-secondary);
 }
 
 .admin-section {
@@ -13,6 +54,8 @@
     border-radius: 8px;
     padding: 20px 24px;
     max-width: 720px;
+    overflow-x: auto;
+    box-sizing: border-box;
 }
 
 .admin-section-heading {
@@ -238,4 +281,49 @@
     display: flex;
     gap: 10p;
     justify-content: center;
+}
+
+/* ── Responsive: Mobile ── */
+@media (max-width: 768px) {
+    .admin-view {
+        padding: 16px;
+        gap: 20px;
+    }
+
+    .admin-section {
+        padding: 14px 16px;
+        max-width: 100%;
+    }
+
+    .admin-form-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 4px;
+    }
+
+    .admin-form-label {
+        width: auto;
+    }
+
+    .admin-form-input {
+        max-width: 100%;
+    }
+
+    .admin-form-actions {
+        margin-left: 0;
+    }
+
+    .admin-table {
+        font-size: 0.78em;
+    }
+
+    .admin-table th,
+    .admin-table td {
+        padding: 6px 8px;
+    }
+
+    .dialog-box {
+        width: 90vw;
+        max-width: 90vw;
+    }
 }

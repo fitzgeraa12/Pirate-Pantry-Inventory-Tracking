@@ -276,3 +276,37 @@
 .table-view td:nth-child(7) {
     width: 15%;
 }
+
+/* ── Responsive: Mobile ── */
+@media (max-width: 768px) {
+    .table-view-wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .table-view {
+        table-layout: auto;
+        min-width: 600px;
+    }
+
+    .table-view th,
+    .table-view td {
+        padding: 8px 10px;
+        font-size: 0.75em;
+    }
+
+    .table-view-pagination {
+        padding: 6px 10px;
+        gap: 8px;
+    }
+
+    .pagination-button {
+        padding: 6px 10px;
+        font-size: 0.72em;
+    }
+
+    .table-search {
+        width: 100%;
+        max-width: none;
+    }
+}

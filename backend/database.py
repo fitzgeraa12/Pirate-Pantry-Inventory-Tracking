@@ -82,12 +82,13 @@ class Product(BaseModel):
         )
     
     @staticmethod
-    def query_and_include_tags(db: "Database", sql: str, params: QueryParams = []) -> list["Product"]:
+    def query_and_include_tags(db: "Database", sql: str, params: QueryParams = [], order_by: str = "") -> list["Product"]:
         return db.query_and_map_rows(f"""
                 SELECT p.*, GROUP_CONCAT(pt.tag_label) as tags
                 FROM ({sql}) p
                 LEFT JOIN product_tags pt ON p.id = pt.product_id
                 GROUP BY p.id
+                {order_by}
             """,
             lambda row: Product.from_row(row),
             params
