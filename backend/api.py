@@ -3,7 +3,7 @@ import os
 import io
 import re
 import secrets
-from typing import Any, Callable, Optional, cast
+from typing import Any, Callable, Literal, Optional, cast
 from flask import Flask, jsonify, redirect, send_file, request, g, session as flask_session
 from flask_cors import CORS
 from pydantic import BaseModel, ValidationError, field_validator
@@ -257,7 +257,7 @@ def define_routes(app: Flask, db: Database):
             return jsonify({'error': str(e)}), 409
 
     
-    @app.route('/user', methods=['GET'])
+    @app.route('/users', methods=['GET'])
     @requires_auth
     @requires_role(AccessLevel.ADMIN)
     def get_users(): # pyright: ignore[reportUnusedFunction]
@@ -456,6 +456,8 @@ def define_routes(app: Flask, db: Database):
             tags: Optional[str] = None
             page: int = 1
             page_size: int = 20
+            sort_by: Literal['name', 'quantity', 'brand'] = 'name'
+            sort_dir: Literal['asc', 'desc'] = 'asc'
 
         with db.transaction():
             print(request.args.to_dict())
@@ -516,11 +518,20 @@ def define_routes(app: Flask, db: Database):
 
             total = db.query(f'SELECT COUNT(DISTINCT p.id) as total {base_sql}', filter_params)[0]['total']
 
+            _sort_col_map = {
+                'name': 'p.name',
+                'quantity': 'p.quantity',
+                'brand': "COALESCE(p.brand, 'zzzzz')",
+            }
+            sort_col = _sort_col_map[products_query.sort_by]
+            sort_dir_sql = products_query.sort_dir.upper()
+            order_by = f"ORDER BY CASE WHEN p.quantity = 0 THEN 1 ELSE 0 END ASC, {sort_col} {sort_dir_sql}"
+
             offset = (products_query.page - 1) * products_query.page_size
             paginated_params = filter_params + [products_query.page_size, offset]
-            sql = f'SELECT DISTINCT p.* {base_sql} LIMIT ? OFFSET ?'
+            sql = f'SELECT DISTINCT p.* {base_sql} {order_by} LIMIT ? OFFSET ?'
 
-            products = Product.query_and_include_tags(db, sql, paginated_params)
+            products = Product.query_and_include_tags(db, sql, paginated_params, order_by=order_by)
 
             return jsonify({
                 'data': [p.model_dump() for p in products],

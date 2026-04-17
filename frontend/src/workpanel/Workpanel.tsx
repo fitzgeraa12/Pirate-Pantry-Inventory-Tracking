@@ -8,6 +8,7 @@ import UserView from "./UserView";
 import AdminView from "./AdminView";
 import SettingsView from "./SettingsView";
 import AddItem from "./AddItem";
+import ExportModal from "./ExportModal";
 import { useTheme } from "../misc/useTheme";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { API, type User, type Product } from "../API";
@@ -15,12 +16,12 @@ import './Workpanel.css'
 
 const THEME_LABELS = { light: "☀  Light", dark: "🌙  Dark", auto: "⊙  System" };
 
-type Panel = "products" | "brands" | "tags" | "users" | "admin" | "settings" | "addItem";
+type Panel = "products" | "brands" | "tags" | "users" | "admin" | "settings";
 
 const DEFAULT_PANEL: Panel = "products";
 
 function is_panel(value: string | null): value is Panel {
-    return value === "products" || value === "brands" || value === "tags" || value === "users" || value === "admin" || value === "settings" || value === "addItem";
+    return value === "products" || value === "brands" || value === "tags" || value === "users" || value === "admin" || value === "settings";
 }
 
 function can_access_panel(panel: Panel, user: User | null): boolean {
@@ -83,18 +84,20 @@ export default function Workpanel(): React.ReactNode {
     });
     const [user, setUser] = React.useState<User | null>(null);
     const [editingProduct, setEditingProduct] = React.useState<Product | null>(null);
+    const [addItemOpen, setAddItemOpen] = React.useState(false);
+    const [exportOpen, setExportOpen] = React.useState(false);
+    const [sidebarOpen, setSidebarOpen] = React.useState(false);
     const navigate = useNavigate();
     const api = React.useContext(API.Context);
 
     function PanelContent({ panel }: { panel: Panel }): React.ReactNode {
         switch (panel) {
-            case "products":  return <ProductView onEdit={(p) => { setEditingProduct(p); setPanel("addItem"); }} />;
+            case "products":  return <ProductView onEdit={(p) => { setEditingProduct(p); setAddItemOpen(true); }} />;
             case "brands":    return <BrandView />;
             case "tags":      return <TagView />;
             case "users":     return <UserView />;
             case "admin":     return <AdminView />;
             case "settings":  return <SettingsView />;
-            case "addItem":   return <AddItem editingProduct={editingProduct} onBack={() => setPanel("products")} />;
         }
     }
 
@@ -128,6 +131,7 @@ export default function Workpanel(): React.ReactNode {
 
     function setPanelAndUrl(next: Panel) {
         setPanel(next);
+        setSidebarOpen(false);
         const params = new URLSearchParams(searchParams);
         params.set("panel", next);
         setSearchParams(params, { replace: true });
@@ -138,14 +142,20 @@ export default function Workpanel(): React.ReactNode {
             <Titled title="Pirate Pantry - Workpanel">
                 <div id="container">
                     <div id="header">
-                        <div id="title">Pirate Pantry Workpanel</div>
+                        <button className="sidebar-toggle" onClick={() => setSidebarOpen(o => !o)} aria-label="Toggle menu">
+                            {sidebarOpen ? '✕' : '☰'}
+                        </button>
+                        <div id="title">WORKPANEL</div>
+                        <div id="header-toolbar"></div>
                         <div id="header-top-right">
-                            <button id="user-view" className="header-button" onClick={() => navigate("/pantry")}>Pantry</button>
+                            <button id="user-view" className="header-button" onClick={() => navigate("/pantry")}>To Pantry ➜</button>
+                            <span className="header-separator" />
                             {user && <UserMenu user={user} />}
                         </div>
                     </div>
                     <div id="body">
-                        <div id="body-left">
+                        {sidebarOpen && <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} />}
+                        <div id="body-left" className={sidebarOpen ? '' : 'sidebar-collapsed'}>
                             <span className="body-left-section-label">Database</span>
                             <button className="body-left-button body-left-sub-button" onClick={() => setPanelAndUrl("products")} data-active={panel === "products" ? "" : undefined}>Products</button>
                             <button className="body-left-button body-left-sub-button" onClick={() => setPanelAndUrl("brands")}  data-active={panel === "brands"   ? "" : undefined}>Brands</button>
@@ -155,9 +165,9 @@ export default function Workpanel(): React.ReactNode {
                             )}
                             <div className="body-left-spacer" />
                             <hr className="body-left-divider" />
-                            <button className= "body-left-button" onClick={ () => setPanelAndUrl("addItem")}> Add Item</button>
+                            <button className="body-left-button body-left-button-additem" onClick={ () => { setEditingProduct(null); setAddItemOpen(true); setSidebarOpen(false); }}> Add Item</button>
                             {user?.access_level === "admin" && (
-                                <button className="body-left-button">Export</button>
+                                <button className="body-left-button" onClick={() => { setExportOpen(true); setSidebarOpen(false); }}>Export</button>
                             )}
                             <button className="body-left-button" onClick={() => setPanelAndUrl("settings")} data-active={panel === "settings" ? "" : undefined}>Settings</button>
                             {user?.access_level === "admin" && (
@@ -171,6 +181,9 @@ export default function Workpanel(): React.ReactNode {
                         </div>
                         <PanelContent panel={panel} />
                     </div>
+                    <button className="wp-add-btn" onClick={() => { setEditingProduct(null); setAddItemOpen(true); }} aria-label="Add Item">＋</button>
+                    {addItemOpen && <AddItem editingProduct={editingProduct} onBack={() => setAddItemOpen(false)} />}
+                    {exportOpen && <ExportModal onClose={() => setExportOpen(false)} />}
                 </div>
             </Titled>
         </ProtectedPage>

@@ -18,6 +18,28 @@ api_base.interceptors.request.use((config) => {
     return config;
 });
 
+api_base.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+        if (error.response?.status === 401 && !error.config?.url?.startsWith('/auth/') && !error.config?._retried) {
+            // Retry once — transient local SQLite failures resolve on retry.
+            // Only redirect if the retry also 401s.
+            try {
+                error.config._retried = true;
+                return await api_base.request(error.config);
+            } catch (retryError: any) {
+                if (retryError.response?.status === 401) {
+                    localStorage.removeItem('session');
+                    localStorage.removeItem('user-picture');
+                    window.location.href = `${API_URL}/auth/google`;
+                }
+                return Promise.reject(retryError);
+            }
+        }
+        return Promise.reject(error);
+    }
+);
+
 const AccessLevelSchema = z.enum(["trusted", "admin"]);
 export type AccessLevel = z.infer<typeof AccessLevelSchema>
 
@@ -96,6 +118,8 @@ export namespace API {
         get_sessions: () => Promise<Array<Session>>,
         revoke_session: (id: string) => Promise<void>,
         checkout: (products: Array<{ id: string, amount: number }>) => Promise<Array<{ id: string, quantity: number }>>,
+        delete_products: (ids: Array<string>) => Promise<void>,
+        export_stats: (start: string, end: string) => Promise<Blob>,
     }
 
     interface GetProductsArgs {
@@ -106,6 +130,8 @@ export namespace API {
         image_link?: Optional<string>,
         tags?: Optional<Array<string>>,
         search?: Optional<string>,
+        sort_by?: Optional<'name' | 'quantity' | 'brand'>,
+        sort_dir?: Optional<'asc' | 'desc'>,
     }
 
     interface GetBrandsArgs {
@@ -182,6 +208,15 @@ export namespace API {
 
                 checkout: async (products: Array<{ id: string, amount: number }>): Promise<Array<{ id: string, quantity: number }>> => {
                     return (await api_base.patch("/products/checkout", { products })).data.quantities;
+                },
+
+                delete_products: async (ids: Array<string>): Promise<void> => {
+                    await api_base.delete("/products", { data: { ids } });
+                },
+
+                export_stats: async (start: string, end: string): Promise<Blob> => {
+                    const resp = await api_base.post("/export", { start, end }, { responseType: "blob" });
+                    return resp.data;
                 },
             }
         }, []);

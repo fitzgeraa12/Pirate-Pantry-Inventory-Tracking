@@ -49,10 +49,10 @@ def parse_date(date:str):
 def total_range(start: str, end: str):
     '''Text figure of total number of items checked out from start to end date'''
     s, e = parse_date(start), parse_date(end)
-    rows = query("SELECT SUM(num_checked_out)\
+    rows = query("SELECT SUM(num_checked_out) AS total\
                  FROM total_checkouts\
                  WHERE checkout_time >= ? AND checkout_time <= ?", [s,e])
-    total = rows[0][0] if rows and rows[0][0] else 0
+    total = rows[0]['total'] if rows and rows[0]['total'] else 0
     fig = plt.figure(figsize=(8, 1))
     plt.figtext(0.5, 0.5, f'Total Items Taken From {start} To {end}:  {total}',
                 ha='center', va='center', fontsize=14, fontweight='bold')
@@ -94,7 +94,7 @@ def tag_range(start:str, end:str):
                   WHERE checkout_time >= ? AND checkout_time <= ?", [s,e])
     tags = []
     for row in rows:
-        id_tag = get_tags_for_item(id=row[0])
+        id_tag = get_tags_for_item(id=row['id'])
         tags.extend(id_tag)
     if not tags:
         return None
@@ -119,7 +119,7 @@ def checkout_daily(start:str, end:str):
         "GROUP BY day "
         "ORDER BY day", [s, e]
     )
-    counts = {row[0]: row[1] for row in (rows or [])}
+    counts = {row['day']: row['total'] for row in (rows or [])}
 
     result = {}
     current = datetime.strptime(s, '%Y-%m-%d')
@@ -147,7 +147,7 @@ def checkout_hourly(start:str, end:str):
                   WHERE checkout_time >= ? AND checkout_time <= ?\
                   GROUP BY hour\
                   ORDER BY hour", [s,e])
-    counts = {row[0]: row[1] for row in (rows or [])}
+    counts = {row['hour']: row['total'] for row in (rows or [])}
     result = {f'{h:02d}:00': counts.get(f'{h:02d}', 0) for h in range(24)}
     fig, ax = plt.subplots(figsize=(14, 6))
     bars = ax.bar(result.keys(), result.values(), color='steelblue')

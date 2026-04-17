@@ -168,3 +168,10 @@ button, .button {
     color: var(--chrome-text);
     opacity: 0.6;
 }
+
+/* ── Global responsive helpers ── */
+@media (max-width: 768px) {
+    html, body, #root {
+        overflow: hidden;
+    }
+}

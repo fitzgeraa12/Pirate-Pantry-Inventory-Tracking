@@ -1,6 +1,7 @@
 .settings-view {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 32px;
     display: flex;
     flex-direction: column;
@@ -14,6 +15,7 @@
     padding: 28px 32px;
     width: 100%;
     max-width: 480px;
+    box-sizing: border-box;
 }
 
 .settings-heading {
@@ -98,4 +100,21 @@
 .settings-save-button:disabled {
     opacity: 0.5;
     cursor: default;
+}
+
+/* ── Responsive: Mobile ── */
+@media (max-width: 768px) {
+    .settings-view {
+        padding: 16px;
+    }
+
+    .settings-card {
+        padding: 18px 16px;
+        max-width: 100%;
+    }
+
+    .settings-input {
+        width: 100%;
+        font-size: 16px; /* prevents iOS zoom */
+    }
 }

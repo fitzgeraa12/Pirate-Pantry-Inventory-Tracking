@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import ReactDOM from "react-dom";
 import "./AddItem.css";
 import { API, type Product } from "../API";
 
@@ -62,8 +63,11 @@ const AddItem = ({ editingProduct, onBack }: { editingProduct?: Product | null; 
                 tags: parsedTags.length > 0 ? parsedTags : undefined
             };
 
-        console.log("Submitting item:", JSON.stringify([newItem], null, 2));
-
+            const idChanged = isEditing && editingProduct!.id !== id;
+            if (idChanged) {
+                // Delete old, then create new with new ID
+                await api!.delete_products([editingProduct!.id]);
+            }
             const responseData = await api!.add_products([newItem]);
             console.log("Response from server: ", responseData);
 
@@ -83,72 +87,71 @@ const AddItem = ({ editingProduct, onBack }: { editingProduct?: Product | null; 
         }
     };
 
-    return (
-        <>
-            <div className="add-item-page">
-                <div className="add-item-card">
-                    <button className="placeholder-button"> Scan</button>
-                    <div className="add-item-form">
-                        <input
-                            className="add-item-input"
-                            type="text"
-                            placeholder="Id"
-                            value={id}
-                            onChange={(e) => setId(e.target.value)}
-                        />
-                        <input
-                            className="add-item-input"
-                            type="text"
-                            placeholder="Name"
-                            value={itemName}
-                            onChange={(e) => setItemName(e.target.value)}
-                        />
-                        <input
-                            className="add-item-input"
-                            type="text"
-                            placeholder="Quantity"
-                            value={quantity}
-                            onChange={(e) => setQuantity(e.target.value)}
-                        />
-                        <input
-                            className="add-item-input"
-                            type="text"
-                            placeholder="Brand"
-                            value={brand}
-                            onChange={(e) => setBrand(e.target.value)}
-                        />
-                        <input
-                            className="add-item-input"
-                            type="text"
-                            placeholder="Tags"
-                            value={tags}
-                            onChange={(e) => setTags(e.target.value)}
-                        />    
-
-                        <button
-                            className="done-button"
-                            onClick={handleSubmit}
-                        >Done</button>
-                        <button
-                            className="done-button"
-                            onClick={onBack}
-                        > Back</button>    
+    return ReactDOM.createPortal(
+        <div className="add-item-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onBack(); }}>
+            <div className="add-item-modal">
+                <div className="add-item-modal-header">
+                    <h3 className="add-item-modal-title">{isEditing ? "Edit Item" : "Add Item"}</h3>
+                    <button className="add-item-close" onClick={onBack} aria-label="Close">✕</button>
+                </div>
+                <div className="add-item-form">
+                    <input
+                        className="add-item-input"
+                        type="text"
+                        placeholder="Id"
+                        value={id}
+                        onChange={(e) => setId(e.target.value)}
+                    />
+                    <input
+                        className="add-item-input"
+                        type="text"
+                        placeholder="Name"
+                        value={itemName}
+                        onChange={(e) => setItemName(e.target.value.replace(/,/g, ''))}
+                    />
+                    <input
+                        className="add-item-input"
+                        type="text"
+                        placeholder="Quantity"
+                        value={quantity}
+                        onChange={(e) => setQuantity(e.target.value)}
+                    />
+                    <input
+                        className="add-item-input"
+                        type="text"
+                        placeholder="Brand"
+                        value={brand}
+                        onChange={(e) => setBrand(e.target.value.replace(/,/g, ''))}
+                    />
+                    <input
+                        className="add-item-input"
+                        type="text"
+                        placeholder="Tags (comma separated)"
+                        value={tags}
+                        onChange={(e) => setTags(e.target.value)}
+                    />
+                    <div className="add-item-actions">
+                        <button className="add-item-btn add-item-btn--primary" onClick={handleSubmit}>
+                            {isEditing ? "Save" : "Add"}
+                        </button>
+                        <button className="add-item-btn add-item-btn--secondary" onClick={onBack}>Cancel</button>
                     </div>
                 </div>
             </div>
 
             {showDialog && (
-                <div className="dialog-overlay">
-                    <div className="dialog-box">
-                        <p> Add another item?</p>
-                        <div className="dialog-buttons">
-                            <button onClick={handleYes}>Yes</button>
-                            <button onClick={handleNo}>No</button>                
+                <div className="add-item-dialog">
+                    <div className="add-item-dialog-box">
+                        <p>Add another item?</p>
+                        <div className="add-item-dialog-buttons">
+                            <button className="add-item-btn add-item-btn--primary" onClick={handleYes}>Yes</button>
+                            <button className="add-item-btn add-item-btn--secondary" onClick={handleNo}>No</button>
                         </div>
                     </div>
                 </div>
             )}
-        </>    
+        </div>,
+        document.body
     );
 };    
 export default AddItem;

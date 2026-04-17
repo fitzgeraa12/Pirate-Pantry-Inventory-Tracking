@@ -114,6 +114,7 @@ export default function TableView<
 
     return (data !== null || toolbar) ? (
         <div className="table-view-outer">
+        {toolbar && <div className="table-view-toolbar-bar">{toolbar}</div>}
         <div className="table-view-wrapper">
             {isLoading || data === null ? (
                 <div className="table-loading"><Spinner /></div>
@@ -125,6 +126,7 @@ export default function TableView<
                                 <th
                                     className="table-view-header-cell"
                                     key={header.id}
+                                    style={(header.column.columnDef.meta as any)?.shrink ? { width: '1px', whiteSpace: 'nowrap' } : undefined}
                                 >
                                     {flexRender(header.column.columnDef.header, header.getContext())}
                                 </th>
@@ -138,7 +140,9 @@ export default function TableView<
                             key={row.id}
                         >
                             {row.getVisibleCells().map(cell => (
-                                <td className="table-view-data-cell" key={cell.id}>
+                                <td className="table-view-data-cell" key={cell.id}
+                                    style={(cell.column.columnDef.meta as any)?.shrink ? { width: '1px', whiteSpace: 'nowrap' } : undefined}
+                                >
                                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                                 </td>
                             ))}
@@ -148,8 +152,6 @@ export default function TableView<
             </table>)}
         </div>
         <div className="table-view-pagination">
-            {toolbar && <>{toolbar}<span className="pagination-divider" /></>}
-            <span style={{ flex: 1 }} />
             <button
                 className="pagination-button"
                 onClick={() => serverPagination ? serverPagination.onPageChange(serverPagination.page - 1) : table.previousPage()}
