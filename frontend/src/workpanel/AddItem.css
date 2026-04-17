@@ -2,7 +2,8 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
+    height: 100%;
+    width: 100%;
     background-color: #f4f6f8;
     font-family: Arial, Helvetica, sans-serif;
 }
@@ -44,6 +45,45 @@
 }
 
 .add-item-input:focus{
+    outline: none;
+    border-color: #4a90e2;
+}
+
+.quantity-counter {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.quantity-button {
+    width: 30px;
+    height: 30px;
+    border: 1px solid #ccc;
+    background-color: #f0f0f0;
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: bold;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.quantity-button:hover {
+    background-color: #e0e0e0;
+}
+
+.quantity-input {
+    width: 60px;
+    padding: 10px;
+    margin: 0 10px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 14px;
+    text-align: center;
+}
+
+.quantity-input:focus {
     outline: none;
     border-color: #4a90e2;
 }

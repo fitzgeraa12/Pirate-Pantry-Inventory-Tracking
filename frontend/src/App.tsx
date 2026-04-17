@@ -5,7 +5,6 @@ import { Route, Routes } from 'react-router-dom';
 import Workpanel from './workpanel/Workpanel';
 import HomeRedirect from './misc/HomeRedirect';
 import _404_ from './misc/404';
-import Checkout from './checkout/Checkout';
 import React from 'react';
 import { API } from './API';
 import StudentFacing from './checkout/StudentFacing';
@@ -25,7 +24,6 @@ function App() {
       <Route path="/" element={<HomeRedirect />} />
       <Route path="/workpanel" element={<Workpanel />} />
       <Route path="/pantry" element={<StudentFacing />}/>
-      <Route path="/checkout" element={<Checkout />} />
       <Route path="*" element={<_404_></_404_>} />
     </Routes>
   );

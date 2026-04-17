@@ -130,6 +130,14 @@ class AuthCode(BaseModel):
     expires_at: int
     picture: Optional[str] = None
 
+class Report(BaseModel):
+    id: str
+    user_id: Optional[str]
+    user_email: str
+    message: str
+    created_at: int
+    resolved: bool
+
 # --------------------------------------------------
 # Database
 # --------------------------------------------------
@@ -648,6 +656,31 @@ class Database(ABC):
         if not user:
             raise UserNotFoundError(id)
         return user
+
+    def add_report(self, user_id: Optional[str], user_email: str, message: str) -> Report:
+        report_id = str(uuid.uuid4())
+        created_at = int(time.time())
+        self.query(
+            "INSERT INTO reports (id, user_id, user_email, message, created_at, resolved) VALUES (?, ?, ?, ?, ?, 0)",
+            [report_id, user_id, user_email, message, created_at]
+        )
+        return Report(
+            id=report_id,
+            user_id=user_id,
+            user_email=user_email,
+            message=message,
+            created_at=created_at,
+            resolved=False
+        )
+
+    def get_reports(self) -> list[Report]:
+        return self.query_and_map_rows(
+            "SELECT * FROM reports ORDER BY created_at DESC",
+            lambda row: Report(**row)
+        )
+
+    def resolve_report(self, report_id: str):
+        self.query("UPDATE reports SET resolved = 1 WHERE id = ?", [report_id])
 
     def all_sessions(self) -> list[AuthSession]:
         return self.query_and_map_rows("SELECT * FROM auth_sessions", lambda row: AuthSession(**row))

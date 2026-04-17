@@ -8,6 +8,7 @@ import UserView from "./UserView";
 import AdminView from "./AdminView";
 import SettingsView from "./SettingsView";
 import AddItem from "./AddItem";
+import ReportsView from "./ReportsView";
 import { useTheme } from "../misc/useTheme";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { API, type User, type Product } from "../API";
@@ -15,16 +16,16 @@ import './Workpanel.css'
 
 const THEME_LABELS = { light: "☀  Light", dark: "🌙  Dark", auto: "⊙  System" };
 
-type Panel = "products" | "brands" | "tags" | "users" | "admin" | "settings" | "addItem";
+type Panel = "products" | "brands" | "tags" | "users" | "admin" | "settings" | "addItem" | "reports";
 
 const DEFAULT_PANEL: Panel = "products";
 
 function is_panel(value: string | null): value is Panel {
-    return value === "products" || value === "brands" || value === "tags" || value === "users" || value === "admin" || value === "settings" || value === "addItem";
+    return value === "products" || value === "brands" || value === "tags" || value === "users" || value === "admin" || value === "settings" || value === "addItem" || value === "reports";
 }
 
 function can_access_panel(panel: Panel, user: User | null): boolean {
-    if (panel === "users" || panel === "admin") return user?.access_level === "admin";
+    if (panel === "users" || panel === "admin" || panel === "reports") return user?.access_level === "admin";
     return true;
 }
 
@@ -95,6 +96,7 @@ export default function Workpanel(): React.ReactNode {
             case "admin":     return <AdminView />;
             case "settings":  return <SettingsView />;
             case "addItem":   return <AddItem editingProduct={editingProduct} onBack={() => setPanel("products")} />;
+            case "reports":   return <ReportsView />;
         }
     }
 
@@ -162,6 +164,9 @@ export default function Workpanel(): React.ReactNode {
                             <button className="body-left-button" onClick={() => setPanelAndUrl("settings")} data-active={panel === "settings" ? "" : undefined}>Settings</button>
                             {user?.access_level === "admin" && (
                                 <button className="body-left-button" onClick={() => setPanelAndUrl("admin")} data-active={panel === "admin" ? "" : undefined}>Admin Panel</button>
+                            )}
+                            {user?.access_level === "admin" && (
+                                <button className="body-left-button" onClick={() => setPanelAndUrl("reports")} data-active={panel === "reports" ? "" : undefined}>Reports</button>
                             )}
                             <hr className="body-left-divider" />
                             <span className="body-left-section-label">Appearance</span>

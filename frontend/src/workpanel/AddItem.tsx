@@ -11,8 +11,27 @@ const AddItem = ({ editingProduct, onBack }: { editingProduct?: Product | null; 
     const [brand, setBrand] = useState("");
     const [tags, setTags] = useState("");
 
+    const [brands, setBrands] = useState<string[]>([]);
+    const [allTags, setAllTags] = useState<string[]>([]);
+
     const isEditing = !!editingProduct;
     const api = React.useContext(API.Context);
+
+    useEffect(() => {
+        const loadOptions = async () => {
+            try {
+                const [brandsData, tagsData] = await Promise.all([
+                    api!.get_all_brands(),
+                    api!.get_all_tags()
+                ]);
+                setBrands(brandsData);
+                setAllTags(tagsData);
+            } catch (error) {
+                console.error("Failed to load brands and tags:", error);
+            }
+        };
+        loadOptions();
+    }, [api]);
 
     useEffect(() => {
        if(editingProduct){
@@ -103,27 +122,48 @@ const AddItem = ({ editingProduct, onBack }: { editingProduct?: Product | null; 
                             value={itemName}
                             onChange={(e) => setItemName(e.target.value)}
                         />
-                        <input
-                            className="add-item-input"
-                            type="text"
-                            placeholder="Quantity"
-                            value={quantity}
-                            onChange={(e) => setQuantity(e.target.value)}
-                        />
+                        <div className="quantity-counter">
+                            <button
+                                type="button"
+                                className="quantity-button"
+                                onClick={() => setQuantity(prev => Math.max(0, parseInt(prev || "0") - 1).toString())}
+                            >-</button>
+                            <input
+                                className="quantity-input"
+                                type="number"
+                                min="0"
+                                value={quantity}
+                                onChange={(e) => setQuantity(e.target.value)}
+                                placeholder="0"
+                            />
+                            <button
+                                type="button"
+                                className="quantity-button"
+                                onClick={() => setQuantity(prev => (parseInt(prev || "0") + 1).toString())}
+                            >+</button>
+                        </div>
                         <input
                             className="add-item-input"
                             type="text"
                             placeholder="Brand"
                             value={brand}
                             onChange={(e) => setBrand(e.target.value)}
+                            list="brands"
                         />
+                        <datalist id="brands">
+                            {brands.map(b => <option key={b} value={b} />)}
+                        </datalist>
                         <input
                             className="add-item-input"
                             type="text"
                             placeholder="Tags"
                             value={tags}
                             onChange={(e) => setTags(e.target.value)}
-                        />    
+                            list="tags"
+                        />
+                        <datalist id="tags">
+                            {allTags.map(t => <option key={t} value={t} />)}
+                        </datalist>    
 
                         <button
                             className="done-button"

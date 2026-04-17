@@ -41,7 +41,7 @@ def new_checkout(
 ):
     if checkout_time is None:
         checkout_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    query('INSERT INTO total_checkouts (checkout_id, id, name, brand, num_checked_out, checkout_time) VALUES (?, ?, ?, ?, ?, ?)', [checkout_id, id, name, brand or '', num_checked_out, checkout_time])
+    query('INSERT INTO total_checkouts (checkout_id, product_id, name, brand, num_checked_out, checkout_time) VALUES (?, ?, ?, ?, ?, ?)', [checkout_id, id, name, brand or '', num_checked_out, checkout_time])
 
 def parse_date(date:str):
     '''Convert MM-DD-YYYY to YYYY-MM-DD for SQL comparisons '''
@@ -90,7 +90,7 @@ def top_item(start:str, end:str):
 def tag_range(start:str, end:str):
     '''Pie chart of percentage of item tags checked out from start to end date'''
     s, e = parse_date(start), parse_date(end)
-    rows = query("SELECT id\
+    rows = query("SELECT product_id\
                   FROM total_checkouts\
                   WHERE checkout_time >= ? AND checkout_time <= ?", [s,e])
     tags = []

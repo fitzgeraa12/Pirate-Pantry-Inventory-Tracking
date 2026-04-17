@@ -1104,6 +1104,68 @@ def define_routes(app: Flask, db: Database):
 
         return jsonify({'deleted': results, 'errors': errors}), 200 if not errors else 207
 
+    @app.route('/reports', methods=['POST'])
+    @requires_auth
+    def submit_report(): # pyright: ignore[reportUnusedFunction]
+        ''' POST method to submit a report.
+
+            Request body (JSON):
+                { "message": str } - The report message
+
+            Returns:
+                Response (JSON): The created report
+                201 on success
+        '''
+        class SubmitReportSchema(BaseModel):
+            message: str
+
+            @field_validator('message')
+            @classmethod
+            def validate_message(cls, v: str) -> str:
+                if not v.strip():
+                    raise ValueError('Message cannot be empty')
+                if len(v) > 1000:
+                    raise ValueError('Message cannot be longer than 1000 characters')
+                return v
+
+        data: Any = request.get_json()
+        if not data:
+            return jsonify({'error': 'Invalid JSON'}), 400
+
+        try:
+            body = SubmitReportSchema.model_validate(data)
+        except ValidationError as e:
+            return jsonify({'error': e.errors()}), 400
+
+        report = db.add_report(g.session.user_id if g.session else None, g.user.email, body.message)
+        return jsonify(report.model_dump()), 201
+
+    @app.route('/reports', methods=['GET'])
+    @requires_auth
+    @requires_role(AccessLevel.ADMIN)
+    def get_reports(): # pyright: ignore[reportUnusedFunction]
+        ''' GET method to retrieve all reports.
+
+            Returns:
+                Response (JSON): List of all reports
+                200 on success
+        '''
+        reports = db.get_reports()
+        return jsonify([report.model_dump() for report in reports])
+
+    @app.route('/reports/<report_id>/resolve', methods=['POST'])
+    @requires_auth
+    @requires_role(AccessLevel.ADMIN)
+    def resolve_report(report_id: str): # pyright: ignore[reportUnusedFunction]
+        ''' POST method to mark a report as resolved.
+
+            Returns:
+                Response (JSON): Empty response
+                200 on success
+        '''
+        db.resolve_report(report_id)
+        return '', 200
+
 def parse_quantity_expr(raw: str) -> tuple[list[str], list[Any]]:
     ''' Parse quantity range string into SQL conditions and params.
 

@@ -80,6 +80,16 @@ const SessionSchema = z.object({
 })
 export type Session = z.infer<typeof SessionSchema>
 
+const ReportSchema = z.object({
+    id: z.string(),
+    user_id: z.string().nullable().optional(),
+    user_email: z.string(),
+    message: z.string(),
+    created_at: z.number(),
+    resolved: z.boolean(),
+})
+export type Report = z.infer<typeof ReportSchema>
+
 export namespace API {
     export type Type = {
         get_user: () => Promise<Optional<User>>,
@@ -89,6 +99,8 @@ export namespace API {
         add_products: (products: Array<Partial<Product>>) => Promise<Array<Product>>,
         get_brands: (args?: PaginatedRequest<GetBrandsArgs>) => Promise<PaginatedResponse<Brand>>,
         get_tags: (args?: PaginatedRequest<GetTagsArgs>) => Promise<PaginatedResponse<Tag>>,
+        get_all_brands: () => Promise<Array<string>>,
+        get_all_tags: () => Promise<Array<string>>,
         get_settings: () => Promise<Record<string, string>>,
         update_settings: (patch: Record<string, string | number>) => Promise<Record<string, string>>,
         add_user: (email: string, access_level: AccessLevel) => Promise<User>,
@@ -96,6 +108,10 @@ export namespace API {
         get_sessions: () => Promise<Array<Session>>,
         revoke_session: (id: string) => Promise<void>,
         checkout: (products: Array<{ id: string, amount: number }>) => Promise<Array<{ id: string, quantity: number }>>,
+        logout: () => void,
+        submit_report: (message: string) => Promise<Report>,
+        get_reports: () => Promise<Array<Report>>,
+        resolve_report: (id: string) => Promise<void>,
     }
 
     interface GetProductsArgs {
@@ -156,6 +172,14 @@ export namespace API {
                     return await api_get("tags", PaginatedResponseSchema(TagSchema), args);
                 },
 
+                get_all_brands: async (): Promise<Array<string>> => {
+                    return (await api_base.get("/products/all/brands")).data;
+                },
+
+                get_all_tags: async (): Promise<Array<string>> => {
+                    return (await api_base.get("/products/all/tags")).data;
+                },
+
                 get_settings: async (): Promise<Record<string, string>> => {
                     return (await api_base.get("/settings")).data as Record<string, string>;
                 },
@@ -182,6 +206,27 @@ export namespace API {
 
                 checkout: async (products: Array<{ id: string, amount: number }>): Promise<Array<{ id: string, quantity: number }>> => {
                     return (await api_base.patch("/products/checkout", { products })).data.quantities;
+                },
+
+                logout: (): void => {
+                    localStorage.removeItem('session');
+                    localStorage.removeItem('user-picture');
+                },
+
+                submit_report: async (message: string): Promise<Report> => {
+                    return ReportSchema.parse(
+                        (await api_base.post("/reports", { message })).data
+                    );
+                },
+
+                get_reports: async (): Promise<Array<Report>> => {
+                    return z.array(ReportSchema).parse(
+                        (await api_base.get("/reports")).data
+                    );
+                },
+
+                resolve_report: async (id: string): Promise<void> => {
+                    await api_base.post(`/reports/${id}/resolve`);
                 },
             }
         }, []);
