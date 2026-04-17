@@ -34,7 +34,9 @@ def create_app(db: Database, is_local: bool) -> Flask:
     @app.errorhandler(Exception)
     def handle_exception(e: Exception):
         import traceback
-        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
+        tb = traceback.format_exc()
+        app.logger.error(tb)
+        return jsonify({'error': str(e), 'traceback': tb}), 500
 
     return app
 
