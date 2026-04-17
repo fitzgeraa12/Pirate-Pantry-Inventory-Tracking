@@ -80,11 +80,21 @@ jobs:
           PYTHONANYWHERE_USERNAME: ${{ secrets.PYTHONANYWHERE_USERNAME }}
           DEV_TOKEN: ${{ secrets.DEV_TOKEN }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_D1_API_TOKEN: ${{ secrets.CLOUDFLARE_D1_API_TOKEN }}
         run: |
           payload=$(jq -n \
             --arg dev_token "$DEV_TOKEN" \
             --arg google_client_id "$GOOGLE_CLIENT_ID" \
-            '{"environment_variables": {"DEV_TOKEN": $dev_token, "GOOGLE_CLIENT_ID": $google_client_id}}')
+            --arg cf_account_id "$CLOUDFLARE_ACCOUNT_ID" \
+            --arg cf_d1_api_token "$CLOUDFLARE_D1_API_TOKEN" \
+            '{"environment_variables": {
+              "DEV_TOKEN": $dev_token,
+              "GOOGLE_CLIENT_ID": $google_client_id,
+              "CLOUDFLARE_ACCOUNT_ID": $cf_account_id,
+              "CLOUDFLARE_D1_API_TOKEN": $cf_d1_api_token,
+              "CLOUDFLARE_D1_DATABASE_ID": "d1d0b616-65a6-43a0-ae6b-304c82d6e925"
+            }}')
           curl -f -s -X PATCH \
             -H "Authorization: Token $PYTHONANYWHERE_API_TOKEN" \
             -H "Content-Type: application/json" \
