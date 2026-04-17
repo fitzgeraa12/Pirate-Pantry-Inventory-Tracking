@@ -27,15 +27,25 @@ export default function ProductView({ onEdit }: { onEdit?: (product: Product) =>
     }, [inputValue]);
 
     React.useEffect(() => {
-        const wasFocused = document.activeElement === searchRef.current;
-        setIsLoading(true);
-        api!.get_products({ search: search || undefined, page, page_size: pageSize }).then((prods) => {
-            set_products(prods.data);
-            setTotal(prods.total);
-            setTotalPages(prods.total_pages);
-            setIsLoading(false);
-            if (wasFocused) searchRef.current?.focus();
-        });
+        const loadProducts = async () => {
+            const wasFocused = document.activeElement === searchRef.current;
+            setIsLoading(true);
+            try {
+                const prods = await api!.get_products({ search: search || undefined, page, page_size: pageSize });
+                set_products(prods.data);
+                setTotal(prods.total);
+                setTotalPages(prods.total_pages);
+                setIsLoading(false);
+                if (wasFocused) searchRef.current?.focus();
+            } catch (error) {
+                console.error("Failed to load products:", error);
+                set_products(null);
+                setIsLoading(false);
+                // Optionally show an error message to the user
+                alert("Failed to load products. Please try again.");
+            }
+        };
+        loadProducts();
     }, [search, page, refresh]);
 
     const toolbar = (
