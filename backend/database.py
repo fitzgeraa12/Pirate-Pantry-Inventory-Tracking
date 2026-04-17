@@ -77,7 +77,7 @@ class Product(BaseModel):
     @staticmethod
     def from_row(row: QueryRow) -> "Product":
         return Product(
-            **{k: v for k, v in row.items() if k != "tags"},
+            **{k: (str(v) if k == "id" else v) for k, v in row.items() if k != "tags"},
             tags=[t for t in row["tags"].split(",")] if row["tags"] else []
         )
     
