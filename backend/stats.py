@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from collections import Counter
 import matplotlib.pyplot as plt # pip install matplotlib
 
-from database import Database
+from backend.database import Database
 
 _db: Optional[Database] = None
 
