@@ -5,10 +5,9 @@ import sys
 import os
 from pathlib import Path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-import database
-from database import AccessLevel, Database, Product
-import api
-from misc import env_get
+from backend.database import AccessLevel, Database, Product
+import backend.api as api
+from backend.misc import env_get
 
 # --------------------------------------------------
 # Setups
