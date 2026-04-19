@@ -5,6 +5,7 @@ import sys
 import os
 from pathlib import Path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+import backend.database as database
 from backend.database import AccessLevel, Database, Product
 import backend.api as api
 from backend.misc import env_get
