@@ -374,7 +374,44 @@ class Database(ABC):
             newly_added_tags = [tag for tag in tags if tag not in existing_tags]
 
             return newly_added_tags
+
+    #-------------------
+    #    Save and load
+    #------------------
+
+    def save_backup(self):
+        to_write = self.all_products()
+        with open("backup_products.txt", "w") as f:
+            for i in to_write:
+                f.write(str(i))
+                f.write("\n")
             
+
+    def load_backup(self):
+        """Adds all saved products to main table"""
+        self.delete_table()
+        with open("backup_products.txt", "r") as f:
+            for line in f:
+                new_product = line.strip()
+                id = new_product[((new_product.index("id=")) + 4): (new_product.index("name="))].replace("'", "").strip()
+                name = new_product[((new_product.index("name=")) + 5): (new_product.index("brand="))].replace("'", "").strip()
+                brand = new_product[((new_product.index("brand=")) + 6): (new_product.index("quantity="))].replace("'", "").strip()
+                if brand == "None":
+                    brand = None
+                quantity = new_product[((new_product.index("quantity=")) + 9): (new_product.index("image_link="))].replace("'", "").strip()
+                image_link = new_product[((new_product.index("image_link=")) + 11): (new_product.index("tags="))].strip()
+                if image_link == "None":
+                    image_link = None
+                all_tags = new_product[((new_product.index("tags=")) + 6): (len(new_product) - 1)].replace("'", "").strip()
+                if all_tags == "None":
+                    tags = None
+                else:
+                    tags = all_tags.split(", ")
+                self.add_product(id, name, brand, int(quantity), image_link, tags)
+
+    def delete_table(self):
+        """Only used to load a backup- deletes all products in table"""
+        self.query("DELETE FROM products")
     #------------------------------
     # Viewing singles
     #------------------------------
