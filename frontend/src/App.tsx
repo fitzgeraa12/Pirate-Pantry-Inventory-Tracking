@@ -6,7 +6,9 @@ import StudentFacing from './student/StudentFacing';
 import WorkerFacing from './worker/WorkerFacing';
 import AdminFacing from './admin/AdminFacing';
 import Checkout from './student/Checkout';
+import AddItem from './worker/AddItem';
 import ProtectedRoute from './misc/ProtectedRoute';
+
 
 
 // https://www.kindacode.com/article/ways-to-set-page-title-dynamically-in-react
@@ -20,6 +22,11 @@ function App() {
           <WorkerFacing />
         //</ProtectedRoute>
       } />
+       // <Route path="/addItem" element={
+        //<ProtectedRoute required_perms={["trusted", "admin"]}>
+        <AddItem />
+        //</ProtectedRoute>
+         } /> 
       <Route path="/adminpanel" element={
         //<ProtectedRoute required_perms={["admin"]}>
           <AdminFacing />

@@ -9,10 +9,9 @@ import backend.api.auth as auth
 # Test GET /products
 # --------------------------------------------------
 
-
 @patch('backend.database.db.query')
-def test_get_products_empty(query, client):
-   query.return_value = []
+def test_get_products_empty(query, client, empty):
+   query.return_value = empty
    result = client.get('/products')
    assert result.status_code == 200
    assert result.get_json() == []
@@ -418,8 +417,7 @@ def test_post_products_quantity_type_error(in_table, client):
 @patch('backend.database.db.delete_item')
 def test_delete_products_single_id(delete_item, client, table):
    delete_item.return_value = None
-   remove = [
-       {
+   remove = {
            'name':'corn',
            'brand':'HEB',
            'id':3835982,
@@ -427,16 +425,15 @@ def test_delete_products_single_id(delete_item, client, table):
            'image':'None',
            'tags':['VEGETABLES', 'canned']
        }
-   ]
-   result = client.delete('/products', json={'ids': remove['id']})
+   result = client.delete('/products', json={'ids': [remove['id']]})
    assert result.status_code == 200
    data = result.get_json()
    assert remove['id'] in data['deleted']
-   assert len(data['deteled']) == 1
+   assert len(data['deleted']) == 1
    assert data['errors'] == []
-   # Remove product from table
-   table[:] = [p for p in table if p['id'] != remove['id']]
-   assert not any(p['id'] == remove['id'] for p in table)
+   # # Remove product from table
+   # table[:] = [p for p in table if p['id'] != remove['id']]
+   # assert not any(p['id'] == remove['id'] for p in table)
 
 
 @patch('backend.database.db.delete_item')
@@ -474,7 +471,7 @@ def test_delete_products_multiple(delete_item, client, table):
   
    result = client.delete('/products', json={'ids': ids})
    assert result.status_code == 200
-   assert set(result.get_json()['deleted']) == {ids}
+   assert set(result.get_json()['deleted']) == set(ids)
    # Remove products from table
    table[:] = [p for p in table if p['id'] not in ids]
    assert not any(p['id'] in ids for p in table)
@@ -529,8 +526,8 @@ def test_get_tags_all(query, client, tag_list):
 
 
 @patch('backend.database.db.query')
-def test_get_tags_empty(query, client):
-   query.return_value = []
+def test_get_tags_empty(query, client, empty):
+   query.return_value = empty
    result = client.get('/tags')
    assert result.status_code == 200
    assert result.get_json() == []
@@ -720,8 +717,8 @@ def test_get_table(view_table, client, table):
 
 
 @patch('backend.database.db.view_table')
-def test_get_table_empty(view_table, client):
-   view_table.return_value = []
+def test_get_table_empty(view_table, client, empty):
+   view_table.return_value = empty
    result = client.get('/table')
    assert result.status_code == 200
    assert result.get_json() == []
@@ -813,11 +810,9 @@ def test_checkout_item_valid(in_table, checkout_item, client, table):
            'image_link':'None',
            'tags':['cereal']
        }]
-   in_table.return_value = [
-       p for p in table if p['id'] == item['id']
-   ]
+   in_table.return_value = True
    checkout_item.return_value = 5
-   result = client.patch('/inventory/checkout/48328', json={'quantity': 3})
+   result = client.patch(f"/inventory/checkout/{item['id']}", json={'quantity': 3})
    assert result.status_code == 200
 
 
@@ -833,31 +828,26 @@ def test_checkout_item_valid(in_table, checkout_item, client, table):
 @patch('backend.database.db.checkout_item')
 @patch('backend.database.db.in_table')
 def test_checkout_item_last_one(in_table, checkout_item, client, table):
-   item = [
-       {
+   item = {
            'name':'peas',
            'brand':'green giant',
            'id':324,
            'quantity':2,
            'image_link':'None',
            'tags':['VEGETABLES', 'canned']
-       }
-   ]
-   in_table.return_value = [
-       p for p in table if p['id'] == item['id']
-   ]
+   }
+   in_table.return_value = True
    checkout_item.return_value = 0
-   result = client.patch('/inventory/checkout/324', json={'quantity': 2})
+   result = client.patch(f"/inventory/checkout/{item['id']}", json={'quantity': 2})
    assert result.status_code == 200
-
 
    data = result.get_json()
    assert data['new_quantity'] == 0
    assert data['message'] == 'Item checked out!'
-   # Change quantity in table
-   for p in table:
-       if p['id'] == item['id']:
-           p['quantity'] = data['new_quantity']
+   # # Change quantity in table
+   # for p in table:
+   #     if p['id'] == item['id']:
+   #         p['quantity'] = data['new_quantity']
 
 
 @patch('backend.database.db.in_table')
@@ -865,7 +855,7 @@ def test_checkout_item_not_found(in_table, client):
    in_table.return_value = False
    result = client.patch('/inventory/checkout/0000', json={'quantity': 1})
    assert result.status_code == 404
-   assert result.get_json()['error'][0] == 'Item not found'
+   assert result.get_json()['error'] == 'Item not found'
 
 
 @patch('backend.database.db.checkout_item')
@@ -879,47 +869,47 @@ def test_checkout_item_negative_result(in_table, checkout_item, client, table):
            'image_link':'None',
            'tags':['VEGETABLES', 'canned']
        }
-   in_table.return_value = [p for p in table if p['id'] == item['id']]
+   in_table.return_value = True
    checkout_item.return_value = 'Invalid quantity'
-   result = client.patch('/inventory/checkout/324', json={'quantity': 99})
+   result = client.patch(f"/inventory/checkout/{item['id']}", json={'quantity': 99})
    assert result.status_code == 400
-   assert result.get_json()['error'][0] == 'New quantity can\'t be negative'
+   assert result.get_json()['error'] == 'New quantity can\'t be negative'
 
 
 def test_checkout_item_zero_quantity(client):
    result = client.patch('/inventory/checkout/324', json={'quantity': 0})
    assert result.status_code == 400
-   assert result.get_json()['error'][0] == 'Checkout quantity must be above 0'
+   assert result.get_json()['error'] == 'Checkout quantity must be above 0'
 
 
 def test_checkout_item_negative_quantity(client):
    result = client.patch('/inventory/checkout/324', json={'quantity': -3})
    assert result.status_code == 400
-   assert result.get_json()['error'][0] == 'Checkout quantity must be above 0'
+   assert result.get_json()['error'] == 'Checkout quantity must be above 0'
 
 
 def test_checkout_item_nonint_quantity(client):
    result = client.patch('/inventory/checkout/324', json={'quantity': 1.5})
    assert result.status_code == 400
-   assert result.get_json()['error'][0] == 'Quantity must be an integer'
+   assert result.get_json()['error'] == 'Quantity must be an integer'
 
 
 def test_checkout_item_str_quantity(client):
    result = client.patch('/inventory/checkout/324', json={'quantity': 'two'})
    assert result.status_code == 400
-   assert result.get_json()['error'][0] == 'Quantity must be an integer'
+   assert result.get_json()['error'] == 'Quantity must be an integer'
 
 
 def test_checkout_item_missing_quantity(client):
-   result = client.patch('/inventory/checkout/324', json={})
+   result = client.patch('/inventory/checkout/324', json={'quantity': None})
    assert result.status_code == 400
-   assert result.get_json()['error'][0] == 'Missing required field: quantity'
+   assert result.get_json()['error'] == 'Missing required field: quantity'
 
 
 def test_checkout_item_no_body(client):
    result = client.patch('/inventory/checkout/324', data='', content_type='application/json')
    assert result.status_code == 400
-   assert result.get_json()['error'][0] == 'Invalid JSON'
+   assert result.get_json()['error'] == 'Invalid JSON'
 
 
 # --------------------------------------------------
@@ -930,7 +920,7 @@ def test_checkout_item_no_body(client):
 @patch('backend.database.db.search_pantry_by_name')
 def test_search_by_name(search_pantry_by_name, client, inventory):
    search_pantry_by_name.return_value = [
-       p for p in table if p['name'] == 'corn'
+       p for p in inventory if p['name'] == 'corn'
    ]
    result = client.get('/inventory/search/name/corn')
    assert result.status_code == 200

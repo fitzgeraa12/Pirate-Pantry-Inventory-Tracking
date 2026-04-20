@@ -1,8 +1,8 @@
 
 import { useMemo, useState, useEffect } from "react";
-import View from "./View";
+import View from "../worker/views/View";
 import { getCoreRowModel, getSortedRowModel, useReactTable, type ColumnDef, type SortingState } from "@tanstack/react-table";
-import { useNavigate } from "react-router-dom";
+import { useCart } from "../misc/CartContext";
 interface ProductTableEntry {
     id: number,
     name: string,
@@ -11,14 +11,12 @@ interface ProductTableEntry {
     quantity: number,
 }
 
-
-
 interface ProductViewProps {
     searchTerm?: string;
 }
 
-function ProductView({ searchTerm: externalSearchTerm }: ProductViewProps = {}) {
-    const navigate = useNavigate();
+function PantryView({ searchTerm: externalSearchTerm }: ProductViewProps = {}) {
+    const { addToCart, removeFromCart} = useCart(); 
     const columns = useMemo<ColumnDef<ProductTableEntry>[]>(() => {
         return [
             {
@@ -46,16 +44,9 @@ function ProductView({ searchTerm: externalSearchTerm }: ProductViewProps = {}) 
                 cell: ({row}) => (
                     <>
                         <button className="table-entry-button"
-                        onClick={()=> 
-                            navigate("/additem",{
-                                state:{
-                                    id: row.original.id,
-                                    itemName: row.original.name,
-                                    quantity: row.original.quantity,
-                                    brand: row.original.brand,
-                                    tags: row.original.tags.join(", ")}
-                                })
-                            }>Update</button>
+                        onClick={()=> addToCart(row.original.id, row.original.name, row.original.quantity)}>Add</button>
+                        <button className="table-entry-button"
+                        onClick={()=>removeFromCart(row.original.id)}>Remove</button>
                     </>
                 ),
             },
@@ -133,4 +124,4 @@ function ProductView({ searchTerm: externalSearchTerm }: ProductViewProps = {}) 
     );
 }
 
-export default ProductView;
+export default PantryView;

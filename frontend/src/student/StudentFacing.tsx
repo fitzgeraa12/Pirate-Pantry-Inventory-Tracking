@@ -2,7 +2,7 @@ import './StudentFacing.css'
 import Titled from "../misc/Titled";
 import { useState } from 'react';
 import { useContext } from 'react'; 
-import ProductView from '../worker/views/ProductView';
+import PantryView from './PantryView';
 import { useCart } from "../misc/CartContext"; 
 import { AuthContext } from '../auth/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -39,39 +39,12 @@ function StudentFacing() {
                     </div>
                 </div>
                 <div id="body">
-                    <ProductView searchTerm={searchTerm}/>
+                    <PantryView searchTerm={searchTerm}/>
                 </div>
             </div>
         </Titled>
     );
 
-    // return (
-    //     <Titled title="Pirate Pantry Checkout">
-    //         <input // search bar
-    //             type="text"
-    //             placeholder="Search for items..."
-    //             value={searchTerm}
-    //             onChange={(e)=> setSearchTerm(e.target.value)}
-    //         />
-    //                 <div id= "header-top-right">
-
-    //                     <button id="checkout" className="header-button">Checkout</button>
-    //                     <button id= "log-out" className="header-button"
-    //                         onClick={(auth.logout)}>Log Out</button>
-    //                 </div>
-    //             </div>
-    //             <div id= "body-header">
-    //                 <div className= "cart-icon">
-    //                     🛒   
-    //                     <span className="cart-badge">{getCartCount()}</span>
-    //                 </div>
-    //             </div>
-    //             <div id="body">
-    //                 <ProductView searchTerm={searchTerm}/>
-    //             </div>
-    //         </div>
-    //     </Titled>
-    // );
 }
 
 export default StudentFacing;

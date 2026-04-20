@@ -1,21 +1,26 @@
-
+import pandas as pd
 from typing import Any, Optional, cast
 
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import sys
-
+from datetime import datetime, timedelta
 
 from pydantic import BaseModel, ValidationError, field_validator
 from .auth import requires_roles
+import database.stats as stats
 import os
 import re
-
+import io
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import database.db as database
+import database.admin as admin
 from database.db import query
+
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
 # Initialize Flask app
 app = Flask(__name__)
 CORS(app, origins=['https://piratepantry.com', 'https://www.piratepantry.com', 'https://dev.piratepantry.com', 'http://localhost:5173'], supports_credentials=True)
@@ -267,8 +272,6 @@ class PostProductSchema(BaseModel):
        return v
 
 
-
-
 @app.route('/products', methods=['POST'])
 @requires_roles('trusted', 'admin')
 def post_products():
@@ -295,17 +298,17 @@ def post_products():
 
 
        try:
-           existing = database.in_table(p.id)
+           existing = database.get_all_info(p.id) if p.id else []
            if not existing and not p.name:
                errors.append({'error': 'Name is required for new products', 'item': raw_p})
                continue
 
 
            if existing:
-               new_quantity = p.quantity if p.quantity is not None else existing[0]['quantity']
-               new_name = p.name if p.name is not None else existing[0]['name']
-               new_brand = p.brand if p.brand is not None else existing[0]['brand']
-               new_image_link = p.image_link if p.image_link is not None else existing[0]['image_link']
+               new_quantity = p.quantity if p.quantity is not None else existing[1]
+               new_name = p.name if p.name is not None else existing[2]
+               new_brand = p.brand if p.brand is not None else existing[3]
+               new_image_link = p.image_link if p.image_link is not None else existing[4]
 
 
                database.query('''
@@ -404,15 +407,13 @@ def delete_products():
    return jsonify({'deleted': results, 'errors': errors}), 200 if not errors else 207
 
 
-
-
 # --------------------------------------------------
 # Tags
 # --------------------------------------------------
 
 
 class GetTagsQuery(BaseModel):
-   label: Optional[str] = None
+   tag: Optional[str] = None
 
 
 @app.route('/tags', methods=['GET'])
@@ -422,11 +423,11 @@ def get_tags():
 
 
        Query parameters (all optional):
-           - label (str): With wildcard support:
-               label=Gluten Free   -> exact match
-               label=*Gluten Free* -> contains
-               label=Gluten Free*  -> starts with
-               label=*Gluten Free  -> ends with
+           - tag (str): With wildcard support:
+               tag=Gluten Free   -> exact match
+               tag=*Gluten Free* -> contains
+               tag=Gluten Free*  -> starts with
+               tag=*Gluten Free  -> ends with
 
 
        Returns:
@@ -442,9 +443,9 @@ def get_tags():
    params: list[Any] = []
 
 
-   if query.label:
+   if query.tag:
        try:
-           condition, param = parse_symbol_expr(query.label, 'label', alias=None)
+           condition, param = parse_symbol_expr(query.tag, 'tag', alias=None)
            conditions.append(condition)
            params.append(param)
        except ValueError as e:
@@ -462,14 +463,14 @@ def get_tags():
 
 
 class PostTagsSchema(BaseModel):
-   labels: list[str]
+   tags: list[str]
 
 
-   @field_validator('labels')
+   @field_validator('tags')
    @classmethod
    def validate_labels(cls, v: list[str]) -> list[str]:
-       for label in v:
-           error = validate_symbol(label, 'label')
+       for tag in v:
+           error = validate_symbol(tag, 'tag')
            if error:
                raise ValueError(error)
        return v
@@ -484,7 +485,7 @@ def post_tags():
 
 
        Request body (JSON):
-           { "labels": list[str] } - A list of tag labels to add.
+           { "tags": list[str] } - A list of tag labels to add.
 
 
        Returns:
@@ -509,19 +510,19 @@ def post_tags():
    errors: list[Any] = []
 
 
-   for label in body.labels:
+   for tag in body.tags:
        try:
-           database.add_tags_to_table(label)
-           results.append(label)
+           database.add_tags_to_table(tag)
+           results.append(tag)
        except Exception as e:
-           errors.append({'error': str(e), 'tags': label})
+           errors.append({'error': str(e), 'tags': tag})
 
 
    return jsonify({'added': results, 'errors': errors}), 201 if not errors else 207
 
 
 class DeleteTagsSchema(BaseModel):
-   labels: list[str]
+   tags: list[str]
 
 
 
@@ -534,13 +535,13 @@ def delete_tags():
 
 
        Request body (JSON):
-           { "labels": list[str] } - List of tag labels to delete
+           { "tags": list[str] } - List of tag labels to delete
 
 
        Returns:
            Response (JSON): {
-               "deleted": list of successfully deleted labels,
-               "errors": list of failed labels with error messages
+               "deleted": list of successfully deleted tag labels,
+               "errors": list of failed tag labels with error messages
            }
            200 if all succeeded, 207 if some failed.
    '''
@@ -559,12 +560,12 @@ def delete_tags():
    errors: list[Any] = []
 
 
-   for label in body.labels:
+   for tag in body.tags:
        try:
-           database.delete_tag(label)
-           results.append(label)
+           database.delete_tag(tag)
+           results.append(tag)
        except Exception as e:
-           errors.append({'error': str(e), 'label': label})
+           errors.append({'error': str(e), 'tag': tag})
 
 
    return jsonify({'deleted': results, 'errors': errors}), 200 if not errors else 207
@@ -581,14 +582,10 @@ def get_table():
    return jsonify(database.view_table())
 
 
-
-
 @app.route('/table/all_names', methods=['GET'])
 @requires_roles('trusted', 'admin')
 def get_all_names():
    return jsonify(database.view_all_names())
-
-
 
 
 @app.route('/table/all_brands', methods=['GET'])
@@ -686,12 +683,183 @@ def get_item_by_id(id: int):
    return jsonify(database.search_pantry_by_id(id))
 
 
-@app.route('/inventory/search/tags', methods=['GET'])
+@app.route('/inventory/search/tags/<string:tag>', methods=['GET'])
 @requires_roles('trusted', 'admin', 'user')
 def get_item_by_tag(tag: str):
    return jsonify(database.search_pantry_by_tag(tag))
 
 
+
+# --------------------------------------------------
+# Admin Only methods
+# --------------------------------------------------
+@app.route('/admin/export_inventory', methods=['GET'])
+@requires_roles('admin')
+def export_inventory():
+    ''' GET method to export inventory data as Excel file
+        Source: https://stackoverflow.com/questions/68568527/create-excel-file-from-dataframe-and-allow-download-in-flask-error-file-format
+
+        Returns:
+            Response (JSON): Message confirming export with Excel file
+    '''
+    try:
+        inventory = database.view_pantry_inventory()
+        df = pd.DataFrame(inventory, columns=['id', 'name', 'brand', 'quantity', 'image_link'])
+        buffer = io.BytesIO()
+        df.to_excel(buffer, index=False, sheet_name='Inventory')
+        buffer.seek(0)
+        return send_file(buffer, as_attachment=True, download_name='Inventory_summary.xlsx')
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/admin/export_statistic', methods=['POST'])
+@requires_roles('admin')
+def export_stats():
+    ''' POST method to export inventory stats (e.g. total items, most common tags, etc.)
+        Source: https://matplotlib.org/stable/gallery/misc/multipage_pdf.html
+        
+        Request body (JSON):
+        - start (str): Start date in MM-DD-YYYY format
+        - end (str): End date in MM-DD-YYYY format
+
+        Returns:
+            Response (JSON): Inventory stats
+    '''
+    data: Any = request.get_json()
+    if not data:
+       return jsonify({'error': 'Invalid JSON'}), 400
+
+    start = data.get('start')
+    end = data.get('end')
+
+    if not start or not end:
+        return jsonify({'error': 'Both start and end date are required.'}), 400
+
+    try:
+        # Total number of items checked out 
+        total_fig  = stats.total_range(start, end)
+
+        # Top 10 items that got checked out 
+        top_fig    = stats.top_item(start, end)
+
+        # Percentage of item tags checked out weekly (pie chart)
+        tags_fig   = stats.tag_range(start, end)
+        
+        # Number of checkouts per day
+        daily_fig  = stats.checkout_daily(start, end)
+
+        # Number of checkouts per hour (separate bar graphs for each day)
+        hourly_fig = stats.checkout_hourly(start, end) 
+
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+    try:
+        buffer = io.BytesIO()
+        with PdfPages(buffer) as pdf:
+            for fig in [total_fig, top_fig, tags_fig, daily_fig, hourly_fig]:
+                if fig:
+                    pdf.savefig(fig)
+                    plt.close(fig)
+        buffer.seek(0)
+        return send_file(buffer, as_attachment=True,
+                        download_name=f'Stats_{start}_to_{end}.pdf',
+                        mimetype='application/pdf')
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/admin/permission', methods=['GET'])
+@requires_roles('admin')
+def view_users():
+    ''' GET method to view all authorized users and their roles
+
+        Returns:
+            Response (JSON): List of authorized users and their roles
+    '''
+    return jsonify(admin.view_all())
+
+@app.route('/admin/permission/admin', methods=['GET'])
+@requires_roles('admin')
+def view_admins():
+    ''' GET method to view all admins
+        Returns:
+            Response (JSON): List of admins
+    '''
+    return jsonify(admin.view_admins())
+
+@app.route('/admin/permission/trusted', methods=['GET'])
+@requires_roles('admin')
+def view_trusted():
+    ''' GET method to view all trusted
+
+        Returns:
+            Response (JSON): List of trusted
+    '''
+    return jsonify(admin.view_trusted())
+
+@app.route('/admin/permission/add', methods=['POST'])
+@requires_roles('admin')
+def add_user():
+    ''' POST method to add authorized users and their roles
+
+        Returns:
+            Response (JSON): Message to confirm addition of authorized users and their roles
+    '''
+    data: Any = request.get_json()
+    if not data:
+       return jsonify({'error': 'Invalid JSON'}), 400
+
+    email = data.get('email')
+    role = data.get('role')
+    
+    if not email or not role:
+        return jsonify({'error': 'Missing email or role'}), 400
+    
+    try:
+        if admin.in_table(email):
+            return jsonify({'error': 'User already authorized'}), 400
+        
+        if not role in ['admin', 'trusted']:
+            return jsonify({'error': 'Invalid role'}), 400
+        admin.add_user(email, role)
+        return jsonify({'message': 'New Authorized User Added!', 'email': email, 'role': role}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+
+@app.route('/admin/permission/delete', methods=['DELETE'])
+@requires_roles('admin')
+def remove_user():
+    ''' DELETE method to remove authorized users and their roles
+
+        Returns:
+            Response (JSON): Message to confirm removal of authorized users and their roles
+    '''
+    data: Any = request.get_json()
+    if not data:
+       return jsonify({'error': 'Invalid JSON'}), 400
+
+    email = data.get('email')
+    
+    if not email:
+        return jsonify({'error': 'Missing email'}), 400
+    
+    try:        
+        result = admin.remove_user(email)
+        if result == "User not found":
+            return jsonify({'error': 'User not found'}), 404
+
+        if result == "Must have at least one admin":
+            return jsonify({'error': 'Must have at least one admin'}), 409
+
+        return jsonify({'message': 'Authorized User Removed!'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
 if __name__ == '__main__':
    app.run()
   
