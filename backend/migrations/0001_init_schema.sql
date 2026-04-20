@@ -1,40 +1,60 @@
--- Migration number: 0001 	 2026-03-09T23:39:38.348Z
 CREATE TABLE IF NOT EXISTS products (
-    id         INTEGER UNIQUE PRIMARY KEY NOT NULL,
-    name       TEXT    NOT NULL,
-    brand      TEXT    NOT NULL DEFAULT '',
-    quantity   INTEGER NOT NULL DEFAULT 0,
-    image_link TEXT
+    id         TEXT PRIMARY KEY,
+    name       TEXT    NOT NULL COLLATE NOCASE,
+    brand      TEXT    DEFAULT NULL REFERENCES brands(name) ON DELETE SET NULL,
+    quantity   INTEGER NOT NULL DEFAULT 0 CHECK(quantity >= 0),
+    image_link TEXT    DEFAULT NULL REFERENCES image_links(path) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS tags (
-    label TEXT PRIMARY KEY
+    label TEXT PRIMARY KEY COLLATE NOCASE
+);
+
+CREATE TABLE IF NOT EXISTS brands (
+    name TEXT PRIMARY KEY COLLATE NOCASE
+);
+
+CREATE TABLE IF NOT EXISTS image_links (
+    path TEXT PRIMARY KEY COLLATE NOCASE
 );
 
 CREATE TABLE IF NOT EXISTS product_tags (
-    product_id INTEGER NOT NULL REFERENCES products(id)    ON DELETE CASCADE,
-    tag_label  TEXT    NOT NULL REFERENCES tags(label)     ON DELETE CASCADE,
+    product_id TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    tag_label  TEXT    NOT NULL REFERENCES tags(label)  ON DELETE CASCADE,
     PRIMARY KEY (product_id, tag_label)
 );
 
-CREATE TABLE IF NOT EXISTS perms (
-    email TEXT PRIMARY KEY,
-    type  TEXT NOT NULL CHECK(type IN ('admin', 'trusted'))
+CREATE TABLE IF NOT EXISTS users (
+    id           TEXT PRIMARY KEY,
+    email        TEXT UNIQUE NOT NULL,
+    access_level TEXT NOT NULL CHECK(access_level IN ('trusted', 'admin'))
 );
 
-CREATE TABLE IF NOT EXISTS auth_cache (
-    token      TEXT    PRIMARY KEY,  -- Google ID token (the key for lookup)
-    email      TEXT    NOT NULL,     -- Verified email extracted from token
-    expires_at INTEGER NOT NULL      -- Unix timestamp (from token's exp claim)
+CREATE TABLE IF NOT EXISTS auth_sessions (
+    id            TEXT PRIMARY KEY,
+    user_id       TEXT REFERENCES users(id) ON DELETE CASCADE,
+    google_sub    TEXT NOT NULL,
+    refresh_token TEXT NOT NULL,
+    expires_at    INTEGER NOT NULL,
+    created_at    INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS auth_codes (
+    code       TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    expires_at INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS total_checkouts (
-    checkout_id INTEGER UNIQUE PRIMARY KEY NOT NULL, --unique per checkout
+    checkout_id TEXT PRIMARY KEY, --unique per checkout
     id         INTEGER NOT NULL,
     name       TEXT    NOT NULL,
     brand      TEXT    NOT NULL DEFAULT '',
     num_checked_out   INTEGER NOT NULL,
     checkout_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> 6a412d85544acdd9b01645e2a9567e7b86000683

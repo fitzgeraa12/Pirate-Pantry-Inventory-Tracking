@@ -1,17 +1,20 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
-import { Option } from '../misc/misc';
+// import { Option } from '../misc/misc';
 
 interface CartItem{
-    id: number;
+    id: string;
     name: string;
     quantity: number;
 }
 
 interface CartContextType{
-    cart: CartItem[]; 
-    addToCart: (id: number) => void;
-    removeFromCart: (id: number) => void;
+    cart: CartItem[];
+    addToCart: (id: string, name: string, maxQuantity: number) => void;
+    removeFromCart: (id: string) => void;
+    addItem: (row: any) => void;
+    removeItem: (id: string) => void;
     getCartCount: () => number;
+    clearCart: () => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -23,8 +26,9 @@ export function CartProvider({ children }: { children: ReactNode }){
       console.log("Cart updated:", cart);
     }, [cart]);
 
-    const addToCart = (id: number, name: string, maxQuantity: number)=> {
+    const addToCart = (id: string, name: string, maxQuantity: number)=> {
         setCart(prev =>{
+            if (maxQuantity <= 0) return prev;
             const existing = prev.find(item => item.id === id);
             // If more than in inventory is attempted to be added, deny it 
             if(existing && existing.quantity >= maxQuantity) {
@@ -41,7 +45,7 @@ export function CartProvider({ children }: { children: ReactNode }){
             return [...prev, {id, name, quantity: 1}];
         });
     };
-    const removeFromCart = (id: number) => { // remove from cart currently takes every instance of the item out of the cart not individual 
+    const removeFromCart = (id: string) => { // remove from cart currently takes every instance of the item out of the cart not individual 
         setCart(prev =>{
             const existing =  prev.find(item => item.id == id);
             //If item is not in cart do nothing
@@ -64,8 +68,11 @@ export function CartProvider({ children }: { children: ReactNode }){
         setCart([]);
     }
 
+    const addItem = (row: any) => addToCart(row.id, row.name, row.quantity);
+    const removeItem = removeFromCart;
+
     return(
-        <CartContext.Provider value={{cart, addToCart, removeFromCart, getCartCount, clearCart}}>
+        <CartContext.Provider value={{cart, addToCart, removeFromCart, addItem, removeItem, getCartCount, clearCart}}>
             {children}
         </CartContext.Provider>
     );  

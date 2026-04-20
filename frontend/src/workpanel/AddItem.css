@@ -1,0 +1,273 @@
+/* ── Modal overlay (backdrop) ── */
+.add-item-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.55);
+    animation: additem-fadein 0.15s ease;
+}
+
+@keyframes additem-fadein {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+/* ── Modal card ── */
+.add-item-modal {
+    background-color: var(--chrome-bg);
+    border: 1px solid var(--chrome-border);
+    border-radius: 12px;
+    width: 380px;
+    max-width: calc(100vw - 32px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+    animation: additem-slidein 0.15s ease;
+}
+
+@keyframes additem-slidein {
+    from { opacity: 0; transform: translateY(12px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.add-item-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px 0;
+}
+
+.add-item-modal-title {
+    margin: 0;
+    font-size: 1.1em;
+    font-weight: 700;
+    color: var(--chrome-text);
+}
+
+.add-item-close {
+    all: unset;
+    cursor: pointer;
+    font-size: 1.1em;
+    color: var(--chrome-text-muted);
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: color 0.15s, background 0.15s;
+}
+
+.add-item-close:hover {
+    color: var(--chrome-text);
+    background-color: var(--chrome-hover-bg);
+}
+
+/* ── Form ── */
+.add-item-form {
+    display: flex;
+    flex-direction: column;
+    padding: 16px 20px 20px;
+    gap: 12px;
+}
+
+input[type="text"].add-item-input {
+    padding: 10px 12px;
+    border: 1px solid var(--chrome-border);
+    border-radius: 8px;
+    font-size: 0.9em;
+    background-color: var(--chrome-bg-secondary);
+    color: var(--chrome-text);
+    transition: border-color 0.15s;
+}
+
+.add-item-input::placeholder {
+    color: var(--chrome-text-muted);
+}
+
+.add-item-input:focus {
+    outline: none;
+    border-color: var(--su-yellow);
+}
+
+.add-item-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ── Buttons ── */
+.add-item-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.add-item-btn {
+    all: unset;
+    cursor: pointer;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 0.85em;
+    font-weight: 600;
+    text-align: center;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.add-item-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.add-item-btn--primary {
+    background-color: var(--su-yellow);
+    color: #000;
+    border: 1px solid var(--su-yellow);
+}
+
+.add-item-btn--primary:hover {
+    background-color: #d4c200;
+}
+
+.add-item-btn--secondary {
+    background-color: var(--chrome-bg-secondary);
+    color: var(--chrome-text);
+    border: 1px solid var(--chrome-border);
+}
+
+.add-item-btn--secondary:hover {
+    border-color: var(--su-yellow);
+    color: var(--su-yellow);
+}
+
+/* ── "Add another?" dialog ── */
+.add-item-dialog {
+    position: fixed;
+    inset: 0;
+    z-index: 1001;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.45);
+}
+
+.add-item-dialog-box {
+    background-color: var(--chrome-bg);
+    border: 1px solid var(--chrome-border);
+    border-radius: 10px;
+    padding: 24px 28px;
+    text-align: center;
+    color: var(--chrome-text);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.add-item-dialog-box p {
+    margin: 0 0 16px;
+    font-size: 1em;
+    font-weight: 600;
+}
+
+.add-item-dialog-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+/* ── Export modal extras ── */
+.export-label {
+    font-size: 0.82em;
+    font-weight: 600;
+    color: var(--chrome-text-muted);
+}
+
+.export-error {
+    font-size: 0.82em;
+    color: #e05555;
+    font-weight: 500;
+}
+
+input[type="date"].add-item-input {
+    padding: 10px 12px;
+    border: 1px solid var(--chrome-border);
+    border-radius: 8px;
+    font-size: 0.9em;
+    background-color: var(--chrome-bg-secondary);
+    color: var(--chrome-text);
+    transition: border-color 0.15s;
+    color-scheme: dark;
+}
+
+[data-theme="light"] input[type="date"].add-item-input {
+    color-scheme: light;
+}
+
+/* ── Responsive: Mobile ── */
+@media (max-width: 768px) {
+    .add-item-modal {
+        width: 100%;
+        max-width: calc(100vw - 24px);
+    }
+
+    .add-item-input {
+        font-size: 16px;
+    }
+}
+
+/* ── Checkout modal ── */
+.checkout-modal {
+    width: 460px;
+}
+
+.checkout-modal-empty {
+    padding: 24px 20px;
+    color: var(--chrome-text-muted);
+    font-style: italic;
+    text-align: center;
+}
+
+.checkout-modal-items {
+    padding: 8px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 50vh;
+    overflow-y: auto;
+}
+
+.checkout-modal-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background-color: var(--chrome-bg-secondary);
+    border: 1px solid var(--chrome-border);
+    border-radius: 6px;
+}
+
+.checkout-modal-item-name {
+    color: var(--chrome-text);
+    font-size: 0.9em;
+}
+
+.checkout-modal-item-qty {
+    color: var(--su-yellow);
+    font-weight: 600;
+    font-size: 0.9em;
+    flex-shrink: 0;
+    margin-left: 12px;
+}
+
+.checkout-modal-footer {
+    padding: 12px 20px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    border-top: 1px solid var(--chrome-border);
+    margin-top: 8px;
+}
+
+.checkout-modal-total {
+    font-size: 0.85em;
+    color: var(--chrome-text-muted);
+    text-align: right;
+}

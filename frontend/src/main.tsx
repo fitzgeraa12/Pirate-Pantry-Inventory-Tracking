@@ -1,24 +1,29 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
-import AuthProvider from './auth/Auth'
-import APIProvider from './api/API'
-import { BrowserRouter } from 'react-router-dom'
+import { API } from './API'
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import RequireAuth from './auth/RequireAuth'
+import AuthCallback from './auth/AuthCallback'
+import Unauthorized from './auth/Unauthorized'
 import { CartProvider } from './misc/CartContext'
-import PermsProvider from './auth/perms/Perms'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
+    <API.Component>
       <CartProvider>
-        <AuthProvider>
-          <APIProvider>
-            <PermsProvider>
-              <App />
-            </PermsProvider>
-          </APIProvider>
-        </AuthProvider>
-      </CartProvider>
-    </BrowserRouter>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="/auth/unauthorized" element={<Unauthorized />} />
+            <Route path="*" element={
+              <RequireAuth>
+                <App />
+              </RequireAuth>
+            } />
+          </Routes>
+        </BrowserRouter>
+      </CartProvider>  
+    </API.Component>
   </StrictMode>
 )
