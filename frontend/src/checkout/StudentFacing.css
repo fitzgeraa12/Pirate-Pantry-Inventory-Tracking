@@ -433,6 +433,106 @@
     padding: 0;
 }
 
+#footer-right {
+    display: flex;
+    align-items: center;
+    justify-self: end;
+}
+
+.report-issue-btn {
+    font-size: 0.8em;
+    padding: 4px 10px;
+    border-radius: 5px;
+    border: 1px solid var(--chrome-border);
+    background: transparent;
+    color: var(--chrome-text-muted);
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+}
+
+.report-issue-btn:hover {
+    border-color: var(--su-yellow);
+    color: var(--su-yellow);
+}
+
+.report-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.report-modal-content {
+    background: var(--chrome-bg);
+    border: 1px solid var(--chrome-border);
+    border-radius: 8px;
+    padding: 24px;
+    width: 420px;
+    max-width: calc(100vw - 32px);
+}
+
+.report-modal-content h3 {
+    margin: 0 0 14px;
+    font-size: 1.1em;
+    color: var(--chrome-text);
+}
+
+.report-modal-content textarea {
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--chrome-bg-secondary);
+    color: var(--chrome-text);
+    border: 1px solid var(--chrome-border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 0.95em;
+    resize: vertical;
+    outline: none;
+}
+
+.report-modal-content textarea:focus {
+    border-color: var(--su-yellow);
+}
+
+.report-modal-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.report-modal-buttons button {
+    padding: 6px 16px;
+    border-radius: 5px;
+    border: 1px solid var(--chrome-border);
+    background: transparent;
+    color: var(--chrome-text);
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.report-modal-buttons button[type="submit"] {
+    border-color: var(--su-yellow);
+    color: var(--su-yellow);
+}
+
+.report-modal-buttons button[type="submit"]:hover:not(:disabled) {
+    background: rgba(199, 199, 0, 0.12);
+}
+
+.report-modal-buttons button[type="submit"]:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.report-modal-buttons button[type="button"]:hover {
+    border-color: var(--chrome-text-muted);
+}
+
 #anon-note {
     font-size: 0.72em;
     color: var(--chrome-text-muted);

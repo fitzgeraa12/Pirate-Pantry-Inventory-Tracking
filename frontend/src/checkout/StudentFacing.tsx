@@ -74,6 +74,44 @@ function PantryUserMenu({ user }: { user: User | null }): React.ReactNode {
 }
 
 
+function ReportModal({ isOpen, onClose, onSubmit }: { isOpen: boolean, onClose: () => void, onSubmit: (message: string) => void }): React.ReactNode {
+    const [message, setMessage] = React.useState("");
+
+    function handleSubmit(e: React.FormEvent) {
+        e.preventDefault();
+        if (message.trim()) {
+            onSubmit(message.trim());
+            setMessage("");
+            onClose();
+        }
+    }
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="report-modal-overlay" onClick={onClose}>
+            <div className="report-modal-content" onClick={(e) => e.stopPropagation()}>
+                <h3>Report an Issue</h3>
+                <form onSubmit={handleSubmit}>
+                    <textarea
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        placeholder="Describe the issue you encountered..."
+                        rows={4}
+                        maxLength={1000}
+                        required
+                        autoFocus
+                    />
+                    <div className="report-modal-buttons">
+                        <button type="button" onClick={onClose}>Cancel</button>
+                        <button type="submit" disabled={!message.trim()}>Submit Report</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
 type Panel = "products" | "brands" | "tags" | "settings";
 
 function PanelContent({ panel, searchTerm, sortBy, sortDir, refreshKey }: { panel: Panel, searchTerm: string, sortBy: SortBy, sortDir: SortDir, refreshKey: number }): React.ReactNode {
@@ -97,6 +135,7 @@ export default function StudentFacing(): React.ReactNode {
     const [sortBy, setSortBy] = React.useState<SortBy>('name');
     const [sortDir, setSortDir] = React.useState<SortDir>('asc');
     const [showCheckout, setShowCheckout] = React.useState(false);
+    const [showReportModal, setShowReportModal] = React.useState(false);
     const [refreshKey, setRefreshKey] = React.useState(0);
     const navigate = useNavigate();
     const api = React.useContext(API.Context);
@@ -114,6 +153,13 @@ export default function StudentFacing(): React.ReactNode {
         api!.get_user().then(u => { if (u) setUser(u); });
     }, [api]);
 
+    function handleReportSubmit(message: string) {
+        api!.submit_report(message).catch(err => {
+            console.error("Failed to submit report:", err);
+            alert("Failed to submit report. Please try again.");
+        });
+    }
+
     return (
         <Titled title="Pantry">
             <div id="container" className="pantry-page">
@@ -123,7 +169,7 @@ export default function StudentFacing(): React.ReactNode {
                         <div className="search-row">
                             <input // search bar
                                 type="text"
-                                placeholder="Search… or try name:, brand:, qty>N, qty<N"
+                                placeholder="Search… or try id:110, name:, brand:, qty>N, qty<N"
                                 value={searchTerm}
                                 onChange={(e)=> setSearchTerm(e.target.value)}
                             />
@@ -170,9 +216,17 @@ export default function StudentFacing(): React.ReactNode {
                         )}
                     </div>
                     <div id="pagination-slot"></div>
+                    <div id="footer-right">
+                        <button className="report-issue-btn" onClick={() => setShowReportModal(true)}>Report Issue</button>
+                    </div>
                 </div>
             </div>
             {showCheckout && <CheckoutPanel onClose={() => setShowCheckout(false)} onSuccess={() => setRefreshKey(k => k + 1)} />}
+            <ReportModal
+                isOpen={showReportModal}
+                onClose={() => setShowReportModal(false)}
+                onSubmit={handleReportSubmit}
+            />
         </Titled>
     );
 
