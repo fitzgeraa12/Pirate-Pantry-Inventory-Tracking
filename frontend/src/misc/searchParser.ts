@@ -3,10 +3,11 @@ export type SortDir = 'asc' | 'desc';
 
 export const SORT_LABELS: Record<SortBy, string> = { name: 'Name', quantity: 'Qty', brand: 'Brand' };
 
-export type ParseResult = { search?: string; name?: string; brand?: string; quantity?: string; error?: string };
+export type ParseResult = { search?: string; id?: string; name?: string; brand?: string; quantity?: string; error?: string };
 
 export function parseSearch(raw: string): ParseResult {
     const segments = raw.split(',').map(s => s.trim()).filter(Boolean);
+    let id: string | undefined;
     let name: string | undefined;
     let brand: string | undefined;
     let quantity: string | undefined;
@@ -14,6 +15,11 @@ export function parseSearch(raw: string): ParseResult {
     const seen = new Set<string>();
 
     for (const seg of segments) {
+        const im = seg.match(/^id:(\d+)$/i);
+        if (im) { if (!seen.has('id')) { seen.add('id'); id = im[1]; } continue; }
+        if (/^id:$/i.test(seg)) return { error: '"id:" requires a numeric value' };
+        if (/^id:[^\d]/i.test(seg)) return { error: '"id:" requires a numeric value' };
+
         const nm = seg.match(/^name:(.+)$/i);
         if (nm) { if (!seen.has('name')) { seen.add('name'); name = `%${nm[1].trim()}%`; } continue; }
         if (/^name:$/i.test(seg)) return { error: '"name:" requires a value' };
@@ -42,7 +48,7 @@ export function parseSearch(raw: string): ParseResult {
         }
 
         if (/^[a-zA-Z]+:/.test(seg)) {
-            return { error: `Unknown filter "${seg.split(':')[0]}:" — valid filters: name:, brand:, qty` };
+            return { error: `Unknown filter "${seg.split(':')[0]}:" — valid filters: id:, name:, brand:, qty` };
         }
 
         searchParts.push(seg);
@@ -50,6 +56,7 @@ export function parseSearch(raw: string): ParseResult {
 
     return {
         search: searchParts.join(' ').trim() || undefined,
+        id: id || undefined,
         name: name || undefined,
         brand: brand || undefined,
         quantity,

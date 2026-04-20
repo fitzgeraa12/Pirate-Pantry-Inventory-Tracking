@@ -35,10 +35,10 @@ def test_query_and_map_rows(db):
 
 
 def test_add_product_and_product_from_id(db):
-    product = db.add_product(str("121212"), "Test Cereal", "Test Brand", 2, None, ["tag_1", "tag_2"])
+    product = db.add_product(str("121212"), "Test Cereal", None, 2, None, ["tag_1", "tag_2"])
 
     assert product.name == "Test Cereal"
-    assert product.brand == "Test Brand"
+    assert product.brand == None
     assert set(product.tags) == {"tag_1", "tag_2"}
 
     loaded = db.product_from_id(product.id)
@@ -47,6 +47,36 @@ def test_add_product_and_product_from_id(db):
     db.remove_product(product.id) 
     with pytest.raises(ProductNotFoundError):
         db.product_from_id(product.id) #Ensures product is removed
+
+def test_save_and_load(db):
+    product1 = db.add_product(str("333333333"), "fdsadasfd", "brand!!!", 2, None, ["fdsafas", "ffff"])
+    product2 = db.add_product(str("2423423"), "aaaaaaaaaaaaaaaa", "new brand", 2, None, [])
+    product3 = db.add_product(str("44444444444"), "dsafds", None, 0, None, ["green", "blue"])
+    product4 = db.add_product(str("02920202"), "llllllllll", None, 211, None, ["grilled cheese", "hello", "3323233"])
+    product5 = db.add_product(str("112"), "Test Cereal", None, 2, None, ["tag_1", "tag_2"])
+
+    db.save_backup()
+    #Removing products
+    db.remove_product(product1.id) 
+    with pytest.raises(ProductNotFoundError):
+        db.product_from_id(product1.id) 
+    db.remove_product(product2.id) 
+    with pytest.raises(ProductNotFoundError):
+        db.product_from_id(product2.id) 
+    
+    #Adding product that won't be saved
+    product6 = db.add_product(str("430232"), "fdsadasfd", None, 2010, "linafdsaflkw/dslafjdkls", ["dflsafd", "25oi23o", "fdsafda", "Ffff"])
+    assert db.product_from_id(product6.id) == product6
+
+    db.load_backup()
+
+    assert db.product_from_id(product1.id) == product1
+    assert db.product_from_id(product2.id) == product2
+    assert db.product_from_id(product3.id) == product3
+    assert db.product_from_id(product4.id) == product4
+    assert db.product_from_id(product5.id) == product5
+    with pytest.raises(ProductNotFoundError):
+        db.product_from_id(product6.id) #Ensures product isn't in database
 
 
 
@@ -117,3 +147,4 @@ def test_checkout(db):
     with pytest.raises(ProductNotFoundError):
         db.product_from_id(product.id) #Ensures product is removed
         
+    
