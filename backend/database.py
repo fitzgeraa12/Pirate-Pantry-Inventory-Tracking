@@ -239,15 +239,31 @@ class Database(ABC):
             raise InvalidQuantityError(quantity) 
         with self.transaction():
             # Insert brand and image link first
+            to_query = "INSERT INTO products (id, name,"
+            values = " VALUES (?, ?, ?"
+            params = [id, name]
             if brand:
                 self.query("INSERT OR IGNORE INTO brands (name) VALUES (?)", [brand])
+                to_query += " brand, "
+                values += ", ?"
+                params.append(brand)
+            to_query += " quantity"
+            params.append(quantity)
             if image_link:
                 self.query("INSERT OR IGNORE INTO image_links (path) VALUES (?)", [image_link])
-
+                to_query += ", image_link"
+                values += ", ?"
+                params.append(image_link)
+            to_query += ")"
+            values += ")"
+            final = to_query + values
+            
+            self.query(final, params)
+            """
             self.query(
                 "INSERT INTO products (id, name, brand, quantity, image_link) VALUES (?, ?, ?, ?, ?)",
                 [id, name, brand, quantity, image_link]
-            )
+            )"""
             if tags:
                 for tag in tags:
                     self.query("INSERT OR IGNORE INTO tags (label) VALUES (?)", [tag])
