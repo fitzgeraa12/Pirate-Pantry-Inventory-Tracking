@@ -35,10 +35,10 @@ def test_query_and_map_rows(db):
 
 
 def test_add_product_and_product_from_id(db):
-    product = db.add_product(str("121212"), "Test Cereal", "Test Brand", 2, None, ["tag_1", "tag_2"])
+    product = db.add_product(str("121212"), "Test Cereal", None, 2, None, ["tag_1", "tag_2"])
 
     assert product.name == "Test Cereal"
-    assert product.brand == "Test Brand"
+    assert product.brand == None
     assert set(product.tags) == {"tag_1", "tag_2"}
 
     loaded = db.product_from_id(product.id)
