@@ -238,32 +238,28 @@ class Database(ABC):
         if quantity < 0:
             raise InvalidQuantityError(quantity) 
         with self.transaction():
-            # Insert brand and image link first
-            to_query = "INSERT INTO products (id, name,"
-            values = " VALUES (?, ?, ?"
-            params = [id, name]
+            fields: list[str] = ["id", "name", "quantity"]
+            values: list[str] = ["?", "?", "?"]
+            params: QueryParams = [id, name, quantity]
+            
+            # Insert brand and image link if available
             if brand:
                 self.query("INSERT OR IGNORE INTO brands (name) VALUES (?)", [brand])
-                to_query += " brand, "
-                values += ", ?"
+                fields.append("brand")
+                values.append("?")
                 params.append(brand)
-            to_query += " quantity"
-            params.append(quantity)
+
             if image_link:
                 self.query("INSERT OR IGNORE INTO image_links (path) VALUES (?)", [image_link])
-                to_query += ", image_link"
-                values += ", ?"
+                fields.append("image_link")
+                values.append("?")
                 params.append(image_link)
-            to_query += ")"
-            values += ")"
-            final = to_query + values
-            
-            self.query(final, params)
-            """
+
             self.query(
-                "INSERT INTO products (id, name, brand, quantity, image_link) VALUES (?, ?, ?, ?, ?)",
-                [id, name, brand, quantity, image_link]
-            )"""
+                    f"INSERT INTO products ({', '.join(fields)}) VALUES ({', '.join(values)})",
+                    params
+                )
+
             if tags:
                 for tag in tags:
                     self.query("INSERT OR IGNORE INTO tags (label) VALUES (?)", [tag])
