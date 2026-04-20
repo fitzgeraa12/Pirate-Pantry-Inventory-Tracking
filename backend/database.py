@@ -230,10 +230,10 @@ class Database(ABC):
         self,
         id: str,
         name: str,
-        brand: Optional[str],
-        quantity: Optional[int],
-        image_link: Optional[str],
-        tags: Optional[list[str]]
+        brand: Optional[str] = None,
+        quantity: Optional[int] = None,
+        image_link: Optional[str] = None,
+        tags: Optional[list[str]] = None
     ) -> Product:
         if quantity < 0:
             raise InvalidQuantityError(quantity) 
