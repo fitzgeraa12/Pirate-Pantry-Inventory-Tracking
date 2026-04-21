@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
-// import { Option } from '../misc/misc';
+// import { Optional } from '../misc/misc';
 
 interface CartItem{
     id: string;

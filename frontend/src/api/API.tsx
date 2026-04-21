@@ -3,7 +3,7 @@ import { APIContext } from './APIContext';
 import { AuthContext } from '../auth/AuthContext';
 import axios, { type AxiosResponse } from 'axios';
 import z from 'zod';
-import { Option } from '../misc/misc';
+import { Optional } from '../misc/misc';
 // import { unreachable } from '../misc/misc';
 
 // // Cache auth
