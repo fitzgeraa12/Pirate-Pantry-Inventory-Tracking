@@ -29,15 +29,14 @@ dist-ssr
 **/.wrangler
 .pytest_cache
 
-<<<<<<< HEAD
 **/.env
 **/.env.*
 **/.env.local
 **/.env.*.local
-=======
 **/**.env**
 
 # SQLite auxiliary files
 **/__local__/*.sqlite3-shm
 **/__local__/*.sqlite3-wal
->>>>>>> 6a412d85544acdd9b01645e2a9567e7b86000683
+
+**/.venv

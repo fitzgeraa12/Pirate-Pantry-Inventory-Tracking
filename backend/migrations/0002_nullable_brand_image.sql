@@ -1,2 +1,3 @@
-ALTER TABLE products ALTER COLUMN brand DROP NOT NULL;
-ALTER TABLE products ALTER COLUMN image_link DROP NOT NULL;
+-- No-op: brand and image_link are already nullable in 0001_init_schema.sql
+-- ALTER COLUMN is not supported in SQLite/D1; columns were already DEFAULT NULL
+SELECT 1;

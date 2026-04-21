@@ -1,359 +1,476 @@
-import dotenv
-from flask.testing import FlaskClient
 import pytest
-import sys
-import os
-from pathlib import Path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-import backend.database as database
-from database import AccessLevel, Database, Product
-import backend.api as api
-from backend.misc import env_get
-
-# --------------------------------------------------
-# Setups
-# --------------------------------------------------
-env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "local.env")
-dotenv.load_dotenv(env_path)
-
-DEV_TOKEN = env_get("DEV_TOKEN")
-
-@pytest.fixture(scope="session", autouse=True)
-def isolated_test_database(tmp_path_factory: pytest.TempPathFactory):
-    temp_dir = tmp_path_factory.mktemp("ppit-test-db")
-    db_path = temp_dir / "test_db.sqlite3"
-    original_path = database.LocalDatabase.LOCAL_DATABASE_PATH
-    database.LocalDatabase.LOCAL_DATABASE_PATH = str(db_path)
-
-    try:
-        yield
-    finally:
-        database.LocalDatabase.LOCAL_DATABASE_PATH = original_path
-        for suffix in ("", "-wal", "-shm"):
-            file_path = Path(f"{db_path}{suffix}")
-            if file_path.exists():
-                file_path.unlink()
-    
-@pytest.fixture
-def db():
-    db = database.connect(True)
-    yield db
-    if isinstance(db, database.LocalDatabase):
-        db.conn.close()
-
-@pytest.fixture
-def client(db: Database, monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("WEBSITE_URL", "http://localhost")
-    monkeypatch.setenv("VITE_API_URL", "http://localhost")
-    monkeypatch.setenv("VITE_GOOGLE_CLIENT_ID", "http://localhost")
-    monkeypatch.setenv("GOOGLE_CLIENT_SECRET", "http://localhost")
-    monkeypatch.setenv("FLASK_SECRET_KEY", "http://localhost")
-    app = api.create_app(db, is_local=True)
-    app.config["TESTING"] = True
-    with app.test_client() as client:
-        yield client
-
-# --------------------------------------------------
-# Admin only
-# --------------------------------------------------
-def test_add_user_SU_email(client: FlaskClient):
-    response = client.post(
-        "/user",
-        query_string={
-            "email": "new_user@Southwestern.edu",
-            "access_level": "trusted",
-        },
-        headers={"Authorization": DEV_TOKEN},
-    )
-    assert response.status_code == 201
-    assert response.json
-    assert response.json["email"] == "new_user@southwestern.edu"
-    assert response.json["access_level"] == "trusted"
-    assert response.json["id"]
-
-def test_add_user_non_SU_email(client: FlaskClient):
-    response = client.post(
-        "/user",
-        query_string={"email": "someone@gmail.com", "access_level": "trusted"},
-        headers={"Authorization": DEV_TOKEN},
-    )
-    assert response.status_code == 400
-
-def test_add_user_invalid_access_level(client: FlaskClient):
-    response = client.post(
-        "/user",
-        query_string={"email": "someone@gmail.com", "access_level": "trusted"},
-        headers={"Authorization": DEV_TOKEN},
-    )
-    assert response.status_code == 400
-
-def test_get_users(client: FlaskClient):
-    response = client.get("/user/all", headers={"Authorization": DEV_TOKEN})
-    assert response.status_code == 200
-    assert isinstance(response.json, list)
-
-def test_update_user(client: FlaskClient):
-    create = client.post(
-        "/user",
-        query_string={"email": "update_me@southwestern.edu", "access_level": "trusted"},
-        headers={"Authorization": DEV_TOKEN},
-    )
-    user_id = create.json["id"]
-
-    response = client.patch(
-        f"/user/{user_id}",
-        json={"access_level": "admin"},
-        headers={"Authorization": DEV_TOKEN},
-    )
-
-    assert response.status_code == 200
-    assert response.json["email"] == "update_me@southwestern.edu"
-    assert response.json["access_level"] == "admin"
-
-def test_remove_user(client: FlaskClient):
-    create = client.post(
-        "/user",
-        query_string={"email": "delete_me@southwestern.edu", "access_level": "trusted"},
-        headers={"Authorization": DEV_TOKEN},
-    )
-    user_id = create.json["id"]
-
-    response = client.delete(
-        f"/user/{user_id}",
-        headers={"Authorization": DEV_TOKEN},
-    )
-    assert response.status_code == 200
-
-def test_list_sessions(client: FlaskClient):
-    response = client.get("/sessions", headers={"Authorization": DEV_TOKEN})
-    assert response.status_code == 200
-    assert isinstance(response.json, list)
-
-def test_revoke_sessions_route(client: FlaskClient):
-    response = client.post(
-        "/sessions/revoke",
-        headers={"Authorization": DEV_TOKEN},
-    )
-    assert response.status_code == 200
-
-def test_only_admin_cannot_revoke_own_admin_privileges(client: FlaskClient, db: Database):
-    sole_admin = db.add_user("sole_admin@southwestern.edu", AccessLevel.ADMIN)
-    session = db.create_auth_session(sole_admin.id, "sole-admin-sub", "refresh-token")
-
-    response = client.patch(
-        f"/user/{sole_admin.id}",
-        json={"access_level": "trusted"},
-        headers={"Authorization": session.id},
-    )
-
-    assert response.status_code == 400
-    assert response.json
-    assert "only admin" in response.json["error"].lower()
-    assert db.get_user(sole_admin.id)
-    assert db.get_user(sole_admin.id).access_level == AccessLevel.ADMIN # pyright: ignore[reportOptionalMemberAccess]
-    
-
-def test_purge_sessions_route(client: FlaskClient):
-    response = client.delete(
-        "/sessions",
-        headers={"Authorization": DEV_TOKEN},
-    )
-    assert response.status_code == 200
-
-def test_export_stats(client: FlaskClient):
-    response = client.post("/export", json={
-        "start": "05-01-2026",
-        "end": "06-01-2026",
-    }, headers={"Authorization": DEV_TOKEN})
-    print(response.json)
-    assert response.status_code == 200
-# --------------------------------------------------
-# Products
-# --------------------------------------------------
-def test_query_products(client: FlaskClient):
-    return None
-
-def test_post_product_add(client: FlaskClient):
-    # test adding a new product
-    response = client.post("/products", json=[{
-        "name": "Test Product",
-        "brand": "Test Brand",
-        "quantity": 10,
-        "image_link": None,
-        "tags": ["tag1", "tag2"]
-    }], headers={"Authorization": DEV_TOKEN})
-
-    assert response.status_code == 201
-    response_json = response.json
-    assert response_json
-    added_products = [Product.model_validate(product_json) for product_json in response_json["added"]]
-    product = added_products[0]
-
-    assert product.name == "Test Product"
-    assert product.brand == "Test Brand"
-    assert product.quantity == 10
-    assert len(product.tags) == 2
-
-def test_post_product_update(client: FlaskClient):
-    response = client.post("/products", json=[{
-        "name": "Test Product",
-        "brand": "Test Brand",
-        "quantity": 10,
-        "image_link": None,
-        "tags": ["tag1", "tag2"]
-    }], headers={"Authorization": DEV_TOKEN})
-    assert response.status_code == 201
-    response_json = response.json
-    assert response_json
-    added_products = [Product.model_validate(product_json) for product_json in response_json["added"]]
-    product = added_products[0]
-
-    update_response = client.post("/products", json=[{
-        "id": product.id,
-        "name": "Updated Test Product",
-        "quantity": 6,
-        "tags": ["tag2"],
-    }], headers={"Authorization": DEV_TOKEN})
-
-    assert update_response.status_code == 201
-    update_json = update_response.json
-    assert update_json
-    updated_products = [Product.model_validate(product_json) for product_json in update_json["added"]]
-    updated = updated_products[0]
-
-    assert updated.id == product.id
-    assert updated.name == "Updated Test Product"
-    assert updated.brand == "Test Brand"  # unchanged field
-    assert updated.quantity == 6
-    assert set(updated.tags) == {"tag2"}
+from unittest.mock import MagicMock
+from backend.database import Product, Tag, ProductNotFoundError, AccessLevel
 
 
-def test_add_product_auto_generates_string_id(client: FlaskClient):
-    response = client.post("/products", json=[{
-        "name": "Auto ID Product",
-        "brand": "Test Brand",
-        "quantity": 5,
-        "image_link": None,
-        "tags": []
-    }], headers={"Authorization": DEV_TOKEN})
+# ==================================================
+# GET /products
+# ==================================================
 
-    assert response.status_code == 201
-    assert response.json
-
-    added_products = [Product.model_validate(p) for p in response.json["added"]]
-    product = added_products[0]
-
-    assert product.id is not None
-    assert isinstance(product.id, str)
-    assert product.id.isdigit()
-    assert int(product.id) >= 9000000000000
-
-def test_delete_products(client: FlaskClient):
-    return None
-
-def test_checkout_products(client: FlaskClient):
-    return None
-
-def test_get_all_product_names(client: FlaskClient):
-    return None
-
-def test_get_all_product_brands(client: FlaskClient):
-    return None
-
-def test_get_all_product_tags(client: FlaskClient):
-    return None
-
-def test_get_pantry_inventory(client: FlaskClient):
-    return None
-
-def test_get_pantry_names(client: FlaskClient):
-    return None
-
-def test_get_pantry_brands(client: FlaskClient):
-    return None
-
-def test_get_pantry_tags(client: FlaskClient):
-    return None
-
-# --------------------------------------------------
-# Tags
-# --------------------------------------------------
-def test_get_tags(client: FlaskClient):
-    return None
-
-def test_post_tags(client: FlaskClient):
-    return None
-
-def test_delete_tags(client: FlaskClient):
-    return None
-
-# --------------------------------------------------
-# Brands
-# --------------------------------------------------
-def test_get_brands(client: FlaskClient):
-    return None
-
-def test_post_brands(client: FlaskClient):
-    return None
-
-def test_delete_brands(client: FlaskClient):
-    return None
+def test_get_products_empty(auth, client, db):
+    db.query.return_value = [{'total': 0}]
+    db.query_and_map_rows.return_value = []
+    res = client.get('/products', headers=auth)
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data['data'] == []
+    assert data['total'] == 0
 
 
-def test_get_all_products(client: FlaskClient):
-    response = client.get("/products", headers={"Authorization": DEV_TOKEN})
-    assert response.status_code == 200
-    assert isinstance(response.json, dict)
-    assert "data" in response.json # pyright: ignore[reportUnknownMemberType]
-    assert "total" in response.json # pyright: ignore[reportUnknownMemberType]
-    assert "total_pages" in response.json # pyright: ignore[reportUnknownMemberType]
-    assert isinstance(response.json["data"], list) # pyright: ignore[reportUnknownMemberType]
-
-# --------------------------------------------------
-# Auth
-# --------------------------------------------------
-
-class MockGoogleTokenResponse:
-    def __init__(self, payload: dict[str, str]):
-        self.payload = payload
-
-    def json(self) -> dict[str, str]:
-        return self.payload
-
-def test_google_callback_authorizes_user_by_email(client: FlaskClient, db: Database, monkeypatch: pytest.MonkeyPatch):
-    db.add_user("authorized_user@southwestern.edu", AccessLevel.TRUSTED)
-
-    def mock_post(*args, **kwargs): # pyright: ignore[reportMissingParameterType, reportUnknownParameterType]
-        return MockGoogleTokenResponse({
-            "id_token": "fake-id-token",
-            "refresh_token": "fake-refresh-token",
-        })
-
-    def mock_decode(*args, **kwargs): # pyright: ignore[reportMissingParameterType, reportUnknownParameterType]
-        return {
-            "email": "authorized_user@southwestern.edu",
-            "sub": "google-sub-123",
-            "picture": "https://example.com/picture.png",
-        }
-
-    monkeypatch.setattr(api.requests, "post", mock_post) # pyright: ignore[reportUnknownArgumentType]
-    monkeypatch.setattr(api.jwt, "decode", mock_decode) # pyright: ignore[reportUnknownArgumentType]
-
-    response = client.get("/auth/google/callback?code=fake-code")
-
-    assert response.status_code == 302
-    assert response.location
-    auth_code = response.location.split("code=")[-1]
-
-    exchange = client.post("/auth/exchange", json={"code": auth_code})
-    assert exchange.status_code == 200
-    assert exchange.json
-    session_id = exchange.json["session"]
-
-    user_response = client.get("/user", headers={"Authorization": session_id})
-    assert user_response.status_code == 200
-    assert user_response.json
-    assert user_response.json["email"] == "authorized_user@southwestern.edu"
-    assert user_response.json["access_level"] == "trusted"
+def test_get_products(auth, client, db, products):
+    db.query.return_value = [{'total': len(products)}]
+    db.query_and_map_rows.return_value = products
+    res = client.get('/products', headers=auth)
+    assert res.status_code == 200
+    data = res.get_json()
+    assert len(data['data']) == len(products)
+    assert data['total'] == len(products)
 
 
+def test_get_products_no_auth(client):
+    res = client.get('/products')
+    assert res.status_code == 401
+
+
+def test_get_products_by_name(auth, client, db, products):
+    corn = [p for p in products if p.name == 'corn']
+    db.query.return_value = [{'total': len(corn)}]
+    db.query_and_map_rows.return_value = corn
+    res = client.get('/products?name=corn', headers=auth)
+    assert res.status_code == 200
+
+
+def test_get_products_by_id(auth, client, db, products):
+    match = [p for p in products if p.id == '3835982']
+    db.query.return_value = [{'total': len(match)}]
+    db.query_and_map_rows.return_value = match
+    res = client.get('/products?id=3835982', headers=auth)
+    assert res.status_code == 200
+    assert len(res.get_json()['data']) == 1
+
+
+def test_get_products_by_brand(auth, client, db, products):
+    match = [p for p in products if p.brand == 'HEB']
+    db.query.return_value = [{'total': len(match)}]
+    db.query_and_map_rows.return_value = match
+    res = client.get('/products?brand=HEB', headers=auth)
+    assert res.status_code == 200
+
+
+def test_get_products_by_exact_quantity(auth, client, db, products):
+    match = [p for p in products if p.quantity == 4]
+    db.query.return_value = [{'total': len(match)}]
+    db.query_and_map_rows.return_value = match
+    res = client.get('/products?quantity=4', headers=auth)
+    assert res.status_code == 200
+
+
+def test_get_products_by_quantity_range(auth, client, db, products):
+    match = [p for p in products if 3 <= p.quantity <= 10]
+    db.query.return_value = [{'total': len(match)}]
+    db.query_and_map_rows.return_value = match
+    res = client.get('/products?quantity=3:10', headers=auth)
+    assert res.status_code == 200
+
+
+def test_get_products_by_quantity_lower_bound(auth, client, db, products):
+    match = [p for p in products if p.quantity >= 5]
+    db.query.return_value = [{'total': len(match)}]
+    db.query_and_map_rows.return_value = match
+    res = client.get('/products?quantity=5:', headers=auth)
+    assert res.status_code == 200
+
+
+def test_get_products_by_quantity_upper_bound(auth, client, db, products):
+    match = [p for p in products if p.quantity <= 10]
+    db.query.return_value = [{'total': len(match)}]
+    db.query_and_map_rows.return_value = match
+    res = client.get('/products?quantity=:10', headers=auth)
+    assert res.status_code == 200
+
+
+def test_get_products_invalid_quantity(auth, client):
+    res = client.get('/products?quantity=ten', headers=auth)
+    assert res.status_code == 400
+
+
+
+def test_get_products_invalid_range_quantity(auth, client):
+    res = client.get('/products?quantity=5:seven', headers=auth)
+    assert res.status_code == 400
+
+
+def test_get_products_empty_range_quantity(auth, client):
+    res = client.get('/products?quantity=:', headers=auth)
+    assert res.status_code == 400
+
+
+def test_get_products_by_tags(auth, client, db, products):
+    match = [p for p in products if 'VEGETABLES' in p.tags]
+    db.query.return_value = [{'total': len(match)}]
+    db.query_and_map_rows.return_value = match
+    res = client.get('/products?tags=VEGETABLES', headers=auth)
+    assert res.status_code == 200
+
+
+def test_get_products_paginated(auth, client, db, products):
+    db.query.return_value = [{'total': len(products)}]
+    db.query_and_map_rows.return_value = products[:2]
+    res = client.get('/products?page=1&page_size=2', headers=auth)
+    assert res.status_code == 200
+    data = res.get_json()
+    assert len(data['data']) == 2
+    assert data['total'] == len(products)
+
+
+# ==================================================
+# POST /products
+# ==================================================
+
+def test_post_products_new(auth, client, db):
+    new_product = Product(id='999', name='olives', brand='everyday olives', quantity=5, image_link=None, tags=[])
+    db.product_from_id.side_effect = ProductNotFoundError('999')
+    db.add_product.return_value = new_product
+    res = client.post('/products', json=[{'id': '999', 'name': 'olives', 'brand': 'everyday olives', 'quantity': 5}], headers=auth)
+    assert res.status_code == 201
+    data = res.get_json()
+    assert data['errors'] == []
+    assert len(data['added']) == 1
+    assert data['added'][0]['name'] == 'olives'
+
+
+def test_post_products_update(auth, client, db, products):
+    existing = products[3]  # peas
+    updated = Product(id=existing.id, name='sweet peas', brand=existing.brand, quantity=5, image_link=None, tags=['VEGETABLES', 'canned'])
+    db.product_from_id.return_value = existing
+    db.update_product.return_value = updated
+    res = client.post('/products', json=[{'id': existing.id, 'name': 'sweet peas', 'quantity': 5}], headers=auth)
+    assert res.status_code == 201
+    data = res.get_json()
+    assert len(data['added']) == 1
+    assert data['added'][0]['name'] == 'sweet peas'
+
+
+def test_post_products_not_a_list(auth, client):
+    res = client.post('/products', json={'name': 'olives'}, headers=auth)
+    assert res.status_code == 400
+    assert res.get_json()['error'] == 'Expected a list of products'
+
+
+def test_post_product_no_name_new(auth, client, db):
+    db.product_from_id.side_effect = ProductNotFoundError('1288901')
+    res = client.post('/products', json=[{'brand': 'walmart', 'id': '1288901', 'quantity': 6}], headers=auth)
+    assert res.status_code == 207
+    data = res.get_json()
+    assert len(data['errors']) == 1
+    assert data['errors'][0]['error'] == 'Name is required for new products'
+
+
+def test_post_products_invalid_name_asterisk(auth, client, db):
+    db.product_from_id.side_effect = ProductNotFoundError('123')
+    res = client.post('/products', json=[{'name': 'pas*ta', 'id': '123', 'quantity': 6}], headers=auth)
+    data = res.get_json()
+    assert len(data['errors']) > 0
+
+
+def test_post_products_invalid_name_double_spaces(auth, client, db):
+    db.product_from_id.side_effect = ProductNotFoundError('123')
+    res = client.post('/products', json=[{'name': 'pas  ta', 'id': '123', 'quantity': 6}], headers=auth)
+    data = res.get_json()
+    assert len(data['errors']) > 0
+
+
+def test_post_products_invalid_name_whitespace_only(auth, client, db):
+    db.product_from_id.side_effect = ProductNotFoundError('123')
+    res = client.post('/products', json=[{'name': '   ', 'id': '123', 'quantity': 6}], headers=auth)
+    data = res.get_json()
+    assert len(data['errors']) > 0
+
+
+def test_post_products_invalid_tag(auth, client, db):
+    db.product_from_id.side_effect = ProductNotFoundError('123')
+    res = client.post('/products', json=[{'name': 'pasta', 'id': '123', 'quantity': 6, 'tags': ['pas!!!!@ta']}], headers=auth)
+    data = res.get_json()
+    assert len(data['errors']) > 0
+
+
+def test_post_products_quantity_type_error(auth, client, db):
+    db.product_from_id.side_effect = ProductNotFoundError('123')
+    res = client.post('/products', json=[{'name': 'pasta', 'id': '123', 'quantity': 'six'}], headers=auth)
+    assert len(res.get_json()['errors']) > 0
+
+
+
+
+# ==================================================
+# DELETE /products
+# ==================================================
+
+def test_delete_products_single(auth, client, db):
+    db.query.return_value = []
+    res = client.delete('/products', json={'ids': ['3835982']}, headers=auth)
+    assert res.status_code == 200
+    data = res.get_json()
+    assert '3835982' in data['deleted']
+    assert data['errors'] == []
+
+
+def test_delete_products_multiple(auth, client, db):
+    db.query.return_value = []
+    ids = ['95827', '324', '48328']
+    res = client.delete('/products', json={'ids': ids}, headers=auth)
+    assert res.status_code == 200
+    assert set(res.get_json()['deleted']) == set(ids)
+
+
+def test_delete_products_empty_list(auth, client):
+    res = client.delete('/products', json={'ids': []}, headers=auth)
+    assert res.status_code == 200
+    assert res.get_json()['deleted'] == []
+
+
+
+
+def test_delete_products_db_error_returns_207(auth, client, db):
+    db.query.side_effect = Exception('DB error')
+    res = client.delete('/products', json={'ids': ['000000']}, headers=auth)
+    assert res.status_code == 207
+    assert len(res.get_json()['errors']) == 1
+
+
+# ==================================================
+# GET /tags
+# ==================================================
+
+def test_get_tags_all(auth, client, db, tag_list):
+    db.query_and_map_rows.return_value = tag_list
+    db.query.return_value = [{'total': len(tag_list)}]
+    res = client.get('/tags', headers=auth)
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data['total'] == len(tag_list)
+    assert len(data['data']) == len(tag_list)
+
+
+def test_get_tags_empty(auth, client, db):
+    db.query_and_map_rows.return_value = []
+    db.query.return_value = [{'total': 0}]
+    res = client.get('/tags', headers=auth)
+    assert res.status_code == 200
+    assert res.get_json()['data'] == []
+
+
+def test_get_tags_filtered(auth, client, db):
+    canned = [Tag(label='canned')]
+    db.query_and_map_rows.return_value = canned
+    db.query.return_value = [{'total': 1}]
+    res = client.get('/tags?label=canned', headers=auth)
+    assert res.status_code == 200
+    data = res.get_json()
+    assert all(t['label'] == 'canned' for t in data['data'])
+
+
+def test_get_tags_nonexistent(auth, client, db):
+    db.query_and_map_rows.return_value = []
+    db.query.return_value = [{'total': 0}]
+    res = client.get('/tags?label=nonexistent', headers=auth)
+    assert res.status_code == 200
+    assert res.get_json()['data'] == []
+
+
+# ==================================================
+# POST /tags
+# ==================================================
+
+def test_post_tags_single(auth, client, db):
+    db.query.return_value = []
+    res = client.post('/tags', json={'labels': ['vegan']}, headers=auth)
+    assert res.status_code == 201
+    assert 'vegan' in res.get_json()['added']
+
+
+def test_post_tags_multiple(auth, client, db):
+    db.query.return_value = []
+    new_labels = ['toiletries', 'soap', 'gluten free']
+    res = client.post('/tags', json={'labels': new_labels}, headers=auth)
+    assert res.status_code == 201
+    assert set(res.get_json()['added']) == set(new_labels)
+
+
+def test_post_tags_empty_list(auth, client):
+    res = client.post('/tags', json={'labels': []}, headers=auth)
+    assert res.status_code == 201
+    assert res.get_json()['added'] == []
+
+
+def test_post_tags_missing_labels_field(auth, client):
+    res = client.post('/tags', json={'wrong': []}, headers=auth)
+    assert res.status_code == 400
+
+
+def test_post_tags_invalid_label_double_spaces(auth, client):
+    res = client.post('/tags', json={'labels': ['dairy  free']}, headers=auth)
+    assert res.status_code == 400
+
+
+
+
+def test_post_tags_db_error_returns_207(auth, client, db):
+    db.query.side_effect = Exception('DB failure')
+    res = client.post('/tags', json={'labels': ['vegan']}, headers=auth)
+    assert res.status_code == 207
+    assert len(res.get_json()['errors']) == 1
+
+
+# ==================================================
+# DELETE /tags
+# ==================================================
+
+def test_delete_tags_single(auth, client, db):
+    db.query.return_value = []
+    res = client.delete('/tags', json={'labels': ['canned']}, headers=auth)
+    assert res.status_code == 200
+    assert 'canned' in res.get_json()['deleted']
+
+
+def test_delete_tags_multiple(auth, client, db):
+    db.query.return_value = []
+    labels = ['canned', 'cereal']
+    res = client.delete('/tags', json={'labels': labels}, headers=auth)
+    assert res.status_code == 200
+    assert set(res.get_json()['deleted']) == set(labels)
+
+
+def test_delete_tags_empty_list(auth, client):
+    res = client.delete('/tags', json={'labels': []}, headers=auth)
+    assert res.status_code == 200
+    assert res.get_json()['deleted'] == []
+
+
+def test_delete_tags_missing_labels_field(auth, client):
+    res = client.delete('/tags', json={'wrong': []}, headers=auth)
+    assert res.status_code == 400
+
+
+
+
+def test_delete_tags_db_error_returns_207(auth, client, db):
+    db.query.side_effect = Exception('DB failure')
+    res = client.delete('/tags', json={'labels': ['vegan']}, headers=auth)
+    assert res.status_code == 207
+    assert len(res.get_json()['errors']) == 1
+
+
+# ==================================================
+# GET /products/all/names, /brands, /tags
+# ==================================================
+
+def test_get_all_names(auth, client, db, products):
+    names = list({p.name for p in products})
+    db.all_product_names.return_value = names
+    res = client.get('/products/all/names', headers=auth)
+    assert res.status_code == 200
+    assert set(res.get_json()) == set(names)
+
+
+def test_get_all_brands(auth, client, db, products):
+    brands = list({p.brand for p in products if p.brand})
+    db.all_product_brands.return_value = brands
+    res = client.get('/products/all/brands', headers=auth)
+    assert res.status_code == 200
+    assert set(res.get_json()) == set(brands)
+
+
+def test_get_all_tags(auth, client, db, tag_list):
+    labels = [t.label for t in tag_list]
+    db.all_product_tags.return_value = labels
+    res = client.get('/products/all/tags', headers=auth)
+    assert res.status_code == 200
+    assert set(res.get_json()) == set(labels)
+
+
+# ==================================================
+# GET /products/available, /names, /brands, /tags
+# ==================================================
+
+def test_get_available_products(auth, client, db, inventory):
+    # Convert Product objects to dicts for JSON serialization
+    db.available_products.return_value = [p.model_dump() for p in inventory]
+    res = client.get('/products/available', headers=auth)
+    assert res.status_code == 200
+    assert len(res.get_json()) == len(inventory)
+
+
+def test_get_available_names(auth, client, db, inventory):
+    names = [p.name for p in inventory]
+    db.available_product_names.return_value = names
+    res = client.get('/products/available/names', headers=auth)
+    assert res.status_code == 200
+    assert set(res.get_json()) == set(names)
+
+
+def test_get_available_brands(auth, client, db, inventory):
+    brands = [p.brand for p in inventory if p.brand]
+    db.available_product_brands.return_value = brands
+    res = client.get('/products/available/brands', headers=auth)
+    assert res.status_code == 200
+    assert set(res.get_json()) == set(brands)
+
+
+def test_get_available_tags(auth, client, db, tag_list):
+    labels = [t.label for t in tag_list]
+    db.available_product_tags.return_value = labels
+    res = client.get('/products/available/tags', headers=auth)
+    assert res.status_code == 200
+
+
+# ==================================================
+# PATCH /products/checkout
+# ==================================================
+
+def test_checkout_valid(auth, client, db, products):
+    item = products[4]  # cherrios, quantity=8
+    after = Product(id=item.id, name=item.name, brand=item.brand, quantity=5, image_link=None, tags=item.tags)
+    db.product_from_id.return_value = item
+    db.query.return_value = []
+    res = client.patch('/products/checkout', json={'products': [{'id': item.id, 'amount': 3}]}, headers=auth)
+    assert res.status_code == 200
+    data = res.get_json()
+    assert 'quantities' in data
+    assert data['quantities'][0]['id'] == item.id
+
+
+def test_checkout_last_one(auth, client, db, products):
+    item = products[3]  # peas, quantity=2
+    db.product_from_id.return_value = item
+    db.query.return_value = []
+    res = client.patch('/products/checkout', json={'products': [{'id': item.id, 'amount': 2}]}, headers=auth)
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data['quantities'][0]['quantity'] == 0
+
+
+def test_checkout_not_enough_stock(auth, client, db, products):
+    item = products[3]  # peas, quantity=2
+    db.product_from_id.return_value = item
+    res = client.patch('/products/checkout', json={'products': [{'id': item.id, 'amount': 99}]}, headers=auth)
+    assert res.status_code == 400
+    assert res.get_json()['error'] == 'not_enough_stock'
+
+
+def test_checkout_not_found(auth, client, db):
+    db.product_from_id.side_effect = ProductNotFoundError('0000')
+    res = client.patch('/products/checkout', json={'products': [{'id': '0000', 'amount': 1}]}, headers=auth)
+    assert res.status_code == 500
+
+
+
+
+def test_checkout_invalid_schema(auth, client):
+    res = client.patch('/products/checkout', json={'products': [{'id': '324'}]}, headers=auth)  # missing amount
+    assert res.status_code == 400
+
+
+def test_checkout_no_auth(client):
+    res = client.patch('/products/checkout', json={'products': [{'id': '324', 'amount': 1}]})
+    assert res.status_code == 401

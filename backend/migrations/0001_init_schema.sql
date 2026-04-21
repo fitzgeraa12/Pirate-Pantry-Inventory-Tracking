@@ -53,8 +53,4 @@ CREATE TABLE IF NOT EXISTS total_checkouts (
     num_checked_out   INTEGER NOT NULL,
     checkout_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-<<<<<<< HEAD
 
-
-=======
->>>>>>> 6a412d85544acdd9b01645e2a9567e7b86000683
