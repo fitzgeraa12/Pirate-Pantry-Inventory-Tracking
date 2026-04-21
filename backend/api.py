@@ -657,7 +657,7 @@ def define_routes(app: Flask, db: Database):
                         )
 
                         if existing is None:
-                            p_id = products_query.id if products_query.id else generate_id(db)
+                            p_id = products_query.id if not len(products_query.id) == 0 else generate_id(db)
                             product = db.add_product(
                                 id=p_id,
                                 name=products_query.name or "",
