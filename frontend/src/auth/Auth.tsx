@@ -5,7 +5,8 @@ import { AuthContext } from './AuthContext';
 import { Cookies } from 'typescript-cookie';
 import Login from './Login';
 import { APIContext } from '../api/APIContext';
-import { Optional } from '../misc/misc';
+import { Option } from '../misc/misc';
+import type { Optional } from '../misc/misc';
 
 const SU_DOMAIN = "southwestern.edu"
 

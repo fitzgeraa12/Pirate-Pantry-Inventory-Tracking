@@ -1,5 +1,6 @@
+import { Option } from '../misc/misc';
 import { createContext } from "react";
-import { Optional } from "../misc/misc";
+import type { Optional } from "../misc/misc";
 
 // https://react.dev/reference/react/createContext
 export interface AuthContextType{
