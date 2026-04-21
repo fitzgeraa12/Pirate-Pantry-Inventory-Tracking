@@ -44,9 +44,9 @@ function PantryView({ searchTerm: externalSearchTerm }: ProductViewProps = {}) {
                 cell: ({row}) => (
                     <>
                         <button className="table-entry-button"
-                        onClick={()=> addToCart(row.original.id, row.original.name, row.original.quantity)}>Add</button>
+                        onClick={()=> addToCart(String(row.original.id), row.original.name, row.original.quantity)}>Add</button>
                         <button className="table-entry-button"
-                        onClick={()=>removeFromCart(row.original.id)}>Remove</button>
+                        onClick={()=>removeFromCart(String(row.original.id))}>Remove</button>
                     </>
                 ),
             },

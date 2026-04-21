@@ -35,6 +35,13 @@ export class Option<T> {
     into_inner(): T | null {
         return this.value;
     }
+
+    expect(msg: string): T {
+        if (this.value === null) {
+            throw new Error(msg);
+        }
+        return this.value;
+    }
 }
 
 export function Spinner({ className }: { className?: string } = {}): React.ReactNode {

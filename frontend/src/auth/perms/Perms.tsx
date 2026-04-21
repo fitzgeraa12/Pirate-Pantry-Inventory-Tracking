@@ -3,7 +3,7 @@ import { PermsContext } from './PermsContext';
 import { AuthContext } from '../AuthContext';
 import { APIContext } from '../../api/APIContext';
 import type { Perms } from '../../api/API';
-import type { Optional } from '../../misc/misc';
+import { Option } from '../../misc/misc';
 
 export interface PermsInterface {
     perms: Perms,
