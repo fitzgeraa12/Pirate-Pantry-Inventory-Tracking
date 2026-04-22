@@ -268,8 +268,9 @@ class Database(ABC):
                         [id, tag]
                     )
             
-            product = self.product_from_id(id)
-            return product
+            product = self.product_in_table(id, name, brand)
+            return product    
+
 
     def update_product(
         self,
@@ -324,7 +325,7 @@ class Database(ABC):
                             [id, tag]
                         )
 
-            return self.product_from_id(id)
+            return self.product_in_table(id, name, brand)
     
     def checkout_product(self, id: str, amount: int) -> int:
         """
@@ -379,7 +380,8 @@ class Database(ABC):
     #    Save and load
     #------------------
 
-    def save_backup(self):
+    def save_backup(self) -> None:
+        """Saves database to a file"""
         to_write = self.all_products()
         with open("backup_products.txt", "w") as f:
             for i in to_write:
@@ -387,7 +389,7 @@ class Database(ABC):
                 f.write("\n")
             
 
-    def load_backup(self):
+    def load_backup(self) -> None:
         """Adds all saved products to main table"""
         self.delete_table()
         with open("backup_products.txt", "r") as f:
@@ -409,31 +411,55 @@ class Database(ABC):
                     tags = all_tags.split(", ")
                 self.add_product(id, name, brand, int(quantity), image_link, tags)
 
-    def delete_table(self):
+    def delete_table(self) -> None:
         """Only used to load a backup- deletes all products in table"""
         self.query("DELETE FROM products")
     #------------------------------
     # Viewing singles
     #------------------------------
 
-    def product_from_id(self, id: str) -> Product:
+
+    def product_in_table(self, id: str, name: str, brand: Optional[str] = UNSET) -> Product:
         """
-        Fetch a product by its ID.
+        Checks if a product is in the table
 
         Raises:
             ProductNotFoundError: If no product with the given ID exists.
         """
-        return self.query_and_map_single("""
-                SELECT p.*, GROUP_CONCAT(pt.tag_label) as tags
-                FROM products p
-                LEFT JOIN product_tags pt ON p.id = pt.product_id
-                WHERE p.id = ?
-                GROUP BY p.id
-            """,
-            lambda row: Product.from_row(row),
-            lambda _: ProductNotFoundError(id),
-            [id]
-        )
+        if id: #Search for items with a valid ID
+            return self.query_and_map_single("""
+                    SELECT p.*, GROUP_CONCAT(pt.tag_label) as tags
+                    FROM products p
+                    LEFT JOIN product_tags pt ON p.id = pt.product_id
+                    WHERE p.id = ?
+                    GROUP BY p.id
+                """,
+                lambda row: Product.from_row(row),
+                lambda _: ProductNotFoundError(id),
+                [id]
+            )
+        else:
+            if name in self.all_product_names(): #Searches for product by name
+                if brand is not UNSET:
+                    if brand in self.all_product_brands(): #Searches for brand of product
+                        return self.query_and_map_single(
+                            f"SELECT p.*, GROUP_CONCAT(pt.tag_label) as tags FROM products p LEFT JOIN product_tags pt ON p.id = pt.product_id WHERE name = ? and brand = ?",
+                            lambda row: Product.from_row(row),
+                            lambda _: ProductNotFoundError(id),
+                            [name, brand]
+                        )
+                    else:
+                        raise ProductNotFoundError(id)
+                else:
+                    return self.query_and_map_single( #No brand available, searches only by name
+                        f"SELECT p.*, GROUP_CONCAT(pt.tag_label) as tags FROM products p LEFT JOIN product_tags pt ON p.id = pt.product_id WHERE name = ?",
+                        lambda row: Product.from_row(row),
+                        lambda _: ProductNotFoundError(id),
+                        [name]
+                    )
+            else:
+                raise ProductNotFoundError(id)
+
     
     def products_search(self, search: str) -> list[Product]:
         like = f"%{search}%"
