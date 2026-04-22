@@ -35,8 +35,12 @@ dist-ssr
 **/.env.*.local
 **/**.env**
 
-# SQLite auxiliary files
-**/__local__/*.sqlite3-shm
-**/__local__/*.sqlite3-wal
+# Local runtime state
+**/__local__/**
+
+# Generated backup exports
+/backup_products.txt
+/backend/backup_products.txt
 
 **/.venv
+**/.venv-*

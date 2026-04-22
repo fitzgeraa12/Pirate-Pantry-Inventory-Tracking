@@ -15,6 +15,7 @@ import jwt as jwt
 import requests
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
+from werkzeug.exceptions import HTTPException
 
 
 import subprocess
@@ -46,6 +47,8 @@ def create_app(db: Database, is_local: bool) -> Flask:
 
     @app.errorhandler(Exception)
     def handle_exception(e: Exception):
+        if isinstance(e, HTTPException):
+            return e
         import traceback
         tb = traceback.format_exc()
         app.logger.error(tb)
@@ -1082,7 +1085,7 @@ def define_routes(app: Flask, db: Database):
 
         for name in body.names:
             try:
-                db.query('INSERT INTO brands (name) VALUES (?) ON CONFLICT (label) DO NOTHING', [name])
+                db.query('INSERT INTO brands (name) VALUES (?) ON CONFLICT (name) DO NOTHING', [name])
                 results.append(name)
             except Exception as e:
                 errors.append({'error': str(e), 'name': name})
