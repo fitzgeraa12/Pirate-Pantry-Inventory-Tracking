@@ -786,7 +786,7 @@ def define_routes(app: Flask, db: Database):
                     id=existing.id,
                     name=existing.name,
                     brand=existing.brand,
-                    num_checked_out=product.amount
+                    num_checked_out=product.amount,
                     checkout_time=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 )
 
