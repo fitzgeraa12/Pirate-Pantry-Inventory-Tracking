@@ -34,19 +34,33 @@ def test_query_and_map_rows(db):
     assert brands == [] #Ensure brand is removed
 
 
-def test_add_product_and_product_from_id(db):
+def test_add_product_and_product_in_table(db):
     product = db.add_product(str("121212"), "Test Cereal", None, 2, None, ["tag_1", "tag_2"])
 
     assert product.name == "Test Cereal"
     assert product.brand == None
     assert set(product.tags) == {"tag_1", "tag_2"}
 
-    loaded = db.product_from_id(product.id)
+    loaded = db.product_in_table(product.id, product.name, product.brand)
     assert loaded == product #Ensures product is in the table
     assert product.id == str("121212")
     db.remove_product(product.id) 
     with pytest.raises(ProductNotFoundError):
-        db.product_from_id(product.id) #Ensures product is removed
+        db.product_in_table(product.id, product.name, product.brand) #Ensures product is removed
+
+def test_in_table(db):
+    product1 = db.add_product(str("333333333"), "fdsadasfd", "brand!!!", 2, None, ["fdsafas", "ffff"])
+    with pytest.raises(ProductNotFoundError):
+        db.product_in_table("", "notintable", product1.brand)
+    db.product_in_table("", product1.name, product1.brand)
+    db.product_in_table("", product1.name)
+    with pytest.raises(ProductNotFoundError):
+        db.product_in_table("", product1.name, "notintable")
+    product2 = db.add_product(str("29292929"), "aaaaaa", "brand!!!", 2, None, ["fdsafas", "ffff"])
+    product3 = db.add_product(str("22393923"), "fdsadasfd", "brand!!", 2, None, ["fdsafas", "ffff"])
+    assert product2 == db.product_in_table("", product2.name, product2.brand)
+    assert product3 == db.product_in_table("", product3.name, product3.brand)
+
 
 def test_save_and_load(db):
     product1 = db.add_product(str("333333333"), "fdsadasfd", "brand!!!", 2, None, ["fdsafas", "ffff"])
@@ -59,24 +73,24 @@ def test_save_and_load(db):
     #Removing products
     db.remove_product(product1.id) 
     with pytest.raises(ProductNotFoundError):
-        db.product_from_id(product1.id) 
+        db.product_in_table(product1.id, product1.name, product1.brand) 
     db.remove_product(product2.id) 
     with pytest.raises(ProductNotFoundError):
-        db.product_from_id(product2.id) 
+        db.product_in_table(product2.id, product2.name, product2.brand) 
     
     #Adding product that won't be saved
     product6 = db.add_product(str("430232"), "fdsadasfd", None, 2010, "linafdsaflkw/dslafjdkls", ["dflsafd", "25oi23o", "fdsafda", "Ffff"])
-    assert db.product_from_id(product6.id) == product6
+    assert db.product_in_table(product6.id, product6.name, product6.brand) == product6
 
     db.load_backup()
 
-    assert db.product_from_id(product1.id) == product1
-    assert db.product_from_id(product2.id) == product2
-    assert db.product_from_id(product3.id) == product3
-    assert db.product_from_id(product4.id) == product4
-    assert db.product_from_id(product5.id) == product5
+    assert db.product_in_table(product1.id, product1.name, product1.brand) == product1
+    assert db.product_in_table(product2.id, product2.name, product2.brand) == product2
+    assert db.product_in_table(product3.id, product3.name, product3.brand) == product3
+    assert db.product_in_table(product4.id, product4.name, product4.brand) == product4
+    assert db.product_in_table(product5.id, product5.name, product5.brand) == product5
     with pytest.raises(ProductNotFoundError):
-        db.product_from_id(product6.id) #Ensures product isn't in database
+        db.product_in_table(product6.id, product6.name, product6.brand) #Ensures product isn't in database
 
 
 
@@ -99,12 +113,12 @@ def test_update_product_clears_tags(db):
     updated = db.update_product(product.id, tags=[])
 
     assert updated.tags == []
-    tags = db.product_from_id(product.id)
+    tags = db.product_in_table(product.id, product.name, product.brand)
     assert tags.id == product.id
     assert tags.tags == []
     db.remove_product(product.id)
     with pytest.raises(ProductNotFoundError):
-        db.product_from_id(product.id)
+        db.product_in_table(product.id, product.name, product.brand)
 
 
 def test_add_user_duplicate_email_raises(db):
@@ -121,18 +135,18 @@ def test_checkout(db):
     assert product.brand == None
     assert set(product.tags) == {"tag_!", "tag_?"}
 
-    loaded = db.product_from_id(product.id)
+    loaded = db.product_in_table(product.id, product.name, product.brand)
     assert loaded == product #Ensures product is in the table
 
     db.checkout_product(product.id, 3) #Ensures quantity is updated
-    updated_product = db.product_from_id(product.id)
+    updated_product = db.product_in_table(product.id, product.name, product.brand)
     assert updated_product.quantity == 47
     db.checkout_product(product.id, 47)
-    updated_product = db.product_from_id(product.id)
+    updated_product = db.product_in_table(product.id, product.name, product.brand)
     assert updated_product.quantity == 0
     
     db.update_product(product.id, quantity= 4) #Ensures all parts of the product are maintained
-    updated_product = db.product_from_id(product.id)
+    updated_product = db.product_in_table(product.id, product.name, product.brand)
     assert updated_product.quantity == 4
     assert updated_product.name == "Green Beans"
     assert updated_product.brand == None
@@ -140,11 +154,11 @@ def test_checkout(db):
     
     with pytest.raises(InvalidQuantityError): #Ensures invalid quantity can't be checkedout
         db.checkout_product(product.id, 47)
-    updated_product = db.product_from_id(product.id)
+    updated_product = db.product_in_table(product.id, product.name, product.brand)
     assert updated_product.quantity == 4
     
     db.remove_product(product.id) 
     with pytest.raises(ProductNotFoundError):
-        db.product_from_id(product.id) #Ensures product is removed
+        db.product_in_table(product.id, product.name, product.brand) #Ensures product is removed
         
     

@@ -9,7 +9,10 @@ export default function TagView(): React.ReactNode {
     const pageSize = parseInt(localStorage.getItem("table-page-size") ?? "20") || 20;
 
     React.useEffect(() => {
-        api!.get_tags({ page_size: 99999 }).then(t => setTags(t.data));
+        api!.get_tags({ page_size: 99999 }).then(t => {
+            const sortedTags = t.data.sort((a, b) => a.label.localeCompare(b.label));
+            setTags(sortedTags);
+        });
     }, []);
 
     return (

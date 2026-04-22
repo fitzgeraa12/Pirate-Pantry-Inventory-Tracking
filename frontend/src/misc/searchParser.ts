@@ -1,15 +1,16 @@
 export type SortBy = 'name' | 'quantity' | 'brand';
 export type SortDir = 'asc' | 'desc';
 
-export const SORT_LABELS: Record<SortBy, string> = { name: 'Name', quantity: 'Qty', brand: 'Brand' };
+export const SORT_LABELS: Record<SortBy, string> = { name: 'Name', quantity: 'Qty', brand: 'Brand', id: 'ID'};
 
-export type ParseResult = { search?: string; id?: string; name?: string; brand?: string; quantity?: string; error?: string };
+export type ParseResult = { search?: string; id?: string; name?: string; brand?: string; tag?: string; quantity?: string; error?: string };
 
 export function parseSearch(raw: string): ParseResult {
     const segments = raw.split(',').map(s => s.trim()).filter(Boolean);
     let id: string | undefined;
     let name: string | undefined;
     let brand: string | undefined;
+    let tag: string | undefined;
     let quantity: string | undefined;
     const searchParts: string[] = [];
     const seen = new Set<string>();
@@ -27,6 +28,10 @@ export function parseSearch(raw: string): ParseResult {
         const bm = seg.match(/^brand:(.+)$/i);
         if (bm) { if (!seen.has('brand')) { seen.add('brand'); brand = `%${bm[1].trim()}%`; } continue; }
         if (/^brand:$/i.test(seg)) return { error: '"brand:" requires a value' };
+
+        const tm = seg.match(/^tag:(.+)$/i);
+        if (tm) { if (!seen.has('tag')) { seen.add('tag'); tag = `%${tm[1].trim()}%`; } continue; }
+        if (/^tag:$/i.test(seg)) return { error: '"tag:" requires a value' };
 
         if (/^qty/i.test(seg)) {
             if (!seen.has('qty')) {
@@ -48,7 +53,7 @@ export function parseSearch(raw: string): ParseResult {
         }
 
         if (/^[a-zA-Z]+:/.test(seg)) {
-            return { error: `Unknown filter "${seg.split(':')[0]}:" — valid filters: id:, name:, brand:, qty` };
+            return { error: `Unknown filter "${seg.split(':')[0]}:" — valid filters: id:, name:, brand:, tag:, qty` };
         }
 
         searchParts.push(seg);
@@ -59,6 +64,7 @@ export function parseSearch(raw: string): ParseResult {
         id: id || undefined,
         name: name || undefined,
         brand: brand || undefined,
+        tag,
         quantity,
     };
 }

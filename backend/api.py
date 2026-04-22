@@ -471,9 +471,10 @@ def define_routes(app: Flask, db: Database):
             quantity: Optional[str] = None
             image_link: Optional[str] = None
             tags: Optional[str] = None
+            tag: Optional[str] = None
             page: int = 1
             page_size: int = 20
-            sort_by: Literal['name', 'quantity', 'brand'] = 'name'
+            sort_by: Literal['name', 'quantity', 'brand', 'id'] = 'name'
             sort_dir: Literal['asc', 'desc'] = 'asc'
 
         with db.transaction():
@@ -521,15 +522,28 @@ def define_routes(app: Flask, db: Database):
 
             filter_params = params.copy()
 
-            if tag_list:
-                placeholders = ', '.join('?' for _ in tag_list)
+            # Handle tag filtering (both exact match and LIKE search)
+            has_tag_filter = bool(tag_list) or bool(products_query.tag)
+            
+            if has_tag_filter:
                 base_sql = f'''
                     FROM products p
                     JOIN product_tags pt ON p.id = pt.product_id
                     {where}
-                    {'AND' if conditions else 'WHERE'} pt.tag_label IN ({placeholders})
                 '''
-                filter_params.extend(tag_list)
+                
+                tag_conditions = []
+                if tag_list:
+                    placeholders = ', '.join('?' for _ in tag_list)
+                    tag_conditions.append(f'pt.tag_label IN ({placeholders})')
+                    filter_params.extend(tag_list)
+                
+                if products_query.tag:
+                    tag_conditions.append('pt.tag_label LIKE ?')
+                    filter_params.append(products_query.tag)
+                
+                tag_where = ' OR '.join(tag_conditions)
+                base_sql += f"\n                    {'AND' if conditions else 'WHERE'} ({tag_where})"
             else:
                 base_sql = f'FROM products p {where}'
 
@@ -539,10 +553,11 @@ def define_routes(app: Flask, db: Database):
                 'name': 'p.name',
                 'quantity': 'p.quantity',
                 'brand': "COALESCE(p.brand, 'zzzzz')",
+                'id': 'CAST(p.id AS INTEGER)',
             }
             sort_col = _sort_col_map[products_query.sort_by]
             sort_dir_sql = products_query.sort_dir.upper()
-            order_by = f"ORDER BY CASE WHEN p.quantity = 0 THEN 1 ELSE 0 END ASC, {sort_col} {sort_dir_sql}"
+            order_by = f"ORDER BY {sort_col} {sort_dir_sql}"
 
             offset = (products_query.page - 1) * products_query.page_size
             paginated_params = filter_params + [products_query.page_size, offset]
@@ -622,12 +637,14 @@ def define_routes(app: Flask, db: Database):
 
                         existing: Optional[Product] = None
                         id_ = products_query.id
+                        name_ = products_query.name
+                        brand_ = products_query.brand
                         if id_ is not None:
                             if not id_:
                                 id_ = generate_id(db)
                             else:
                                 try:
-                                    existing = db.product_from_id(id_)
+                                    existing = db.product_in_table(id_, name_, brand_)
                                 except ProductNotFoundError:
                                     existing = None
 
@@ -764,7 +781,7 @@ def define_routes(app: Flask, db: Database):
 
             out_of_stock = []
             for product in products:
-                existing = db.product_from_id(product.id)
+                existing = db.product_in_table(product.id, "")
                 if product.amount > existing.quantity:
                     out_of_stock.append({
                         'id': existing.id,
@@ -778,7 +795,7 @@ def define_routes(app: Flask, db: Database):
 
             for product in products:
                 id = product.id
-                existing = db.product_from_id(id)
+                existing = db.product_in_table(id, "")
                 new_quantity = existing.quantity - product.amount
 
                 db.query('UPDATE products SET quantity = ? WHERE id = ?', [new_quantity, id])
