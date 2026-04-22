@@ -38,7 +38,7 @@ def new_checkout(
         num_checked_out: int = 0,
         checkout_time: str = ''
 ):
-    if checkout_time is None:
+    if not checkout_time:
         checkout_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     query('INSERT INTO total_checkouts (checkout_id, product_id, name, brand, num_checked_out, checkout_time) VALUES (?, ?, ?, ?, ?, ?)', [checkout_id, id, name, brand or '', num_checked_out, checkout_time])
 
@@ -94,7 +94,7 @@ def tag_range(start:str, end:str):
                   WHERE checkout_time >= ? AND checkout_time <= ?", [s,e])
     tags = []
     for row in rows:
-        id_tag = get_tags_for_item(id=row['id'])
+        id_tag = get_tags_for_item(id=row['product_id'])
         tags.extend(id_tag)
     if not tags:
         return None
@@ -106,7 +106,6 @@ def tag_range(start:str, end:str):
     ax.pie(freq.values(), labels=freq.keys(), autopct='%1.1f%%', startangle=140)
     ax.set_title(f'Percentage of Item Tags Taken From {start} To {end}', fontsize=14, fontweight='bold')
     plt.tight_layout() 
-
     return fig
 
 def checkout_daily(start:str, end:str):
@@ -134,9 +133,9 @@ def checkout_daily(start:str, end:str):
     ax.set_title(f'Checkouts per Day From {start} To {end}', fontsize=14, fontweight='bold')
     ax.set_ylabel('Number of Checkouts')
     ax.bar_label(bars)
+    ax.set_ylim(bottom=0)
     plt.xticks(rotation=45, ha='right', fontsize=9)
     plt.tight_layout()
-
     return fig
 
 def checkout_hourly(start:str, end:str):
@@ -154,6 +153,7 @@ def checkout_hourly(start:str, end:str):
     ax.set_title(f'Checkouts per Hour From {start} To {end}', fontsize=14, fontweight='bold')
     ax.set_xlabel('Hours')
     ax.set_ylabel('Number of Checkouts')
+    ax.set_ylim(bottom=0)
     ax.bar_label(bars)
     plt.xticks(rotation=45, ha='right')
     plt.tight_layout()

@@ -19,6 +19,8 @@ SESSION_EXPIRY_IN_DAYS = 30
 
 QueryRow = dict[str, Any]
 QueryParams = list[Any]
+LOCAL_STATE_DIR = os.path.join(os.path.dirname(__file__), "__local__")
+LOCAL_BACKUP_PRODUCTS_PATH = os.path.join(LOCAL_STATE_DIR, "backup_products.txt")
 
 class NotFoundError(Exception):
     def __init__(self, object: str, field: str, val: Any):
@@ -383,7 +385,8 @@ class Database(ABC):
     def save_backup(self) -> None:
         """Saves database to a file"""
         to_write = self.all_products()
-        with open("backup_products.txt", "w") as f:
+        os.makedirs(LOCAL_STATE_DIR, exist_ok=True)
+        with open(LOCAL_BACKUP_PRODUCTS_PATH, "w") as f:
             for i in to_write:
                 f.write(str(i))
                 f.write("\n")
@@ -392,7 +395,7 @@ class Database(ABC):
     def load_backup(self) -> None:
         """Adds all saved products to main table"""
         self.delete_table()
-        with open("backup_products.txt", "r") as f:
+        with open(LOCAL_BACKUP_PRODUCTS_PATH, "r") as f:
             for line in f:
                 new_product = line.strip()
                 id = new_product[((new_product.index("id=")) + 4): (new_product.index("name="))].replace("'", "").strip()

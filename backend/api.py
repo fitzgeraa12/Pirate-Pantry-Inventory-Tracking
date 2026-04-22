@@ -1,3 +1,4 @@
+from datetime import datetime
 from functools import wraps
 import os
 import io
@@ -15,6 +16,8 @@ import jwt as jwt
 import requests
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
+from werkzeug.exceptions import HTTPException
+
 
 import subprocess
 
@@ -45,6 +48,8 @@ def create_app(db: Database, is_local: bool) -> Flask:
 
     @app.errorhandler(Exception)
     def handle_exception(e: Exception):
+        if isinstance(e, HTTPException):
+            return e
         import traceback
         tb = traceback.format_exc()
         app.logger.error(tb)
@@ -566,7 +571,7 @@ def define_routes(app: Flask, db: Database):
             @field_validator('id')
             @classmethod
             def validate_id_field(cls, v: Optional[str]) -> Optional[str]:
-                if v is None:
+                if not v:
                     return v
                 if not v.isdecimal():
                     raise ValueError("id must be a numeric string")
@@ -616,11 +621,15 @@ def define_routes(app: Flask, db: Database):
                         fields_set = products_query.model_fields_set
 
                         existing: Optional[Product] = None
-                        if products_query.id is not None:
-                            try:
-                                existing = db.product_from_id(products_query.id)
-                            except ProductNotFoundError:
-                                existing = None
+                        id_ = products_query.id
+                        if id_ is not None:
+                            if not id_:
+                                id_ = generate_id(db)
+                            else:
+                                try:
+                                    existing = db.product_from_id(id_)
+                                except ProductNotFoundError:
+                                    existing = None
 
                         if existing is None and products_query.name is None:
                             errors.append({'error': 'Name is required for new products', 'item': raw_products_query})
@@ -657,9 +666,8 @@ def define_routes(app: Flask, db: Database):
                         )
 
                         if existing is None:
-                            p_id = products_query.id if products_query.id else generate_id(db)
                             product = db.add_product(
-                                id=p_id,
+                                id=id_,
                                 name=products_query.name or "",
                                 brand=None if products_query.brand == "" else products_query.brand,
                                 quantity=products_query.quantity,
@@ -668,7 +676,7 @@ def define_routes(app: Flask, db: Database):
                             )
                         else:
                             product = db.update_product(
-                                id=products_query.id,
+                                id=id_,
                                 name=name,
                                 brand=brand,
                                 quantity=quantity,
@@ -784,7 +792,8 @@ def define_routes(app: Flask, db: Database):
                     id=existing.id,
                     name=existing.name,
                     brand=existing.brand,
-                    num_checked_out=product.amount
+                    num_checked_out=product.amount,
+                    checkout_time=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 )
 
             return jsonify({'quantities': updated_products}), 200
@@ -1081,7 +1090,7 @@ def define_routes(app: Flask, db: Database):
 
         for name in body.names:
             try:
-                db.query('INSERT INTO brands (name) VALUES (?) ON CONFLICT (label) DO NOTHING', [name])
+                db.query('INSERT INTO brands (name) VALUES (?) ON CONFLICT (name) DO NOTHING', [name])
                 results.append(name)
             except Exception as e:
                 errors.append({'error': str(e), 'name': name})

@@ -68,9 +68,8 @@ const AddItem = ({ editingProduct, onBack }: { editingProduct?: Product | null; 
             };
 
             const idChanged = isEditing && editingProduct!.id !== id;
-            if (idChanged) {
-                // Delete old, then create new with new ID
-                await api!.delete_products([editingProduct!.id]);
+            if (idChanged) { // Delete old, then create new with new ID 
+                await api!.delete_products([editingProduct!.id]); 
             }
             const responseData = await api!.add_products([newItem]);
             console.log("Response from server: ", responseData);
