@@ -9,7 +9,10 @@ export default function BrandView(): React.ReactNode {
     const pageSize = parseInt(localStorage.getItem("table-page-size") ?? "20") || 20;
 
     React.useEffect(() => {
-        api!.get_brands({ page_size: 99999 }).then(b => setBrands(b.data));
+        api!.get_brands({ page_size: 99999 }).then(b => {
+            const sortedBrands = b.data.sort((a, b) => a.name.localeCompare(b.name));
+            setBrands(sortedBrands);
+        });
     }, []);
 
     return (
