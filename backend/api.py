@@ -1,4 +1,3 @@
-from datetime import datetime
 from functools import wraps
 import os
 import io
@@ -786,8 +785,7 @@ def define_routes(app: Flask, db: Database):
                     id=existing.id,
                     name=existing.name,
                     brand=existing.brand,
-                    num_checked_out=product.amount,
-                    checkout_time= ''
+                    num_checked_out=product.amount
                 )
 
             return jsonify({'quantities': updated_products}), 200
@@ -1084,7 +1082,7 @@ def define_routes(app: Flask, db: Database):
 
         for name in body.names:
             try:
-                db.query('INSERT INTO brands (name) VALUES (?) ON CONFLICT (name) DO NOTHING', [name])
+                db.query('INSERT INTO brands (name) VALUES (?) ON CONFLICT (label) DO NOTHING', [name])
                 results.append(name)
             except Exception as e:
                 errors.append({'error': str(e), 'name': name})
