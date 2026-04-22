@@ -269,9 +269,15 @@ class Database(ABC):
                         "INSERT INTO product_tags (product_id, tag_label) VALUES (?, ?)",
                         [id, tag]
                     )
-            
-            product = self.product_from_id(id)
-            return product
+
+            return Product(
+                id=id,
+                name=name,
+                brand=brand,
+                quantity=quantity if quantity is not None else 0,
+                image_link=image_link,
+                tags=tags or []
+            )
 
     def update_product(
         self,
