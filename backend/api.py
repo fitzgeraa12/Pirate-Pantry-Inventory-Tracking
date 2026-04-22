@@ -621,11 +621,15 @@ def define_routes(app: Flask, db: Database):
                         fields_set = products_query.model_fields_set
 
                         existing: Optional[Product] = None
-                        if products_query.id is not None:
-                            try:
-                                existing = db.product_from_id(products_query.id)
-                            except ProductNotFoundError:
-                                existing = None
+                        id_ = products_query.id
+                        if id_ is not None:
+                            if not id_:
+                                id_ = generate_id(db)
+                            else:
+                                try:
+                                    existing = db.product_from_id(id_)
+                                except ProductNotFoundError:
+                                    existing = None
 
                         if existing is None and products_query.name is None:
                             errors.append({'error': 'Name is required for new products', 'item': raw_products_query})
@@ -662,9 +666,8 @@ def define_routes(app: Flask, db: Database):
                         )
 
                         if existing is None:
-                            p_id = products_query.id if products_query.id else generate_id(db)
                             product = db.add_product(
-                                id=p_id,
+                                id=id_,
                                 name=products_query.name or "",
                                 brand=None if products_query.brand == "" else products_query.brand,
                                 quantity=products_query.quantity,
@@ -673,7 +676,7 @@ def define_routes(app: Flask, db: Database):
                             )
                         else:
                             product = db.update_product(
-                                id=products_query.id,
+                                id=id_,
                                 name=name,
                                 brand=brand,
                                 quantity=quantity,
