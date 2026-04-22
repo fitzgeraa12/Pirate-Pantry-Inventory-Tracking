@@ -26,8 +26,10 @@ const AddItem = ({ editingProduct, onBack }: { editingProduct?: Product | null; 
                     api!.get_all_brands(),
                     api!.get_all_tags()
                 ]);
-                setBrands(brandsData);
-                setAllTags(tagsData);
+                const sortedBrands = brandsData.sort();
+                const sortedTags = tagsData.sort();
+                setBrands(sortedBrands);
+                setAllTags(sortedTags);
             } catch (error) {
                 console.error("Failed to load brands and tags:", error);
             }
