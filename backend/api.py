@@ -571,7 +571,7 @@ def define_routes(app: Flask, db: Database):
             @field_validator('id')
             @classmethod
             def validate_id_field(cls, v: Optional[str]) -> Optional[str]:
-                if v is None:
+                if not v:
                     return v
                 if not v.isdecimal():
                     raise ValueError("id must be a numeric string")
