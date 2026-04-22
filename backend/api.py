@@ -622,12 +622,14 @@ def define_routes(app: Flask, db: Database):
 
                         existing: Optional[Product] = None
                         id_ = products_query.id
+                        name_ = products_query.name
+                        brand_ = products_query.brand
                         if id_ is not None:
                             if not id_:
                                 id_ = generate_id(db)
                             else:
                                 try:
-                                    existing = db.product_from_id(id_)
+                                    existing = db.product_in_table(id_, name_, brand_)
                                 except ProductNotFoundError:
                                     existing = None
 
@@ -764,7 +766,7 @@ def define_routes(app: Flask, db: Database):
 
             out_of_stock = []
             for product in products:
-                existing = db.product_from_id(product.id)
+                existing = db.product_in_table(product.id, product.name)
                 if product.amount > existing.quantity:
                     out_of_stock.append({
                         'id': existing.id,
@@ -778,7 +780,8 @@ def define_routes(app: Flask, db: Database):
 
             for product in products:
                 id = product.id
-                existing = db.product_from_id(id)
+                name = product.name
+                existing = db.product_in_table(id, name)
                 new_quantity = existing.quantity - product.amount
 
                 db.query('UPDATE products SET quantity = ? WHERE id = ?', [new_quantity, id])
