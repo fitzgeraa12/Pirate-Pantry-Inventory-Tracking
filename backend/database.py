@@ -80,7 +80,7 @@ class Product(BaseModel):
     def from_row(row: QueryRow) -> "Product":
         return Product(
             **{k: (str(v) if k == "id" else v) for k, v in row.items() if k != "tags"},
-            tags=[t for t in row["tags"].split(",")] if row["tags"] else []
+            tags=sorted(t for t in row["tags"].split(",")) if row["tags"] else []
         )
     
     @staticmethod
@@ -269,10 +269,15 @@ class Database(ABC):
                         "INSERT INTO product_tags (product_id, tag_label) VALUES (?, ?)",
                         [id, tag]
                     )
-            
-            product = self.product_in_table(id, name, brand)
-            return product    
 
+            return Product(
+                id=id,
+                name=name,
+                brand=brand,
+                quantity=quantity if quantity is not None else 0,
+                image_link=image_link,
+                tags=sorted(tags) if tags else []
+            )
 
     def update_product(
         self,
@@ -327,7 +332,7 @@ class Database(ABC):
                             [id, tag]
                         )
 
-            return self.product_in_table(id, name, brand)
+            return self.product_in_table(id, name if not isinstance(name, type(UNSET)) else "")
     
     def checkout_product(self, id: str, amount: int) -> int:
         """
@@ -448,20 +453,20 @@ class Database(ABC):
                         return self.query_and_map_single(
                             f"SELECT p.*, GROUP_CONCAT(pt.tag_label) as tags FROM products p LEFT JOIN product_tags pt ON p.id = pt.product_id WHERE name = ? and brand = ?",
                             lambda row: Product.from_row(row),
-                            lambda _: ProductNotFoundError(id),
+                            lambda _: ProductNotFoundError(brand),
                             [name, brand]
                         )
                     else:
-                        raise ProductNotFoundError(id)
+                        raise ProductNotFoundError(brand)
                 else:
                     return self.query_and_map_single( #No brand available, searches only by name
                         f"SELECT p.*, GROUP_CONCAT(pt.tag_label) as tags FROM products p LEFT JOIN product_tags pt ON p.id = pt.product_id WHERE name = ?",
                         lambda row: Product.from_row(row),
-                        lambda _: ProductNotFoundError(id),
+                        lambda _: ProductNotFoundError(name),
                         [name]
                     )
             else:
-                raise ProductNotFoundError(id)
+                raise ProductNotFoundError(name)
 
     
     def products_search(self, search: str) -> list[Product]:

@@ -129,7 +129,7 @@ def test_get_products_paginated(auth, client, db, products):
 
 def test_post_products_new(auth, client, db):
     new_product = Product(id='999', name='olives', brand='everyday olives', quantity=5, image_link=None, tags=[])
-    db.product_from_id.side_effect = ProductNotFoundError('999')
+    db.product_in_table.side_effect = ProductNotFoundError('999')
     db.add_product.return_value = new_product
     res = client.post('/products', json=[{'id': '999', 'name': 'olives', 'brand': 'everyday olives', 'quantity': 5}], headers=auth)
     assert res.status_code == 201
@@ -142,7 +142,7 @@ def test_post_products_new(auth, client, db):
 def test_post_products_update(auth, client, db, products):
     existing = products[3]  # peas
     updated = Product(id=existing.id, name='sweet peas', brand=existing.brand, quantity=5, image_link=None, tags=['VEGETABLES', 'canned'])
-    db.product_from_id.return_value = existing
+    db.product_in_table.return_value = existing
     db.update_product.return_value = updated
     res = client.post('/products', json=[{'id': existing.id, 'name': 'sweet peas', 'quantity': 5}], headers=auth)
     assert res.status_code == 201
@@ -158,7 +158,7 @@ def test_post_products_not_a_list(auth, client):
 
 
 def test_post_product_no_name_new(auth, client, db):
-    db.product_from_id.side_effect = ProductNotFoundError('1288901')
+    db.product_in_table.side_effect = ProductNotFoundError('1288901')
     res = client.post('/products', json=[{'brand': 'walmart', 'id': '1288901', 'quantity': 6}], headers=auth)
     assert res.status_code == 207
     data = res.get_json()
@@ -167,35 +167,35 @@ def test_post_product_no_name_new(auth, client, db):
 
 
 def test_post_products_invalid_name_asterisk(auth, client, db):
-    db.product_from_id.side_effect = ProductNotFoundError('123')
+    db.product_in_table.side_effect = ProductNotFoundError('123')
     res = client.post('/products', json=[{'name': 'pas*ta', 'id': '123', 'quantity': 6}], headers=auth)
     data = res.get_json()
     assert len(data['errors']) > 0
 
 
 def test_post_products_invalid_name_double_spaces(auth, client, db):
-    db.product_from_id.side_effect = ProductNotFoundError('123')
+    db.product_in_table.side_effect = ProductNotFoundError('123')
     res = client.post('/products', json=[{'name': 'pas  ta', 'id': '123', 'quantity': 6}], headers=auth)
     data = res.get_json()
     assert len(data['errors']) > 0
 
 
 def test_post_products_invalid_name_whitespace_only(auth, client, db):
-    db.product_from_id.side_effect = ProductNotFoundError('123')
+    db.product_in_table.side_effect = ProductNotFoundError('123')
     res = client.post('/products', json=[{'name': '   ', 'id': '123', 'quantity': 6}], headers=auth)
     data = res.get_json()
     assert len(data['errors']) > 0
 
 
 def test_post_products_invalid_tag(auth, client, db):
-    db.product_from_id.side_effect = ProductNotFoundError('123')
+    db.product_in_table.side_effect = ProductNotFoundError('123')
     res = client.post('/products', json=[{'name': 'pasta', 'id': '123', 'quantity': 6, 'tags': ['pas!!!!@ta']}], headers=auth)
     data = res.get_json()
     assert len(data['errors']) > 0
 
 
 def test_post_products_quantity_type_error(auth, client, db):
-    db.product_from_id.side_effect = ProductNotFoundError('123')
+    db.product_in_table.side_effect = ProductNotFoundError('123')
     res = client.post('/products', json=[{'name': 'pasta', 'id': '123', 'quantity': 'six'}], headers=auth)
     assert len(res.get_json()['errors']) > 0
 
@@ -431,7 +431,7 @@ def test_get_available_tags(auth, client, db, tag_list):
 def test_checkout_valid(auth, client, db, products):
     item = products[4]  # cherrios, quantity=8
     after = Product(id=item.id, name=item.name, brand=item.brand, quantity=5, image_link=None, tags=item.tags)
-    db.product_from_id.return_value = item
+    db.product_in_table.return_value = item
     db.query.return_value = []
     res = client.patch('/products/checkout', json={'products': [{'id': item.id, 'amount': 3}]}, headers=auth)
     assert res.status_code == 200
@@ -442,7 +442,7 @@ def test_checkout_valid(auth, client, db, products):
 
 def test_checkout_last_one(auth, client, db, products):
     item = products[3]  # peas, quantity=2
-    db.product_from_id.return_value = item
+    db.product_in_table.return_value = item
     db.query.return_value = []
     res = client.patch('/products/checkout', json={'products': [{'id': item.id, 'amount': 2}]}, headers=auth)
     assert res.status_code == 200
@@ -452,14 +452,14 @@ def test_checkout_last_one(auth, client, db, products):
 
 def test_checkout_not_enough_stock(auth, client, db, products):
     item = products[3]  # peas, quantity=2
-    db.product_from_id.return_value = item
+    db.product_in_table.return_value = item
     res = client.patch('/products/checkout', json={'products': [{'id': item.id, 'amount': 99}]}, headers=auth)
     assert res.status_code == 400
     assert res.get_json()['error'] == 'not_enough_stock'
 
 
 def test_checkout_not_found(auth, client, db):
-    db.product_from_id.side_effect = ProductNotFoundError('0000')
+    db.product_in_table.side_effect = ProductNotFoundError('0000')
     res = client.patch('/products/checkout', json={'products': [{'id': '0000', 'amount': 1}]}, headers=auth)
     assert res.status_code == 500
 

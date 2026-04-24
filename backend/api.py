@@ -1,4 +1,5 @@
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from functools import wraps
 import os
 import io
@@ -637,14 +638,16 @@ def define_routes(app: Flask, db: Database):
 
                         existing: Optional[Product] = None
                         id_ = products_query.id
-                        if id_ is not None:
-                            if not id_:
-                                id_ = generate_id(db)
-                            else:
-                                try:
-                                    existing = db.product_from_id(id_)
-                                except ProductNotFoundError:
-                                    existing = None
+                        name_ = products_query.name
+                        brand_ = products_query.brand
+                        if id_ is not None and name_ is not None:
+                            try:
+                                existing = db.product_in_table(id_, name_, brand_)
+                            except ProductNotFoundError as e:
+                                print("Caught ProductNotFoundError:", e) 
+                                existing = None
+                            except Exception as e:
+                                print("Caught something else:", type(e), e)
 
                         if existing is None and products_query.name is None:
                             errors.append({'error': 'Name is required for new products', 'item': raw_products_query})
@@ -681,8 +684,9 @@ def define_routes(app: Flask, db: Database):
                         )
 
                         if existing is None:
+                            p_id = products_query.id if products_query.id else generate_id(db)
                             product = db.add_product(
-                                id=id_,
+                                id=p_id,
                                 name=products_query.name or "",
                                 brand=None if products_query.brand == "" else products_query.brand,
                                 quantity=products_query.quantity,
@@ -779,7 +783,7 @@ def define_routes(app: Flask, db: Database):
 
             out_of_stock = []
             for product in products:
-                existing = db.product_from_id(product.id)
+                existing = db.product_in_table(product.id, "")
                 if product.amount > existing.quantity:
                     out_of_stock.append({
                         'id': existing.id,
@@ -793,7 +797,7 @@ def define_routes(app: Flask, db: Database):
 
             for product in products:
                 id = product.id
-                existing = db.product_from_id(id)
+                existing = db.product_in_table(id, "")
                 new_quantity = existing.quantity - product.amount
 
                 db.query('UPDATE products SET quantity = ? WHERE id = ?', [new_quantity, id])
@@ -802,13 +806,28 @@ def define_routes(app: Flask, db: Database):
                     'quantity': new_quantity
                 })
 
-                stats.new_checkout(
-                    checkout_id=stats.next_checkout_id(),
-                    id=existing.id,
-                    name=existing.name,
-                    brand=existing.brand,
-                    num_checked_out=product.amount,
-                    checkout_time=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                # stats.new_checkout(
+                #     checkout_id=stats.next_checkout_id(),
+                #     id=existing.id,
+                #     name=existing.name,
+                #     brand=existing.brand,
+                #     num_checked_out=product.amount,
+                #     checkout_time=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                # )
+                db.query(
+                    '''
+                    INSERT INTO total_checkouts
+                    (checkout_id, product_id, name, brand, num_checked_out, checkout_time)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    ''',
+                    [
+                        stats.next_checkout_id(),
+                        existing.id,
+                        existing.name,
+                        existing.brand or '',
+                        product.amount,
+                        datetime.now(ZoneInfo('America/Chicago')).strftime('%Y-%m-%d %H:%M:%S')
+                    ]
                 )
 
             return jsonify({'quantities': updated_products}), 200
