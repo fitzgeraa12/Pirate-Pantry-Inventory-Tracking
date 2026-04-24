@@ -639,14 +639,11 @@ def define_routes(app: Flask, db: Database):
                         id_ = products_query.id
                         name_ = products_query.name
                         brand_ = products_query.brand
-                        if id_ is not None:
-                            if not id_:
-                                id_ = generate_id(db)
-                            else:
-                                try:
-                                    existing = db.product_in_table(id_, name_, brand_)
-                                except ProductNotFoundError:
-                                    existing = None
+                        if id_ is not None and name_ is not None:
+                            try:
+                                existing = db.product_in_table(id_, name_, brand_)
+                            except ProductNotFoundError:
+                                existing = None
 
                         if existing is None and products_query.name is None:
                             errors.append({'error': 'Name is required for new products', 'item': raw_products_query})
@@ -683,8 +680,9 @@ def define_routes(app: Flask, db: Database):
                         )
 
                         if existing is None:
+                            p_id = products_query.id if products_query.id else generate_id(db)
                             product = db.add_product(
-                                id=id_,
+                                id=p_id,
                                 name=products_query.name or "",
                                 brand=None if products_query.brand == "" else products_query.brand,
                                 quantity=products_query.quantity,
