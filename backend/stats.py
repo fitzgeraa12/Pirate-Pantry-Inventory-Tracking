@@ -182,8 +182,9 @@ def checkout_hourly(start: str, end: str):
 
    # Build list of all days in range
    days = []
-   current = s
-   while current <= e:
+   current = datetime.strptime(s, '%Y-%m-%d')  
+   ed = datetime.strptime(e, '%Y-%m-%d')
+   while current <= ed:
       days.append(current.strftime('%Y-%m-%d'))
       current += timedelta(days=1)
 
