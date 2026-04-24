@@ -642,8 +642,11 @@ def define_routes(app: Flask, db: Database):
                         if id_ is not None and name_ is not None:
                             try:
                                 existing = db.product_in_table(id_, name_, brand_)
-                            except ProductNotFoundError:
+                            except ProductNotFoundError as e:
+                                print("Caught ProductNotFoundError:", e) 
                                 existing = None
+                            except Exception as e:
+                                print("Caught something else:", type(e), e)
 
                         if existing is None and products_query.name is None:
                             errors.append({'error': 'Name is required for new products', 'item': raw_products_query})
