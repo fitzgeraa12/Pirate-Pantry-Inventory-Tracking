@@ -453,16 +453,16 @@ class Database(ABC):
                         return self.query_and_map_single(
                             f"SELECT p.*, GROUP_CONCAT(pt.tag_label) as tags FROM products p LEFT JOIN product_tags pt ON p.id = pt.product_id WHERE name = ? and brand = ?",
                             lambda row: Product.from_row(row),
-                            lambda _: ProductNotFoundError(id),
+                            lambda _: ProductNotFoundError(brand),
                             [name, brand]
                         )
                     else:
-                        raise ProductNotFoundError(id)
+                        raise ProductNotFoundError(brand)
                 else:
                     return self.query_and_map_single( #No brand available, searches only by name
                         f"SELECT p.*, GROUP_CONCAT(pt.tag_label) as tags FROM products p LEFT JOIN product_tags pt ON p.id = pt.product_id WHERE name = ?",
                         lambda row: Product.from_row(row),
-                        lambda _: ProductNotFoundError(id),
+                        lambda _: ProductNotFoundError(name),
                         [name]
                     )
             else:
