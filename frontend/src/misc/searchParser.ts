@@ -1,4 +1,4 @@
-export type SortBy = 'name' | 'quantity' | 'brand';
+export type SortBy = 'name' | 'quantity' | 'brand' | 'id';
 export type SortDir = 'asc' | 'desc';
 
 export const SORT_LABELS: Record<SortBy, string> = { name: 'Name', quantity: 'Qty', brand: 'Brand', id: 'ID'};
