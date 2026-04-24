@@ -466,7 +466,7 @@ class Database(ABC):
                         [name]
                     )
             else:
-                raise ProductNotFoundError(id)
+                raise ProductNotFoundError(name)
 
     
     def products_search(self, search: str) -> list[Product]:

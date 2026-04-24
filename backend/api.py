@@ -804,13 +804,28 @@ def define_routes(app: Flask, db: Database):
                     'quantity': new_quantity
                 })
 
-                stats.new_checkout(
-                    checkout_id=stats.next_checkout_id(),
-                    id=existing.id,
-                    name=existing.name,
-                    brand=existing.brand,
-                    num_checked_out=product.amount,
-                    checkout_time=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                # stats.new_checkout(
+                #     checkout_id=stats.next_checkout_id(),
+                #     id=existing.id,
+                #     name=existing.name,
+                #     brand=existing.brand,
+                #     num_checked_out=product.amount,
+                #     checkout_time=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                # )
+                db.query(
+                    '''
+                    INSERT INTO total_checkouts
+                    (checkout_id, product_id, name, brand, num_checked_out, checkout_time)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    ''',
+                    [
+                        stats.next_checkout_id(),
+                        existing.id,
+                        existing.name,
+                        existing.brand or '',
+                        product.amount,
+                        datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    ]
                 )
 
             return jsonify({'quantities': updated_products}), 200
