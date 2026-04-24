@@ -69,10 +69,6 @@ const AddItem = ({ editingProduct, onBack }: { editingProduct?: Product | null; 
                 tags: parsedTags.length > 0 ? parsedTags : undefined
             };
 
-            const idChanged = isEditing && editingProduct!.id !== id;
-            if (idChanged) { // Delete old, then create new with new ID 
-                await api!.delete_products([editingProduct!.id]); 
-            }
             const responseData = await api!.add_products([newItem]);
             console.log("Response from server: ", responseData);
 
@@ -100,7 +96,7 @@ const AddItem = ({ editingProduct, onBack }: { editingProduct?: Product | null; 
                         placeholder="Id"
                         value={id}
                         onChange={(e) => setId(e.target.value.replace(/\D/g, ''))}
-                        disabled={loading}
+                        disabled={loading || isEditing}
                     />
                     <input
                         className="add-item-input"
