@@ -1,7 +1,7 @@
-export type SortBy = 'name' | 'quantity' | 'brand' | 'id';
+export type SortBy = 'name' | 'quantity' | 'brand';
 export type SortDir = 'asc' | 'desc';
 
-export const SORT_LABELS: Record<SortBy, string> = { name: 'Name', quantity: 'Qty', brand: 'Brand', id: 'ID'};
+export const SORT_LABELS: Record<SortBy, string> = { name: 'Name', quantity: 'Qty', brand: 'Brand'};
 
 export type ParseResult = { search?: string; id?: string; name?: string; brand?: string; tag?: string; quantity?: string; error?: string };
 
