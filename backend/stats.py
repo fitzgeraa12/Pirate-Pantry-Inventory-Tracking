@@ -138,24 +138,80 @@ def checkout_daily(start:str, end:str):
     plt.tight_layout()
     return fig
 
-def checkout_hourly(start:str, end:str):
-    '''Number of checkouts per hour (separate bar graphs for each day of the week)'''
-    s, e = parse_date(start), parse_date(end)
-    rows = query("SELECT strftime('%H', checkout_time) AS hour, COUNT(DISTINCT checkout_id) AS total\
-                  FROM total_checkouts\
-                  WHERE checkout_time >= ? AND checkout_time <= ?\
-                  GROUP BY hour\
-                  ORDER BY hour", [s,e])
-    counts = {row['hour']: row['total'] for row in (rows or [])}
-    result = {f'{h:02d}:00': counts.get(f'{h:02d}', 0) for h in range(24)}
-    fig, ax = plt.subplots(figsize=(14, 6))
-    bars = ax.bar(result.keys(), result.values(), color='steelblue')
-    ax.set_title(f'Checkouts per Hour From {start} To {end}', fontsize=14, fontweight='bold')
-    ax.set_xlabel('Hours')
-    ax.set_ylabel('Number of Checkouts')
-    ax.set_ylim(bottom=0)
-    ax.bar_label(bars)
-    plt.xticks(rotation=45, ha='right')
-    plt.tight_layout()
-    return fig
+# def checkout_hourly(start:str, end:str):
+#     '''Number of checkouts per hour (separate bar graphs for each day of the week)'''
+#     s, e = parse_date(start), parse_date(end)
+#     rows = query("SELECT strftime('%H', checkout_time) AS hour, COUNT(DISTINCT checkout_id) AS total\
+#                   FROM total_checkouts\
+#                   WHERE checkout_time >= ? AND checkout_time <= ?\
+#                   GROUP BY hour\
+#                   ORDER BY hour", [s,e])
+#     counts = {row['hour']: row['total'] for row in (rows or [])}
+#     result = {f'{h:02d}:00': counts.get(f'{h:02d}', 0) for h in range(24)}
+#     fig, ax = plt.subplots(figsize=(14, 6))
+#     bars = ax.bar(result.keys(), result.values(), color='steelblue')
+#     ax.set_title(f'Checkouts per Hour From {start} To {end}', fontsize=14, fontweight='bold')
+#     ax.set_xlabel('Hours')
+#     ax.set_ylabel('Number of Checkouts')
+#     ax.set_ylim(bottom=0)
+#     ax.bar_label(bars)
+#     plt.xticks(rotation=45, ha='right')
+#     plt.tight_layout()
+#     return fig
+
+
+def checkout_hourly(start: str, end: str):
+   '''Number of checkouts per hour (separate bar graph for each day in range)'''
+   s, e = parse_date(start), parse_date(end)
+    
+   rows = query("""
+      SELECT DATE(checkout_time) AS day,
+               strftime('%H', checkout_time) AS hour,
+               COUNT(DISTINCT checkout_id) AS total
+      FROM total_checkouts
+      WHERE checkout_time >= ? AND checkout_time <= ?
+      GROUP BY day, hour
+      ORDER BY day, hour
+   """, [s, e])
+
+   # Group counts by day
+   from collections import defaultdict
+   daily_counts: dict[str, dict[str, int]] = defaultdict(dict)
+   for row in (rows or []):
+      daily_counts[row['day']][row['hour']] = row['total']
+
+   # Build list of all days in range
+   days = []
+   current = s
+   while current <= e:
+      days.append(current.strftime('%Y-%m-%d'))
+      current += timedelta(days=1)
+
+   hours = [f'{h:02d}:00' for h in range(24)]
+
+   fig, axes = plt.subplots(
+      nrows=len(days), ncols=1,
+      figsize=(14, 5 * len(days)),
+      sharey=False
+   )
+
+   if len(days) == 1:
+      axes = [axes]  # make iterable if only one day
+
+   for ax, day in zip(axes, days):
+      counts = daily_counts.get(day, {})
+      values = [counts.get(f'{h:02d}', 0) for h in range(24)]
+      bars = ax.bar(hours, values, color='steelblue')
+      ax.set_title(day, fontsize=12, fontweight='bold')
+      ax.set_xlabel('Hour')
+      ax.set_ylabel('Checkouts')
+      ax.set_ylim(bottom=0)
+      ax.bar_label(bars)
+      ax.tick_params(axis='x', rotation=45)
+
+   fig.suptitle(f'Checkouts per Hour: {start} to {end}', fontsize=14, fontweight='bold')
+   plt.tight_layout()
+   return fig
+
+    
 
