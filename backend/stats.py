@@ -3,6 +3,7 @@ import os
 import sys
 import uuid
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from collections import Counter
 import matplotlib.pyplot as plt # pip install matplotlib
 
@@ -39,7 +40,7 @@ def new_checkout(
         checkout_time: str = ''
 ):
     if not checkout_time:
-        checkout_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        checkout_time = datetime.now(ZoneInfo('America/Chicago')).strftime('%Y-%m-%d %H:%M:%S')
     query('INSERT INTO total_checkouts (checkout_id, product_id, name, brand, num_checked_out, checkout_time) VALUES (?, ?, ?, ?, ?, ?)', [checkout_id, id, name, brand or '', num_checked_out, checkout_time])
 
 def parse_date(date:str):

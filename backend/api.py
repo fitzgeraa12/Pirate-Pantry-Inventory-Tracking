@@ -1,4 +1,5 @@
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from functools import wraps
 import os
 import io
@@ -825,7 +826,7 @@ def define_routes(app: Flask, db: Database):
                         existing.name,
                         existing.brand or '',
                         product.amount,
-                        datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                        datetime.now(ZoneInfo('America/Chicago')).strftime('%Y-%m-%d %H:%M:%S')
                     ]
                 )
 
