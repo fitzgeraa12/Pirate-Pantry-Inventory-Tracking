@@ -170,7 +170,7 @@ export default function Workpanel(): React.ReactNode {
                             <hr className="body-left-divider" />
                             <button className="body-left-button body-left-button-additem" onClick={ () => { setEditingProduct(null); setAddItemOpen(true); setSidebarOpen(false); }}> Add Item</button>
                             {user?.access_level === "admin" && (
-                                <button className="body-left-button" onClick={() => { setExportOpen(true); setSidebarOpen(false); }}>Export</button>
+                                <button className="body-left-button" onClick={() => { setExportOpen(true); setSidebarOpen(false); }}>Statistics</button>
                             )}
                             <button className="body-left-button" onClick={() => setPanelAndUrl("settings")} data-active={panel === "settings" ? "" : undefined}>Settings</button>
                             {user?.access_level === "admin" && (
