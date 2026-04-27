@@ -82,6 +82,31 @@ def parse_date(date:str):
 # --------------------------------------------------
 # Graphs and Charts
 # --------------------------------------------------
+def report_title(start: str, end: str):
+    fig, ax = plt.subplots(figsize=(10, 2.5))
+    ax.axis('off')
+
+    fig.patch.set_facecolor('white')
+
+    ax.text(
+        0.5, 0.65,
+        'Pirate Pantry Statistics Report',
+        ha='center',
+        fontsize=20,
+        fontweight='bold',
+        color='#111111'
+    )
+
+    ax.text(
+        0.5, 0.3,
+        f'{start} → {end}',
+        ha='center',
+        fontsize=12,
+        color='#666666'
+    )
+
+    return fig
+
 def total_range(start: str, end: str):
     '''Text figure of total number of items checked out from start to end date'''
     s, e = parse_date(start), parse_date(end)
@@ -90,14 +115,8 @@ def total_range(start: str, end: str):
                  WHERE checkout_time >= ? AND checkout_time <= ?", [s,e])
     total = rows[0]['total'] if rows and rows[0]['total'] else 0
     
-    fig, ax = plt.subplots(figsize=(6, 3))
+    fig, ax = plt.subplots(figsize=(8, 3))
     ax.axis('off')
-    fig.suptitle(
-        f'Pirate Pantry Statistics Report\n{start} → {end}',
-        fontsize=18,
-        fontweight='bold',
-        y=1.05
-    )
     fig.patch.set_facecolor('white')
     ax.set_facecolor('white')
 

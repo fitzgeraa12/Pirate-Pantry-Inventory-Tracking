@@ -384,6 +384,8 @@ def define_routes(app: Flask, db: Database):
         if not start or not end:
             return jsonify({'error': 'Both start and end date are required.'}), 400
         try:
+            # title
+            title_fig = stats.report_title(start, end)
             # Total number of items checked out 
             total_fig  = stats.total_range(start, end)
             # Top 10 items that got checked out 
@@ -403,7 +405,7 @@ def define_routes(app: Flask, db: Database):
             title = f'Pirate Pantry - Statistics Report ({start} - {end})'
             pages = []
             # Page 1
-            pages.append([total_fig, top_fig])
+            pages.append([title_fig, total_fig, top_fig])
             # Page 2 
             pages.append([daily_fig, tags_fig])
             # Page 3 
