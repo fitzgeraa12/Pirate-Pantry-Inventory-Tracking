@@ -13,6 +13,7 @@ import ExportModal from "./ExportModal";
 import { useTheme } from "../misc/useTheme";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { API, type User, type Product } from "../API";
+import logo from "../assests/Pantry_logo.jpg";
 import './Workpanel.css'
 
 const THEME_LABELS = { light: "☀  Light", dark: "🌙  Dark", auto: "⊙  System" };
@@ -150,7 +151,7 @@ export default function Workpanel(): React.ReactNode {
                         </button>
                        <div id="title">
                             <img 
-                                src="/workspaces/Pirate-Pantry-Inventory-Tracking/Pantry_logo.jpg"
+                                src={logo}
                                 alt="Pantry Logo"
                                 className="header-logo"
                             />

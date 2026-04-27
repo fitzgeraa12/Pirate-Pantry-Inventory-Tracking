@@ -6,6 +6,7 @@ import PantryView from './PantryView';
 import { useCart } from "../misc/CartContext"; 
 import { AuthContext } from '../auth/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import logo from "../assests/Pantry_logo.jpg";
 
 function StudentFacing() {
     const [searchTerm, setSearchTerm] = useState<string>("");
@@ -20,7 +21,7 @@ function StudentFacing() {
                 <div id="header">
                     <div id="title">
                         <img 
-                            src="/workspaces/Pirate-Pantry-Inventory-Tracking/Pantry_logo.jpg"
+                            src={logo}
                             alt="Pantry Logo"
                             className="header-logo"
                         />
