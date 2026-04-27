@@ -35,6 +35,8 @@ plt.rcParams.update({
     'axes.edgecolor': '#DDDDDD',
     'axes.linewidth': 1,
     'grid.alpha': 0.5,
+    'figure.facecolor': '#F5F5F5',
+    'axes.facecolor': 'white',
 })
 
 BAR_COLOR = '#FFCD00'

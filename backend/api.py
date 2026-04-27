@@ -18,7 +18,7 @@ import requests
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 from werkzeug.exceptions import HTTPException
-from PIL import Image, ImageDraw, ImageFont, ImageOps
+from PIL import Image
 
 
 import subprocess
@@ -433,7 +433,7 @@ def define_routes(app: Flask, db: Database):
                 
                 y_offset = 0
                 for f_ in figures:
-                    f_ = ImageOps.expand(f_, border=10, fill='#DDDDDD')
+                    # f_ = ImageOps.expand(f_, border=10, fill='#DDDDDD')
                     x_offset = 0
                     page.paste(f_, (x_offset, y_offset))   
                     y_offset += f_.height + spacing
