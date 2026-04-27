@@ -36,6 +36,15 @@
     font-size: 2.25rem;
     font-weight: bold;
     color: var(--su-light-gray);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.header-logo {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
 }
 
 #header-top-right {

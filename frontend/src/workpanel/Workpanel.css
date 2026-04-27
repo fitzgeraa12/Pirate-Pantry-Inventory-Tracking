@@ -38,6 +38,15 @@
     color: var(--chrome-text);
     letter-spacing: 1px;
     text-transform: uppercase;
+    align-items: center;
+    display: flex;
+    gap: 12px;
+}
+
+.header-logo {
+    width: 36px;
+    height: 36px;
+    object-fit: contain;
 }
 
 #header-toolbar {
