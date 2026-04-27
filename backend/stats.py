@@ -83,7 +83,7 @@ def parse_date(date:str):
 # Graphs and Charts
 # --------------------------------------------------
 def report_title(start: str, end: str):
-    fig, ax = plt.subplots(figsize=(10, 2.5))
+    fig, ax = plt.subplots(figsize=(12, 2.5))
     ax.axis('off')
 
     fig.patch.set_facecolor('white')
@@ -115,7 +115,7 @@ def total_range(start: str, end: str):
                  WHERE checkout_time >= ? AND checkout_time <= ?", [s,e])
     total = rows[0]['total'] if rows and rows[0]['total'] else 0
     
-    fig, ax = plt.subplots(figsize=(8, 3))
+    fig, ax = plt.subplots(figsize=(12, 3))
     ax.axis('off')
     fig.patch.set_facecolor('white')
     ax.set_facecolor('white')
@@ -177,7 +177,7 @@ def tag_range(start:str, end:str):
         return None
     freq = Counter(tags)
 
-    fig, ax = plt.subplots(figsize=(8, 8))
+    fig, ax = plt.subplots(figsize=(12, 8))
     ax.pie(list(freq.values()), labels=freq.keys(), autopct='%1.1f%%', 
            startangle=140, wedgeprops=dict(edgecolor='white', linewidth=1.5), textprops={'fontsize': 12})
     ax.set_title(f'Percentage of Item Tags Taken From {start} To {end}', fontsize=14, fontweight='bold')

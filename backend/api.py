@@ -420,7 +420,7 @@ def define_routes(app: Flask, db: Database):
 
                 for fig in figs:
                     buffer = io.BytesIO()
-                    fig.savefig(buffer, bbox_inches='tight', facecolor='#FFFFFF')
+                    fig.savefig(buffer, facecolor='#FFFFFF')
                     buffer.seek(0)
                     figures.append(Image.open(buffer).copy())
                     plt.close(fig)
@@ -429,12 +429,12 @@ def define_routes(app: Flask, db: Database):
                 w = max(f.width for f in figures)
                 h = sum(f.height for f in figures) + spacing * (len(figures)-1)
 
-                page = Image.new('RGB', (w,h), '#F5F5F5')
+                page = Image.new('RGB', (w,h), 'white')
                 
                 y_offset = 0
                 for f_ in figures:
                     f_ = ImageOps.expand(f_, border=10, fill='#DDDDDD')
-                    x_offset = (w - f_.width) // 2
+                    x_offset = 0
                     page.paste(f_, (x_offset, y_offset))   
                     y_offset += f_.height + spacing
                 page_images.append(page)
