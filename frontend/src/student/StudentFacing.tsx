@@ -18,12 +18,14 @@ function StudentFacing() {
         <Titled title="Checkout">
             <div id="container">
                 <div id="header">
-                    <div id="title"
+                    <div id="title">
                         <img 
-                            src="C:\Users\caded\Downloads\Pantry logo.jpg"
+                            src="/workspaces/Pirate-Pantry-Inventory-Tracking/Pantry_logo.jpg"
                             alt="Pantry Logo"
                             className="header-logo"
-                        >Pirate Pantry</div>
+                        />
+                        <span>Pirate Pantry</span>
+                    </div>
                     <input // search bar
                         type="text"
                         placeholder="Search for items..."

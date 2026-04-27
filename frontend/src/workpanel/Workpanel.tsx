@@ -148,12 +148,14 @@ export default function Workpanel(): React.ReactNode {
                         <button className="sidebar-toggle" onClick={() => setSidebarOpen(o => !o)} aria-label="Toggle menu">
                             {sidebarOpen ? '✕' : '☰'}
                         </button>
-                        <div id="title"
+                       <div id="title">
                             <img 
-                                src="C:\Users\caded\Downloads\Pantry logo.jpg"
+                                src="/workspaces/Pirate-Pantry-Inventory-Tracking/Pantry_logo.jpg"
                                 alt="Pantry Logo"
                                 className="header-logo"
-                            >Workpanel</div>
+                            />
+                            <span>Workpanel</span>
+                        </div>
                         <div id="header-toolbar"></div>
                         <div id="header-top-right">
                             <button id="user-view" className="header-button" onClick={() => navigate("/pantry")}>To Pantry ➜</button>
