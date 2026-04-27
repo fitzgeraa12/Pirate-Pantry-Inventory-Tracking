@@ -154,13 +154,13 @@ const AddItem = ({ editingProduct, onBack }: { editingProduct?: Product | null; 
                         className="add-item-input"
                         type="text"
                         placeholder="Image Link"
-                        value={imageLink}
+                        value={image_link}
                         onChange={(e) => setImageLink(e.target.value)} 
                         disabled={loading}
                     />
-                    {imageLink && (
+                    {image_link && (
                         <img
-                            src={imageLink}
+                            src={image_link}
                             alt="Preview"
                             style={{ maxWidth: "100%", maxHeight: 120, marginTop: 8 }}
                         />
