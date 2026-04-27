@@ -153,7 +153,7 @@ export default function Workpanel(): React.ReactNode {
                                 src="C:\Users\caded\Downloads\Pantry logo.jpg"
                                 alt="Pantry Logo"
                                 className="header-logo"
-                                />Workpanel</div>
+                            >Workpanel</div>
                         <div id="header-toolbar"></div>
                         <div id="header-top-right">
                             <button id="user-view" className="header-button" onClick={() => navigate("/pantry")}>To Pantry ➜</button>

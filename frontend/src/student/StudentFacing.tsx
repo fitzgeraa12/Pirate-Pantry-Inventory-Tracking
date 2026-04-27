@@ -23,7 +23,7 @@ function StudentFacing() {
                             src="C:\Users\caded\Downloads\Pantry logo.jpg"
                             alt="Pantry Logo"
                             className="header-logo"
-                            />Pirate Pantry</div>
+                        >Pirate Pantry</div>
                     <input // search bar
                         type="text"
                         placeholder="Search for items..."
