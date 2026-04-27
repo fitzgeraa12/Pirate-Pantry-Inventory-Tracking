@@ -12,7 +12,7 @@ const AddItem = ({ editingProduct, onBack }: { editingProduct?: Product | null; 
     const [quantity, setQuantity] = useState("");
     const [brand, setBrand] = useState("");
     const [tags, setTags] = useState("");
-
+    const [image_link, setImageLink] = useState("");
     const [brands, setBrands] = useState<string[]>([]);
     const [allTags, setAllTags] = useState<string[]>([]);
 
@@ -44,6 +44,7 @@ const AddItem = ({ editingProduct, onBack }: { editingProduct?: Product | null; 
             setQuantity(editingProduct.quantity?.toString() || "");
             setBrand(editingProduct.brand || "");
             setTags(editingProduct.tags ? editingProduct.tags.join(", ") : "");
+            setImageLink(editingProduct.image_link || "");
         }
     }, [editingProduct]);
 
@@ -66,7 +67,8 @@ const AddItem = ({ editingProduct, onBack }: { editingProduct?: Product | null; 
                 name: itemName,
                 quantity: Number(quantity),
                 brand: brand || null,
-                tags: parsedTags.length > 0 ? parsedTags : undefined
+                tags: parsedTags.length > 0 ? parsedTags : undefined,
+                image_link: image_link || null,
             };
 
             const responseData = await api!.add_products([newItem]);
@@ -148,6 +150,21 @@ const AddItem = ({ editingProduct, onBack }: { editingProduct?: Product | null; 
                     <datalist id="tags">
                         {allTags.map(t => <option key={t} value={t} />)}
                     </datalist>
+                    <input
+                        className="add-item-input"
+                        type="text"
+                        placeholder="Image Link"
+                        value={imageLink}
+                        onChange={(e) => setImageLink(e.target.value)} 
+                        disabled={loading}
+                    />
+                    {imageLink && (
+                        <img
+                            src={imageLink}
+                            alt="Preview"
+                            style={{ maxWidth: "100%", maxHeight: 120, marginTop: 8 }}
+                        />
+                    )}
                     <div className="add-item-actions">
                         <button className="add-item-btn add-item-btn--primary" onClick={handleSubmit} disabled={loading}>
                             {loading ? <Spinner className="spinner--sm" /> : (isEditing ? "Save" : "Add")}
