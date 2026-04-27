@@ -6,7 +6,7 @@ import PantryView from './PantryView';
 import { useCart } from "../misc/CartContext"; 
 import { AuthContext } from '../auth/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import logo from "../assets/Pantry_logo.jpg";
+import logo from "../images/Pantry_logo.jpg";
 
 function StudentFacing() {
     const [searchTerm, setSearchTerm] = useState<string>("");
