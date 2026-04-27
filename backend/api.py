@@ -427,20 +427,8 @@ def define_routes(app: Flask, db: Database):
                 w = max(f.width for f in figures)
                 h = sum(f.height for f in figures) + spacing * (len(figures)-1)
 
-                header_size = 160
-                page = Image.new('RGB', (w,h + header_size), '#F5F5F5')
-                draw = ImageDraw.Draw(page)
-                try:
-                    font_title = ImageFont.truetype("DejaVuSans-Bold.ttf", 40)
-                except:
-                    font_title = ImageFont.load_default()
-                draw.text(
-                    (w // 2, 40),
-                    f'Pirate Pantry Statistics Report\n{start} → {end}',
-                    fill='#111111',
-                    anchor='mm',
-                    font=font_title
-                )
+                page = Image.new('RGB', (w,h), '#F5F5F5')
+                
                 y_offset = header_size
                 for f_ in figures:
                     f_ = ImageOps.expand(f_, border=10, fill='#DDDDDD')

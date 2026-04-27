@@ -38,10 +38,6 @@ plt.rcParams.update({
 })
 
 BAR_COLOR = '#FFCD00'
-PIE_COLORS = [
-    '#FFCD00', '#222222', '#A0A0A0', '#C8A200',
-    '#444444', '#E6B800', '#666666', '#FFE066'
-]
 
 # --------------------------------------------------
 # Database
@@ -94,17 +90,22 @@ def total_range(start: str, end: str):
                  WHERE checkout_time >= ? AND checkout_time <= ?", [s,e])
     total = rows[0]['total'] if rows and rows[0]['total'] else 0
     
-    fig, ax = plt.subplots(figsize=(6, 2))
+    fig, ax = plt.subplots(figsize=(6, 3))
     ax.axis('off')
-
-    fig.patch.set_facecolor('#F5F5F5')
+    fig.suptitle(
+        f'Pirate Pantry Statistics Report\n{start} → {end}',
+        fontsize=18,
+        fontweight='bold',
+        y=1.05
+    )
+    fig.patch.set_facecolor('white')
     ax.set_facecolor('white')
 
     ax.text(0.5, 0.65, f'Total Items Taken From {start} To {end}:',
-            ha='center', fontsize=14, fontweight='bold', color='#666666')
+            ha='center', fontsize=14, fontweight='bold', color='#111111')
 
     ax.text(0.5, 0.3, f'{total}',
-            ha='center', fontsize=28, fontweight='bold', color='#111111')
+            ha='center', fontsize=28, fontweight='bold', color='#FFCD00')
     
     return fig
 
@@ -158,8 +159,8 @@ def tag_range(start:str, end:str):
     freq = Counter(tags)
 
     fig, ax = plt.subplots(figsize=(8, 8))
-    ax.pie(list(freq.values()), labels=freq.keys(), autopct='%1.1f%%', startangle=140, 
-           colors=PIE_COLORS, wedgeprops=dict(edgecolor='white', linewidth=1.5))
+    ax.pie(list(freq.values()), labels=freq.keys(), autopct='%1.1f%%', 
+           startangle=140, wedgeprops=dict(edgecolor='white', linewidth=1.5), textprops={'fontsize': 12})
     ax.set_title(f'Percentage of Item Tags Taken From {start} To {end}', fontsize=14, fontweight='bold')
     plt.tight_layout(pad=2) 
     return fig
@@ -248,11 +249,28 @@ def checkout_hourly(start: str, end: str):
         ax.bar_label(bars, labels=labels, padding=3)
         ax.tick_params(axis='x', rotation=45)
         if all(v == 0 for v in values):
-            ax.clear()
-            ax.axis('off')
-            ax.text(0.5, 0.5, 'There are no checkout events recorded on this date.',
-                    ha='center', va='center', transform=ax.transAxes,
-                    fontsize=10, color='#828282')
+            ax.set_title(
+                datetime.strptime(day, '%Y-%m-%d').strftime('%A, %b %d'),
+                fontsize=11, pad=10
+            )
+
+            ax.set_ylim(0, 1)
+            ax.set_xticks([])
+            ax.set_yticks([])
+
+            for spine in ax.spines.values():
+                spine.set_visible(True)
+                spine.set_color('#DDDDDD')
+
+            ax.text(
+                0.5, 0.5,
+                'No checkout activity',
+                ha='center', va='center',
+                fontsize=11,
+                color='#999999',
+                transform=ax.transAxes
+            )
+            continue
 
     fig.suptitle(f'Checkouts per Hour: {start} to {end}', fontsize=16, fontweight='bold',y=0.995)
     plt.subplots_adjust(hspace=0.5)
