@@ -18,7 +18,7 @@ import requests
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 from werkzeug.exceptions import HTTPException
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 
 
 import subprocess
@@ -404,7 +404,6 @@ def define_routes(app: Flask, db: Database):
             figures = []    
             for fig in [total_fig, top_fig, tags_fig, daily_fig, hourly_fig]:
                 if fig:
-                    fig.suptitle(title, fontsize=10, color='#828282', y=0.98, ha='center')
                     buffer = io.BytesIO()
                     fig.savefig(buffer, bbox_inches='tight')
                     buffer.seek(0)
@@ -414,10 +413,19 @@ def define_routes(app: Flask, db: Database):
             w = max(f.width for f in figures)
             h = sum(f.height for f in figures)
 
-            merge_fig = Image.new('RGB', (w,h), '#F5F5F5')
-            y_offset = 0
+            header_size = 120
+            merge_fig = Image.new('RGB', (w,h + header_size), '#F5F5F5')
+            draw = ImageDraw.Draw(merge_fig)
+            draw.text(
+                (w // 2, 40),
+                f'Pirate Pantry Statistics Report\n{start} → {end}',
+                fill='#111111',
+                anchor='mm'
+            )
+            y_offset = header_size
             for f_ in figures:
-                merge_fig.paste(f_, (0, y_offset))
+                x_offset = (w - f_.width) // 2
+                merge_fig.paste(f_, (x_offset, y_offset))   
                 y_offset += f_.height
 
             buf = io.BytesIO()
