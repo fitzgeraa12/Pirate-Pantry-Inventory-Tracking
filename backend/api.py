@@ -18,6 +18,7 @@ import requests
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 from werkzeug.exceptions import HTTPException
+from PIL import Image
 
 
 import subprocess
@@ -397,18 +398,35 @@ def define_routes(app: Flask, db: Database):
             return jsonify({'error': str(e)}), 400
         except Exception as e:
             return jsonify({'error': str(e)}), 500
+        
+        try:        
+            title = f'Pirate Pantry - Statistics Report ({start} - {end})'
+            figures = []    
+            for fig in [total_fig, top_fig, tags_fig, daily_fig, hourly_fig]:
+                if fig:
+                    fig.suptitle(title, fontsize=10, color='#828282', y=0.98, ha='center')
+                    buffer = io.BytesIO()
+                    fig.savefig(fig, bbox_inches='tight')
+                    buffer.seek(0)
+                    figures.append(Image.open(buffer).copy())
+                    plt.close(fig)
 
-        try:
-            buffer = io.BytesIO()
-            with PdfPages(buffer) as pdf:
-                for fig in [total_fig, top_fig, tags_fig, daily_fig, hourly_fig]:
-                    if fig:
-                        pdf.savefig(fig)
-                        plt.close(fig)
-            buffer.seek(0)
-            return send_file(buffer, as_attachment=True,
-                            download_name=f'Pirate_Pantry_Stats_{start}_to_{end}.pdf',
-                            mimetype='application/pdf')
+                w = max(f.width for f in figures)
+                h = sum(f.height for f in figures)
+
+                merge_fig = Image.new('RGB', (w,h), '#F5F5F5')
+                y_offset = 0
+                for f_ in figures:
+                    merge_fig.paste(f_, (0, y_offset))
+                    y_offset += f_.height
+
+                buf = io.BytesIO()
+                merge_fig.save(buf, format='PDF', resolution=150)
+                buf.seek(0)
+
+                return send_file(buf, as_attachment=True,
+                                download_name=f'Pirate_Pantry_Stats_{start}_to_{end}.pdf',
+                                mimetype='application/pdf')
         except Exception as e:
             return jsonify({'error': str(e)}), 500
     
