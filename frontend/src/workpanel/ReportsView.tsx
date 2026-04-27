@@ -1,6 +1,7 @@
 import React from "react";
 import { API, type Report } from "../API";
 
+
 export default function ReportsView(): React.ReactNode {
     const [reports, setReports] = React.useState<Report[]>([]);
     const [loading, setLoading] = React.useState(true);
