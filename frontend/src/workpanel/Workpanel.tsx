@@ -13,7 +13,7 @@ import ExportModal from "./ExportModal";
 import { useTheme } from "../misc/useTheme";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { API, type User, type Product } from "../API";
-import logo from "../assests/Pantry_logo.jpg";
+import logo from "../assets/Pantry_logo.jpg";
 import './Workpanel.css'
 
 const THEME_LABELS = { light: "☀  Light", dark: "🌙  Dark", auto: "⊙  System" };
