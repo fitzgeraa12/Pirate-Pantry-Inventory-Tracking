@@ -12,7 +12,7 @@ from pydantic import BaseModel, ValidationError, field_validator
 import backend.stats as stats
 from backend.common import UNSET
 from backend.misc import env_get
-from backend.database import AccessLevel, Brand, CannotDemoteOnlyAdminError, Database, LocalDatabase, Product, ProductNotFoundError, NotEnoughProductStockError, Tag, User, UserAlreadyExistsError, UserNotFoundError, normalize_email
+from backend.database import AccessLevel, Brand, CannotDemoteOnlyAdminError, Database, LocalDatabase, Product, ProductNotFoundError, NotEnoughProductStockError, Tag, User, UserAlreadyExistsError, UserNotFoundError, normalize_email, LOCAL_BACKUP_PRODUCTS_PATH
 import jwt as jwt
 import requests
 import matplotlib.pyplot as plt
@@ -363,6 +363,50 @@ def define_routes(app: Flask, db: Database):
         db.purge_expired_sessions()
         return '', 204
 
+
+    # --------------------------------------------------
+    # Backup / Revert
+    # --------------------------------------------------
+    @app.route('/backup', methods=['POST'])
+    @requires_auth
+    @requires_role(AccessLevel.ADMIN)
+    def save_database(): # pyright: ignore[reportUnusedFunction]
+        ''' POST method to save the current database state to a local backup file.
+
+            Returns:
+                Response (JSON): { "message": "Backup saved successfully" }
+                200 on success, 500 on error
+        '''
+        try:
+            db.save_backup()
+            return jsonify({'message': 'Backup saved successfully'}), 200
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+
+    @app.route('/backup/revert', methods=['POST'])
+    @requires_auth
+    @requires_role(AccessLevel.ADMIN)
+    def revert_database(): # pyright: ignore[reportUnusedFunction]
+        ''' POST method to revert the main database to the last saved backup.
+
+            Returns:
+                Response (JSON): { "message": "Database reverted to backup." }
+                200 on success
+                404 if no backup file exists
+                500 on error
+        '''
+        if not os.path.exists(LOCAL_BACKUP_PRODUCTS_PATH):
+            return jsonify({'error': 'No backup file found. Save a backup first.'}), 404
+        try:
+            db.load_backup()
+            return jsonify({'message': 'Database reverted to backup.'}), 200
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+    # --------------------------------------------------
+    # Export
+    # --------------------------------------------------
 
     @app.route('/export', methods=['POST'])
     @requires_auth
