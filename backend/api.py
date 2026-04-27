@@ -18,7 +18,7 @@ import requests
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 from werkzeug.exceptions import HTTPException
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 
 import subprocess
@@ -401,40 +401,67 @@ def define_routes(app: Flask, db: Database):
         
         try:        
             title = f'Pirate Pantry - Statistics Report ({start} - {end})'
-            figures = []    
-            for fig in [total_fig, top_fig, tags_fig, daily_fig, hourly_fig]:
-                if fig:
+            pages = []
+            # Page 1
+            pages.append([total_fig, top_fig])
+            # Page 2 
+            pages.append([daily_fig, tags_fig])
+            # Page 3 
+            pages.append([hourly_fig])   
+
+            page_images = []
+            for figs in pages:
+                figs = [f for f in figs if f]  # remove None
+                if not figs:
+                    continue
+                figures = []
+
+                for fig in figs:
                     buffer = io.BytesIO()
-                    fig.savefig(buffer, bbox_inches='tight')
+                    fig.savefig(buffer, bbox_inches='tight', facecolor='#FFFFFF')
                     buffer.seek(0)
                     figures.append(Image.open(buffer).copy())
                     plt.close(fig)
 
-            w = max(f.width for f in figures)
-            h = sum(f.height for f in figures)
+                spacing = 40
+                w = max(f.width for f in figures)
+                h = sum(f.height for f in figures) + spacing * (len(figures)-1)
 
-            header_size = 120
-            merge_fig = Image.new('RGB', (w,h + header_size), '#F5F5F5')
-            draw = ImageDraw.Draw(merge_fig)
-            draw.text(
-                (w // 2, 40),
-                f'Pirate Pantry Statistics Report\n{start} → {end}',
-                fill='#111111',
-                anchor='mm'
-            )
-            y_offset = header_size
-            for f_ in figures:
-                x_offset = (w - f_.width) // 2
-                merge_fig.paste(f_, (x_offset, y_offset))   
-                y_offset += f_.height
+                header_size = 160
+                page = Image.new('RGB', (w,h + header_size), '#F5F5F5')
+                draw = ImageDraw.Draw(page)
+                try:
+                    font_title = ImageFont.truetype("DejaVuSans-Bold.ttf", 40)
+                except:
+                    font_title = ImageFont.load_default()
+                draw.text(
+                    (w // 2, 40),
+                    f'Pirate Pantry Statistics Report\n{start} → {end}',
+                    fill='#111111',
+                    anchor='mm',
+                    font=font_title
+                )
+                y_offset = header_size
+                for f_ in figures:
+                    f_ = ImageOps.expand(f_, border=10, fill='#DDDDDD')
+                    x_offset = (w - f_.width) // 2
+                    page.paste(f_, (x_offset, y_offset))   
+                    y_offset += f_.height + spacing
+                page_images.append(page)
 
             buf = io.BytesIO()
-            merge_fig.save(buf, format='PDF', resolution=150)
+            page_images[0].save(
+                buf,
+                format='PDF',
+                save_all=True,
+                append_images=page_images[1:],
+                resolution=150
+            )                
             buf.seek(0)
 
             return send_file(buf, as_attachment=True,
-                                download_name=f'Pirate_Pantry_Stats_{start}_to_{end}.pdf',
-                                mimetype='application/pdf')
+                            download_name=f'Pirate_Pantry_Stats_{start}_to_{end}.pdf',
+                            mimetype='application/pdf')
         except Exception as e:
             return jsonify({'error': str(e)}), 500
     

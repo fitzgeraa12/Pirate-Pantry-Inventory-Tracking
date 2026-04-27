@@ -32,6 +32,9 @@ plt.rcParams.update({
     'xtick.labelsize': 9,
     'ytick.labelsize': 9,
     'text.color': '#111111',
+    'axes.edgecolor': '#DDDDDD',
+    'axes.linewidth': 1,
+    'grid.alpha': 0.5,
 })
 
 BAR_COLOR = '#FFCD00'
@@ -90,9 +93,19 @@ def total_range(start: str, end: str):
                  FROM total_checkouts\
                  WHERE checkout_time >= ? AND checkout_time <= ?", [s,e])
     total = rows[0]['total'] if rows and rows[0]['total'] else 0
-    fig = plt.figure(figsize=(8, 2))
-    plt.figtext(0.5, 0.5, f'Total Items Taken From {start} To {end}:  {total}',
-                ha='center', va='center', fontsize=14, fontweight='bold')
+    
+    fig, ax = plt.subplots(figsize=(6, 2))
+    ax.axis('off')
+
+    fig.patch.set_facecolor('#F5F5F5')
+    ax.set_facecolor('white')
+
+    ax.text(0.5, 0.65, f'Total Items Taken From {start} To {end}:',
+            ha='center', fontsize=14, fontweight='bold', color='#666666')
+
+    ax.text(0.5, 0.3, f'{total}',
+            ha='center', fontsize=28, fontweight='bold', color='#111111')
+    
     return fig
 
 
@@ -108,7 +121,7 @@ def top_item(start:str, end:str):
     rows = rows_to_list(rows)
     if not rows:
         return None
-    fig, ax = plt.subplots(figsize=(8, 4))
+    fig, ax = plt.subplots(figsize=(12, 6))
     ax.axis('off')
     ax.set_title(f'Top 10 Items From {start} To {end}', fontsize=14, fontweight='bold', pad=20)
     table = ax.table(
@@ -117,8 +130,9 @@ def top_item(start:str, end:str):
         cellLoc='center',
         loc='center'
     )
-    table.auto_set_font_size(False)
-    table.set_fontsize(10)
+    table.scale(1.5,2)
+    table.auto_set_font_size(True)
+    # table.set_fontsize(10)
     table.auto_set_column_width([0, 1, 2])
     for col in range(3):
         table[0, col].set_facecolor('#000000')
@@ -126,7 +140,7 @@ def top_item(start:str, end:str):
     for col in range(3):
         table[1, col].set_facecolor('#FFCD00')
         table[1, col].set_text_props(fontweight='bold')
-    plt.tight_layout(pad=2)
+    plt.tight_layout(pad=3)
     return fig
 
 def tag_range(start:str, end:str):
@@ -170,13 +184,14 @@ def checkout_daily(start:str, end:str):
         result[key] = counts.get(current.strftime('%Y-%m-%d'), 0)
         current += timedelta(days=1)
 
-    fig, ax = plt.subplots(figsize=(max(8, len(result) * 1.2), 6))
+    fig, ax = plt.subplots(figsize=(max(10, len(result) * 1.5), 6))
     bars = ax.bar(result.keys(), result.values(), color=BAR_COLOR)
     ax.set_title(f'Checkouts per Day From {start} To {end}', fontsize=14, fontweight='bold')
     ax.set_ylabel('Number of Checkouts')
     labels = [v if v > 0 else '' for v in result.values()]  # only label nonzero bars
     ax.bar_label(bars, labels=labels, padding=3)
     ax.set_ylim(bottom=0)
+    ax.margins(x=0.02)
     plt.xticks(rotation=45, ha='right', fontsize=9)
     plt.tight_layout(pad=2)
     return fig
@@ -213,7 +228,7 @@ def checkout_hourly(start: str, end: str):
 
     fig, axes = plt.subplots(
         nrows=len(days), ncols=1,
-        figsize=(14, 5 * len(days)),
+        figsize=(12, 5 * len(days)),
         sharey=False
     )
 
@@ -233,13 +248,13 @@ def checkout_hourly(start: str, end: str):
         ax.bar_label(bars, labels=labels, padding=3)
         ax.tick_params(axis='x', rotation=45)
         if all(v == 0 for v in values):
-            ax.text(0.5, 0.5, 'There is no checkout events recorded on this date.',
+            ax.clear()
+            ax.axis('off')
+            ax.text(0.5, 0.5, 'There are no checkout events recorded on this date.',
                     ha='center', va='center', transform=ax.transAxes,
                     fontsize=10, color='#828282')
-            ax.set_xticks([])
-            ax.set_yticks([])
 
-    fig.suptitle(f'Checkouts per Hour: {start} to {end}', fontsize=14, fontweight='bold')
+    fig.suptitle(f'Checkouts per Hour: {start} to {end}', fontsize=16, fontweight='bold',y=0.995)
     plt.subplots_adjust(hspace=0.5)
     plt.tight_layout()
     return fig
