@@ -429,7 +429,7 @@ def define_routes(app: Flask, db: Database):
 
                 page = Image.new('RGB', (w,h), '#F5F5F5')
                 
-                y_offset = header_size
+                y_offset = 0
                 for f_ in figures:
                     f_ = ImageOps.expand(f_, border=10, fill='#DDDDDD')
                     x_offset = (w - f_.width) // 2
