@@ -391,6 +391,9 @@
     margin-bottom: 15px;
     color: var(--su-yellow);
     font-size: 1.2em;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
 }
 
 .reports-section {
