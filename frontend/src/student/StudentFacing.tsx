@@ -15,15 +15,13 @@ function StudentFacing() {
     const navigate = useNavigate();
     if (auth.is_none()) return null;
 
-    console.log("logo", logo);
-
     return (
         <Titled title="Checkout">
             <div id="container">
                 <div id="header">
                     <div id="title">
                         <img 
-                            src={logo}
+                            src="/workspaces/Pirate-Pantry-Inventory-Tracking/frontend/src/images/Pantry_logo.jpg"
                             alt="Pantry Logo"
                             className="header-logo"
                         />
