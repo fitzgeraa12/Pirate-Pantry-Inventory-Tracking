@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import ReactDOM from "react-dom";
+import ReactDOM from "react-dom/client";
 import "./AddItem.css";
 import { API, type Product } from "../API";
 import { Spinner } from "../misc/misc";
