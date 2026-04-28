@@ -190,15 +190,16 @@ function BackupSection({ api }: { api: API.Type }): React.ReactNode {
     const [open, setOpen] = React.useState(false);
 
     async function handleRevert() {
+        console.log("REVERT CLICKED");
         setLoading(true);
         setMessage(null);
         setError(null);
 
         try {
-            const res = await api.revert_backup();
-            setMessage(res.message || "Inventory reverted successfully");
+            await api.revert_backup();
+            setMessage("Inventory reverted successfully");
             setOpen(false);
-            setTimeout(() => window.location.reload(), 1000);
+            window.location.reload();
         } catch (e: any) {
             setError(e?.response?.data?.error ?? "Failed to revert inventory");
         } finally {
