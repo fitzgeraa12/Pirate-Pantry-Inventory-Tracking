@@ -136,6 +136,8 @@ export namespace API {
         resolve_report: (id: string) => Promise<void>,
         delete_products: (ids: Array<string>) => Promise<void>,
         export_stats: (start: string, end: string) => Promise<Blob>,
+        save_backup: () => Promise<{ message: string }>,
+        revert_backup: () => Promise<{ message: string }>,
     }
 
     interface GetProductsArgs {
@@ -262,6 +264,14 @@ export namespace API {
                 export_stats: async (start: string, end: string): Promise<Blob> => {
                     const resp = await api_base.post("/export", { start, end }, { responseType: "blob" });
                     return resp.data;
+                },
+
+                save_backup: async (): Promise<{ message: string }> => {
+                    return (await api_base.post("/backup")).data;
+                },
+
+                revert_backup: async (): Promise<{ message: string }> => {
+                    return (await api_base.post("/backup/revert")).data;
                 },
             }
         }, []);
