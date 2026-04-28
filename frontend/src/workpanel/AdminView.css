@@ -375,9 +375,13 @@
 
     .modal-container {
         background: white;
-        border-radius: 10px;
-        width: 420px;
-        padding: 16px;
+        border-radius: 12px;
+        padding: 20px;
+        max-width: 500px;
+        width: 90%;
+
+        /* prevents weird inheritance */
+        box-sizing: border-box;
     }
 
     .modal-header {
