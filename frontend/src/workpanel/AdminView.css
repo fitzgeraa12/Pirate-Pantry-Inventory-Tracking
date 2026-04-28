@@ -327,33 +327,64 @@
         max-width: 90vw;
     }
 
-    .admin-danger-zone {
-        border-top: 2px solid #e0e0e0;
-        margin-top: 2rem;
-        padding-top: 1.5rem;
+    .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
-    .admin-danger-button {
-        background-color: #d9534f;
-        color: white;
+    .modal-container {
+        background: white;
+        border-radius: 10px;
+        width: 420px;
+        padding: 16px;
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-title {
+        font-size: 18px;
+        font-weight: 600;
+    }
+
+    .modal-close {
+        background: none;
         border: none;
-        padding: 10px 16px;
-        border-radius: 6px;
+        font-size: 18px;
         cursor: pointer;
-        font-weight: 500;
     }
 
-    .admin-danger-button:hover {
-        background-color: #c9302c;
+    .modal-body {
+        margin-top: 12px;
     }
 
-    .admin-warning-text {
-        margin-bottom: 10px;
-        color: #a94442;
+    .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 16px;
     }
 
-    .admin-success {
-        color: #3c763d;
-        margin-top: 10px;
+    .modal-btn {
+        padding: 8px 12px;
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+    }
+
+    .modal-btn--primary {
+        background: #d9534f;
+        color: white;
+    }
+
+    .modal-btn--secondary {
+        background: #eee;
     }
 }

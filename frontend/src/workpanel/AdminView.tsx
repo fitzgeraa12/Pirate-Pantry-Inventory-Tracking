@@ -182,56 +182,68 @@ function SessionsSection({ api }: { api: API.Type }): React.ReactNode {
     );
 }
 
-function BackupSection({ api }: { api: API.Type }): React.ReactNode {
-    const [loading, setLoading] = React.useState(false);
-    const [message, setMessage] = React.useState<string | null>(null);
-    const [error, setError] = React.useState<string | null>(null);
+import ReactDOM from "react-dom";
 
-    async function handleRevert() {
-        const confirmed = window.confirm(
-            "Revert inventory to the last saved backup?\n\nThis will overwrite ALL current product data."
-        );
+function RevertBackupModal({
+    open,
+    loading,
+    onConfirm,
+    onCancel,
+}: {
+    open: boolean;
+    loading: boolean;
+    onConfirm: () => void;
+    onCancel: () => void;
+}) {
+    if (!open) return null;
 
-        if (!confirmed) return;
+    return ReactDOM.createPortal(
+        <div
+            className="modal-overlay"
+            onMouseDown={(e) => {
+                if (!loading && e.target === e.currentTarget) onCancel();
+            }}
+        >
+            <div className="modal-container">
+                <div className="modal-header">
+                    <h3 className="modal-title">Revert Database</h3>
+                    <button
+                        className="modal-close"
+                        onClick={onCancel}
+                        disabled={loading}
+                        aria-label="Close"
+                    >
+                        ✕
+                    </button>
+                </div>
 
-        setLoading(true);
-        setMessage(null);
-        setError(null);
+                <div className="modal-body">
+                    <p>
+                        This will replace all current products with the last saved backup.
+                        This action cannot be undone.
+                    </p>
 
-        try {
-            const res = await api.revert_backup();
-            setMessage(res.message || "Inventory reverted successfully");
+                    <div className="modal-actions">
+                        <button
+                            className="modal-btn modal-btn--primary"
+                            onClick={onConfirm}
+                            disabled={loading}
+                        >
+                            {loading ? "Reverting..." : "Revert"}
+                        </button>
 
-            // optional: refresh whole app
-            setTimeout(() => window.location.reload(), 1000);
-        } catch (e: any) {
-            setError(e?.response?.data?.error ?? "Failed to revert inventory");
-        } finally {
-            setLoading(false);
-        }
-    }
-
-    return (
-        <section className="admin-section admin-danger-zone">
-            <h2 className="admin-section-heading">Danger Zone</h2>
-
-            <div className="admin-form">
-                <p className="admin-warning-text">
-                    Reverting will overwrite all current products with the last saved backup.
-                </p>
-
-                <button
-                    className="admin-danger-button"
-                    onClick={handleRevert}
-                    disabled={loading}
-                >
-                    {loading ? "Reverting…" : "Revert to Last Backup"}
-                </button>
-
-                {message && <div className="admin-success">{message}</div>}
-                {error && <div className="admin-error">{error}</div>}
+                        <button
+                            className="modal-btn modal-btn--secondary"
+                            onClick={onCancel}
+                            disabled={loading}
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
             </div>
-        </section>
+        </div>,
+        document.body
     );
 }
 
