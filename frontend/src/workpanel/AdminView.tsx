@@ -1,6 +1,7 @@
 import React from "react";
 import { API, type User, type Session, type AccessLevel } from "../API";
 import { Spinner } from "../misc/misc";
+import ReactDom from "react-dom";  
 import "./AdminView.css";
 
 function fmt_date(ts: number): string {
@@ -182,7 +183,35 @@ function SessionsSection({ api }: { api: API.Type }): React.ReactNode {
     );
 }
 
-import ReactDOM from "react-dom";
+function BackupSection({ api }: { api: API.Type }): React.ReactNode {
+    const [loading, setLoading] = React.useState(false);
+    const [message, setMessage] = React.useState<string | null>(null);
+    const [error, setError] = React.useState<string | null>(null);
+
+    async function handleRevert() {
+        const confirmed = window.confirm(
+            "Revert inventory to the last saved backup?\n\nThis will overwrite ALL current product data."
+        );
+
+        if (!confirmed) return;
+
+        setLoading(true);
+        setMessage(null);
+        setError(null);
+
+        try {
+            const res = await api.revert_backup();
+            setMessage(res.message || "Inventory reverted successfully");
+
+            // optional: refresh whole app
+            setTimeout(() => window.location.reload(), 1000);
+        } catch (e: any) {
+            setError(e?.response?.data?.error ?? "Failed to revert inventory");
+        } finally {
+            setLoading(false);
+        }
+    }
+
 
 function RevertBackupModal({
     open,
@@ -244,6 +273,30 @@ function RevertBackupModal({
             </div>
         </div>,
         document.body
+    );
+}
+
+    return (
+        <section className="admin-section admin-danger-zone">
+            <h2 className="admin-section-heading">Danger Zone</h2>
+
+            <div className="admin-form">
+                <p className="admin-warning-text">
+                    Reverting will overwrite all current products with the last saved backup.
+                </p>
+
+                <button
+                    className="admin-danger-button"
+                    onClick={handleRevert}
+                    disabled={loading}
+                >
+                    {loading ? "Reverting…" : "Revert to Last Backup"}
+                </button>
+
+                {message && <div className="admin-success">{message}</div>}
+                {error && <div className="admin-error">{error}</div>}
+            </div>
+        </section>
     );
 }
 
