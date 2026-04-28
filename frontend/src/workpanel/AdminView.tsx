@@ -236,6 +236,7 @@ function BackupSection({ api }: { api: API.Type }): React.ReactNode {
         </section>
     );
 }
+
 function RevertBackupModal({
     open,
     loading,
@@ -296,30 +297,6 @@ function RevertBackupModal({
             </div>
         </div>,
         document.body
-    );
-}
-
-    return (
-        <section className="admin-section admin-danger-zone">
-            <h2 className="admin-section-heading">Danger Zone</h2>
-
-            <div className="admin-form">
-                <p className="admin-warning-text">
-                    Reverting will overwrite all current products with the last saved backup.
-                </p>
-
-                <button
-                    className="admin-danger-button"
-                    onClick={handleRevert}
-                    disabled={loading}
-                >
-                    {loading ? "Reverting…" : "Revert to Last Backup"}
-                </button>
-
-                {message && <div className="admin-success">{message}</div>}
-                {error && <div className="admin-error">{error}</div>}
-            </div>
-        </section>
     );
 }
 
