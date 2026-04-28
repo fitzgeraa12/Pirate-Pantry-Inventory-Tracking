@@ -218,7 +218,7 @@ function BackupSection({ api }: { api: API.Type }): React.ReactNode {
 
                 <button
                     className="admin-danger-button"
-                    onClick={() => setOpen(true)}
+                    onClick={() => setOpen(true), console.log("OPENING MODAL")}
                     disabled={loading}
                 >
                     {loading ? "Reverting…" : "Revert to Last Backup"}
