@@ -1,7 +1,7 @@
 import React from "react";
 import { API, type User, type Session, type AccessLevel } from "../API";
 import { Spinner } from "../misc/misc";
-import ReactDom from "react-dom";  
+import { createPortal } from "react-dom";  
 import "./AdminView.css";
 
 function fmt_date(ts: number): string {
@@ -211,7 +211,7 @@ function BackupSection({ api }: { api: API.Type }): React.ReactNode {
             setLoading(false);
         }
     }
-
+}
 
 function RevertBackupModal({
     open,
@@ -226,7 +226,7 @@ function RevertBackupModal({
 }) {
     if (!open) return null;
 
-    return ReactDOM.createPortal(
+    return createPortal(
         <div
             className="modal-overlay"
             onMouseDown={(e) => {
