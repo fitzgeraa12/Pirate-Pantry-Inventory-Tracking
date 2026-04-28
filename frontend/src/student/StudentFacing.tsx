@@ -15,6 +15,8 @@ function StudentFacing() {
     const navigate = useNavigate();
     if (auth.is_none()) return null;
 
+    console.log("logo", logo);
+
     return (
         <Titled title="Checkout">
             <div id="container">
