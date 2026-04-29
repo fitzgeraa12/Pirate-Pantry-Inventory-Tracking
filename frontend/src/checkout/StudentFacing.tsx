@@ -8,6 +8,8 @@ import PantryView from './PantryView';
 import CheckoutPanel from './CheckoutPanel';
 import { SORT_LABELS, type SortBy, type SortDir } from '../misc/searchParser';
 import SortDropdown from '../misc/SortDropdown';
+import logo from "../images/Pantry_logo.png";
+
 
 const THEME_ICONS = { light: "☀", dark: "🌙", auto: "⊙" };
 const THEME_NAMES = { light: "Light", dark: "Dark", auto: "System" };
@@ -164,7 +166,14 @@ export default function StudentFacing(): React.ReactNode {
         <Titled title="Pantry">
             <div id="container" className="pantry-page">
                 <div id="header">
-                    <div id="title">Pirate Pantry</div>
+                    <div id="title">
+                        <img 
+                            src={logo}
+                            alt="Pantry Logo"
+                            className="header-logo"
+                        />
+                        <span>Pirate Pantry</span>
+                    </div>
                     <div id="header-center">
                         <div className="search-row">
                             <input // search bar
