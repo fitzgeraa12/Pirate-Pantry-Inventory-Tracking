@@ -185,7 +185,7 @@ export default function Workpanel(): React.ReactNode {
                                 <button className="body-left-button" onClick={() => setPanelAndUrl("admin")} data-active={panel === "admin" ? "" : undefined}>Admin Panel</button>
                             )}
                             {user?.access_level === "admin" && (
-                                <button className="body-left-button" onClick={() => setPanelAndUrl("reports")} data-active={panel === "reports" ? "" : undefined}>Reports</button>
+                                <button className="body-left-button" onClick={() => setPanelAndUrl("reports")} data-active={panel === "reports" ? "" : undefined}>Issues</button>
                             )}
                             <hr className="body-left-divider" />
                             <span className="body-left-section-label">Appearance</span>

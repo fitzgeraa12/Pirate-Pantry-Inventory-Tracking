@@ -95,7 +95,7 @@ const AddItem = ({ editingProduct, onBack }: { editingProduct?: Product | null; 
                         className="add-item-input"
                         type="text"
                         inputMode="numeric"
-                        placeholder="Id"
+                        placeholder="ID"
                         value={id}
                         onChange={(e) => setId(e.target.value.replace(/\D/g, ''))}
                         disabled={loading || isEditing}
