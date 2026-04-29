@@ -300,7 +300,11 @@ def define_routes(app: Flask, db: Database):
             user = db.update_user_access_level(user_id, new_level, g.user.id if g.user else None)
             return jsonify(user.model_dump())
         except CannotDemoteOnlyAdminError as e:
-            return jsonify({'error': str(e)}), 400
+            # return jsonify({'error': str(e)}), 400
+            return jsonify({
+                'error': str(e),
+                'admin_count': db.count_admin_users()
+            }), 400
         except UserNotFoundError:
             return jsonify({'error': 'User not found'}), 404
     
