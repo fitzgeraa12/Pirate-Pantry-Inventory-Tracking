@@ -675,7 +675,7 @@ class Database(ABC):
     def count_admin_users(self) -> int:
         return int(self.query(
             "SELECT COUNT(*) as total FROM users WHERE access_level = ?",
-            [str(AccessLevel.ADMIN)]
+            [AccessLevel.ADMIN.value]
         )[0]["total"])
 
     def get_setting(self, key: str) -> Optional[str]:
@@ -727,7 +727,7 @@ class Database(ABC):
         if (
             acting_user_id == user.id
             and user.access_level == AccessLevel.ADMIN
-            # and access_level.value == AccessLevel.ADMIN
+            and access_level.value == AccessLevel.ADMIN
             and self.count_admin_users() <= 1
         ):
             raise CannotDemoteOnlyAdminError()
