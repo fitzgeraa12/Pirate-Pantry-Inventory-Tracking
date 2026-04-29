@@ -851,56 +851,36 @@ def define_routes(app: Flask, db: Database):
         class CheckoutProductSchema(BaseModel):
             id: str
             amount: int
-
         class CheckoutProductsSchema(BaseModel):
             products: list[CheckoutProductSchema]
-        
         with db.transaction():
             data: Any = request.get_json()
             if not data:
                 return jsonify({'error': 'Invalid JSON'}), 400
-            
-            try:
-                body = CheckoutProductsSchema.model_validate(data)
+            try:    # Validate and parse request 
+                body = CheckoutProductsSchema.model_validate(data) 
             except ValidationError as e:
                 return jsonify({'error': _pydantic_errors(e)}), 400
-            
             updated_products = []
             products = body.products
-
             out_of_stock = []
             for product in products:
                 existing = db.product_in_table(product.id, "")
-                if product.amount > existing.quantity:
+                if product.amount > existing.quantity: # Ensure checkout quantity is available
                     out_of_stock.append({
-                        'id': existing.id,
-                        'name': existing.name,
-                        'requested': product.amount,
-                        'available': existing.quantity,
+                        'id': existing.id, 'name': existing.name,
+                        'requested': product.amount, 'available': existing.quantity,
                     })
-
-            if out_of_stock:
+            if out_of_stock: # Handle insufficient stock
                 return jsonify({'error': 'not_enough_stock', 'out_of_stock': out_of_stock}), 400
-
             for product in products:
                 id = product.id
                 existing = db.product_in_table(id, "")
                 new_quantity = existing.quantity - product.amount
-
+                # Update products table (Inventory)
                 db.query('UPDATE products SET quantity = ? WHERE id = ?', [new_quantity, id])
-                updated_products.append({
-                    'id': id,
-                    'quantity': new_quantity
-                })
-
-                # stats.new_checkout(
-                #     checkout_id=stats.next_checkout_id(),
-                #     id=existing.id,
-                #     name=existing.name,
-                #     brand=existing.brand,
-                #     num_checked_out=product.amount,
-                #     checkout_time=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                # )
+                updated_products.append({'id': id, 'quantity': new_quantity})
+                # Update total_checkouts table (Checkout)
                 db.query(
                     '''
                     INSERT INTO total_checkouts
@@ -908,15 +888,10 @@ def define_routes(app: Flask, db: Database):
                     VALUES (?, ?, ?, ?, ?, ?)
                     ''',
                     [
-                        stats.next_checkout_id(),
-                        existing.id,
-                        existing.name,
-                        existing.brand or '',
-                        product.amount,
-                        datetime.now(ZoneInfo('America/Chicago')).strftime('%Y-%m-%d %H:%M:%S')
+                        stats.next_checkout_id(), existing.id, existing.name, existing.brand or '', 
+                        product.amount, datetime.now(ZoneInfo('America/Chicago')).strftime('%Y-%m-%d %H:%M:%S')
                     ]
                 )
-
             return jsonify({'quantities': updated_products}), 200
 
     # @app.route('/products/all', methods=['GET'])

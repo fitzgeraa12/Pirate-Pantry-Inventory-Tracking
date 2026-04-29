@@ -349,15 +349,12 @@ class Database(ABC):
                 lambda _: ProductNotFoundError(id),
                 [id],
             )
-            
             # Calculate new quantity after amount is taken away
             new_quantity = old_quantity - amount
             if new_quantity < 0:
                 raise InvalidQuantityError(new_quantity)
-
             # Update quantity in database
             self.query("UPDATE products SET quantity = ? WHERE id = ?", [new_quantity, id])
-
             return new_quantity
     
     def add_tags(self, tags: list[str]) -> list[str]:
@@ -735,7 +732,7 @@ class Database(ABC):
         ):
             raise CannotDemoteOnlyAdminError()
 
-        self.query("UPDATE users SET access_level = ? WHERE id = ?", [str(access_level), id])
+        self.query("UPDATE users SET access_level = ? WHERE id = ?", [access_level.value, id])
         user = self.get_user(id)
         if not user:
             raise UserNotFoundError(id)
