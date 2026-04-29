@@ -727,7 +727,7 @@ class Database(ABC):
         if (
             acting_user_id == user.id
             and user.access_level == AccessLevel.ADMIN
-            and access_level != AccessLevel.ADMIN
+            # and access_level.value == AccessLevel.ADMIN
             and self.count_admin_users() <= 1
         ):
             raise CannotDemoteOnlyAdminError()
