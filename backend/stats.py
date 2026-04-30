@@ -295,7 +295,7 @@ def checkout_hourly(start: str, end: str):
         fig, ax = plt.subplots(figsize=(12, 2))
         ax.axis('off')
         ax.text(0.5, 0.5, f'No checkout activity from {start} to {end}',
-                ha='center', va='center', fontsize=12, color='#999999',
+                ha='center', va='center', fontsize=12, color="#111111",
                 transform=ax.transAxes)
         return fig
     fig, axes = plt.subplots(
@@ -327,7 +327,7 @@ def checkout_hourly(start: str, end: str):
         fig.text(0.5, 0.97, empty_label,
                  ha='center', va='top', fontsize=12, color='#999999')
 
-    plt.tight_layout(rect=[0, 0, 1, 0.92] if empty_label else [0, 0, 1, 0.95])
+    plt.tight_layout(rect=[0, 0, 1, 0.94] if empty_label else [0, 0, 1, 0.97])
     return fig
 
 def checkout_hourly_summarized(start: str, end: str):
