@@ -857,12 +857,6 @@ def define_routes(app: Flask, db: Database):
 
             for id in body.ids:
                 db.remove_product(id)
-                """try:
-                    db.query('DELETE FROM product_tags WHERE product_id = ?', [id])
-                    db.query('DELETE FROM products WHERE id = ?', [id])
-                    results.append(id)
-                except Exception as e:
-                    errors.append({'error': str(e), 'id': id})"""
 
             return jsonify({'deleted': results, 'errors': errors}), 200 if not errors else 207
 
