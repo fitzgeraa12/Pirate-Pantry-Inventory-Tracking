@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from collections import Counter
 import matplotlib.pyplot as plt # pip install matplotlib
+from matplotlib.patches import FancyBboxPatch
 from collections import defaultdict 
 from backend.database import Database
 
@@ -94,7 +95,7 @@ def report_title(start: str, end: str):
         0.5, 0.65,
         'Pirate Pantry Statistics Report',
         ha='center',
-        fontsize=20,
+        fontsize=40,
         fontweight='bold',
         color='#111111'
     )
@@ -103,8 +104,8 @@ def report_title(start: str, end: str):
         0.5, 0.3,
         f'{start} → {end}',
         ha='center',
-        fontsize=12,
-        color='#666666'
+        fontsize=30,
+        color='#111111'
     )
 
     return fig
@@ -121,15 +122,21 @@ def total_range(start: str, end: str):
     ax.axis('off')
     fig.patch.set_facecolor('white')
     ax.set_facecolor('white')
+    # Surrounding box
+    box = FancyBboxPatch((0.05, 0.1), 0.9, 0.8,
+                     boxstyle='round,pad=0.02',
+                     facecolor='#F5F5F5', edgecolor="#111111",
+                     linewidth=2, transform=fig.transFigure)
+    fig.add_artist(box) 
 
     ax.text(0.5, 0.65, f'Total Items Taken From {start} To {end}:',
-            ha='center', fontsize=14, fontweight='bold', color='#111111')
+            ha='center', fontsize=14, fontweight='bold', color='#111111',
+            transform=ax.transAxes)
 
     ax.text(0.5, 0.3, f'{total}',
-            ha='center', fontsize=28, fontweight='bold', color='#FFCD00')
-    
+            ha='center', fontsize=28, fontweight='bold', color='#FFCD00',
+            transform=ax.transAxes)
     return fig
-
 
 def top_item(start:str, end:str):
     '''Table of top 10 items that got checked out from start to end date'''
@@ -219,6 +226,32 @@ def checkout_daily(start:str, end:str):
     return fig
 
 
+def checkout_daily_summarized(start: str, end: str):
+    '''Bar graph of total checkouts by day of week across the date range'''
+    s, e = parse_date(start), parse_date(end)
+    rows = query(
+        "SELECT strftime('%w', checkout_time) AS dow, COUNT(DISTINCT checkout_id) AS total "
+        "FROM total_checkouts "
+        "WHERE checkout_time >= ? AND checkout_time <= ? "
+        "GROUP BY dow "
+        "ORDER BY dow", [s, e]
+    )
+
+    # strftime('%w') returns 0=Sunday, 1=Monday, ..., 6=Saturday
+    dow_labels = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+    counts = {row['dow']: row['total'] for row in (rows or [])}
+    values = [counts.get(str(i), 0) for i in range(7)]
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    bars = ax.bar(dow_labels, values, color=BAR_COLOR)
+    ax.set_title(f'Checkouts by Day of Week  —  {start} to {end}', fontsize=14, fontweight='bold')
+    ax.set_ylabel('Number of Checkouts')
+    labels = [v if v > 0 else '' for v in values]
+    ax.bar_label(bars, labels=labels, padding=3)
+    ax.set_ylim(bottom=0)
+    ax.margins(x=0.05)
+    plt.tight_layout(pad=2)
+    return fig
 
 def checkout_hourly(start: str, end: str):
     '''Number of checkouts per hour (separate bar graph for each day in range)'''
@@ -270,31 +303,59 @@ def checkout_hourly(start: str, end: str):
         ax.bar_label(bars, labels=labels, padding=3)
         ax.tick_params(axis='x', rotation=45)
         if all(v == 0 for v in values):
-            ax.set_title(
-                datetime.strptime(day, '%Y-%m-%d').strftime('%A, %b %d'),
-                fontsize=11, pad=10
-            )
+            # ax.set_title(
+            #     datetime.strptime(day, '%Y-%m-%d').strftime('%A, %b %d'),
+            #     fontsize=11, pad=10
+            # )
 
-            ax.set_ylim(0, 1)
-            ax.set_xticks([])
-            ax.set_yticks([])
+            # ax.set_ylim(0, 1)
+            # ax.set_xticks([])
+            # ax.set_yticks([])
 
-            for spine in ax.spines.values():
-                spine.set_visible(True)
-                spine.set_color('#DDDDDD')
+            # for spine in ax.spines.values():
+            #     spine.set_visible(True)
+            #     spine.set_color('#DDDDDD')
 
-            ax.text(
-                0.5, 0.5,
-                'No checkout activity',
-                ha='center', va='center',
-                fontsize=11,
-                color='#999999',
-                transform=ax.transAxes
-            )
+            # ax.text(
+            #     0.5, 0.5,
+            #     'No checkout activity',
+            #     ha='center', va='center',
+            #     fontsize=11,
+            #     color='#999999',
+            #     transform=ax.transAxes
+            # )
             continue
-
     fig.suptitle(f'Checkouts per Hour: {start} to {end}', fontsize=16, fontweight='bold',y=0.995)
     plt.subplots_adjust(hspace=0.5)
+    plt.tight_layout()
+    return fig
+
+def checkout_hourly_summarized(start: str, end: str):
+    '''Summarized total checkouts per hour from start to end'''
+    s, e = parse_date(start), parse_date(end)
+
+    rows = query("""
+        SELECT strftime('%H', checkout_time) AS hour,
+               COUNT(DISTINCT checkout_id) AS total
+        FROM total_checkouts
+        WHERE checkout_time >= ? AND checkout_time <= ?
+        GROUP BY hour
+        ORDER BY hour
+    """, [s, e])
+
+    counts = {row['hour']: row['total'] for row in (rows or [])}
+    hours = [f'{h:02d}:00' for h in range(24)]
+    values = [counts.get(f'{h:02d}', 0) for h in range(24)]
+
+    fig, ax = plt.subplots(figsize=(12, 5))
+    bars = ax.bar(hours, values, color=BAR_COLOR)
+    ax.set_title(f'Checkouts per Hour: {start} to {end}', fontsize=14, fontweight='bold')
+    ax.set_xlabel('Hour')
+    ax.set_ylabel('Checkouts')
+    ax.set_ylim(bottom=0)
+    labels = [v if v > 0 else '' for v in values]
+    ax.bar_label(bars, labels=labels, padding=3)
+    ax.tick_params(axis='x', rotation=45)
     plt.tight_layout()
     return fig
 

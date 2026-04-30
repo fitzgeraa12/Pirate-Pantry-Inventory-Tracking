@@ -440,10 +440,19 @@ def define_routes(app: Flask, db: Database):
             top_fig    = stats.top_item(start, end)
             # Percentage of item tags checked out weekly (pie chart)
             tags_fig   = stats.tag_range(start, end)
-            # Number of checkouts per day
-            daily_fig  = stats.checkout_daily(start, end)
-            # Number of checkouts per hour (separate bar graphs for each day)
-            hourly_fig = stats.checkout_hourly(start, end) 
+
+            s, e = stats.parse_date(start), stats.parse_date(end)
+            n_days = (datetime.strptime(e, '%Y-%m-%d') - datetime.strptime(s, '%Y-%m-%d')).days
+
+            if n_days <= 14:
+                # Number of checkouts per day
+                daily_fig  = stats.checkout_daily(start, end)
+                # Number of checkouts per hour (separate bar graphs for each day)
+                hourly_fig = stats.checkout_hourly(start, end) 
+            else:
+                daily_fig  = stats.checkout_daily_summarized(start, end)
+                # Number of checkouts per hour (separate bar graphs for each day)
+                hourly_fig = stats.checkout_hourly_summarized(start, end) 
         except ValueError as e:
             return jsonify({'error': str(e)}), 400
         except Exception as e:
