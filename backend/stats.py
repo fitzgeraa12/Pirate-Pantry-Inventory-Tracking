@@ -123,7 +123,7 @@ def total_range(start: str, end: str):
     fig.patch.set_facecolor('white')
     ax.set_facecolor('white')
     # Surrounding box
-    box = FancyBboxPatch((0.05, 0.1), 0.9, 0.8,
+    box = FancyBboxPatch((0.05, 0.1), 0.94, 0.8,
                      boxstyle='round,pad=0.02',
                      facecolor="#FFFFFF", edgecolor="#111111",
                      linewidth=2, transform=fig.transFigure, zorder=0)
@@ -280,7 +280,24 @@ def checkout_hourly(start: str, end: str):
         current += timedelta(days=1)
 
     hours = [f'{h:02d}:00' for h in range(24)]
+        # Split into active and empty days
+    active_days = [d for d in days if any(daily_counts.get(d, {}).values())]
+    empty_days  = [d for d in days if d not in active_days]
 
+    # Format empty days as readable string
+    empty_label = ''
+    if empty_days:
+        formatted = [datetime.strptime(d, '%Y-%m-%d').strftime('%m/%d/%Y') for d in empty_days]
+        empty_label = 'No activity on: ' + ', '.join(formatted)
+
+    # If no active days at all, return a simple text figure
+    if not active_days:
+        fig, ax = plt.subplots(figsize=(12, 2))
+        ax.axis('off')
+        ax.text(0.5, 0.5, f'No checkout activity from {start} to {end}',
+                ha='center', va='center', fontsize=12, color='#999999',
+                transform=ax.transAxes)
+        return fig
     fig, axes = plt.subplots(
         nrows=len(days), ncols=1,
         figsize=(12, 5 * len(days)),
@@ -302,30 +319,11 @@ def checkout_hourly(start: str, end: str):
         labels = [v if v > 0 else '' for v in values]
         ax.bar_label(bars, labels=labels, padding=3)
         ax.tick_params(axis='x', rotation=45)
-        if all(v == 0 for v in values):
-            # ax.set_title(
-            #     datetime.strptime(day, '%Y-%m-%d').strftime('%A, %b %d'),
-            #     fontsize=11, pad=10
-            # )
-
-            # ax.set_ylim(0, 1)
-            # ax.set_xticks([])
-            # ax.set_yticks([])
-
-            # for spine in ax.spines.values():
-            #     spine.set_visible(True)
-            #     spine.set_color('#DDDDDD')
-
-            # ax.text(
-            #     0.5, 0.5,
-            #     'No checkout activity',
-            #     ha='center', va='center',
-            #     fontsize=11,
-            #     color='#999999',
-            #     transform=ax.transAxes
-            # )
-            continue
-    fig.suptitle(f'Checkouts per Hour: {start} to {end}', fontsize=16, fontweight='bold',y=0.995)
+    
+    suptitle = f'Checkouts per Hour: {start} to {end}'
+    if empty_label:
+        suptitle += f'\n{empty_label}'
+    fig.suptitle(suptitle, fontsize=16, fontweight='bold',y=0.995)
     plt.subplots_adjust(hspace=0.5)
     plt.tight_layout()
     return fig
