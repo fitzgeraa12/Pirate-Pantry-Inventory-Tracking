@@ -300,7 +300,7 @@ def checkout_hourly(start: str, end: str):
         return fig
     fig, axes = plt.subplots(
         nrows=len(active_days), ncols=1,
-        figsize=(12, 5 * len(days)),
+        figsize=(12, 5 * len(active_days)),
         sharey=False
     )
 
@@ -314,16 +314,17 @@ def checkout_hourly(start: str, end: str):
         ax.set_title(day, fontsize=12, fontweight='bold')
         ax.set_xlabel('Hour')
         ax.set_ylabel('Checkouts')
-        ax.set_ylim(bottom=0)
+        peak = max(values) if values else 1
+        ax.set_ylim(bottom=0, top=peak + 1)
         # only label nonzero bars
         labels = [v if v > 0 else '' for v in values]
         ax.bar_label(bars, labels=labels, padding=3)
         ax.tick_params(axis='x', rotation=45)
     
     suptitle = f'Checkouts per Hour: {start} to {end}'
-    fig.suptitle(suptitle, fontsize=16, fontweight='bold',y=0.995)
+    fig.suptitle(suptitle, fontsize=16, fontweight='bold',y=1.01)
     if empty_label:
-        fig.text(0.5, 0.985, empty_label,
+        fig.text(0.5, 0.995, empty_label,
                  ha='center', va='top', fontsize=9, color='#999999')
     plt.subplots_adjust(hspace=0.5)
     plt.tight_layout()
