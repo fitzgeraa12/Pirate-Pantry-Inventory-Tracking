@@ -444,7 +444,7 @@ def define_routes(app: Flask, db: Database):
             s, e = stats.parse_date(start), stats.parse_date(end)
             n_days = (datetime.strptime(e, '%Y-%m-%d') - datetime.strptime(s, '%Y-%m-%d')).days
 
-            if n_days <= 14:
+            if n_days <= 31:
                 # Number of checkouts per day
                 daily_fig  = stats.checkout_daily(start, end)
                 # Number of checkouts per hour (separate bar graphs for each day)

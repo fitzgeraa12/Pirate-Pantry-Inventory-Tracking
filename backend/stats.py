@@ -326,8 +326,8 @@ def checkout_hourly(start: str, end: str):
     if empty_label:
         fig.text(0.5, 0.97, empty_label,
                  ha='center', va='top', fontsize=12, color='#999999')
-    plt.subplots_adjust(hspace=0.5, top=0.9)
-    plt.tight_layout()
+
+    plt.tight_layout(rect=[0, 0, 1, 0.8] if empty_label else [0, 0, 1, 0.9])
     return fig
 
 def checkout_hourly_summarized(start: str, end: str):
