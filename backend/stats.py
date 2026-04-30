@@ -123,7 +123,7 @@ def total_range(start: str, end: str):
     fig.patch.set_facecolor('white')
     ax.set_facecolor('white')
     # Surrounding box
-    box = FancyBboxPatch((0.05, 0.1), 0.94, 0.8,
+    box = FancyBboxPatch((0.2, 0.1), 0.6, 0.8,
                      boxstyle='round,pad=0.02',
                      facecolor="#FFFFFF", edgecolor="#111111",
                      linewidth=2, transform=fig.transFigure, zorder=0)
@@ -299,15 +299,15 @@ def checkout_hourly(start: str, end: str):
                 transform=ax.transAxes)
         return fig
     fig, axes = plt.subplots(
-        nrows=len(days), ncols=1,
+        nrows=len(active_days), ncols=1,
         figsize=(12, 5 * len(days)),
         sharey=False
     )
 
-    if len(days) == 1:
+    if len(active_days) == 1:
         axes = [axes]  
 
-    for ax, day in zip(axes, days):
+    for ax, day in zip(axes, active_days):
         counts = daily_counts.get(day, {})
         values = [counts.get(f'{h:02d}', 0) for h in range(24)]
         bars = ax.bar(hours, values, color=BAR_COLOR)
@@ -321,9 +321,10 @@ def checkout_hourly(start: str, end: str):
         ax.tick_params(axis='x', rotation=45)
     
     suptitle = f'Checkouts per Hour: {start} to {end}'
-    if empty_label:
-        suptitle += f'\n{empty_label}'
     fig.suptitle(suptitle, fontsize=16, fontweight='bold',y=0.995)
+    if empty_label:
+        fig.text(0.5, 0.985, empty_label,
+                 ha='center', va='top', fontsize=9, color='#999999')
     plt.subplots_adjust(hspace=0.5)
     plt.tight_layout()
     return fig
