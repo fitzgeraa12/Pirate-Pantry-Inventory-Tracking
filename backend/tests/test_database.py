@@ -15,6 +15,8 @@ from backend.database import (
     ProductNotFoundError,
     UserAlreadyExistsError,
     AccessLevel,
+    BrandNotFoundError,
+    TagNotFoundError
 )
 
 
@@ -24,10 +26,45 @@ def db(tmp_path, monkeypatch):
     monkeypatch.setattr(database.LocalDatabase, "LOCAL_DATABASE_PATH", str(db_path))
     return database.LocalDatabase()
 
+def test_remove_product(db):
+    product = db.add_product(str("121212"), "Test Cereal", "mybrand", 2, None, ["tag_1", "tag_2", "tag_3"])
+    product = db.add_product(str("1212"), "Test Cereal", "mybrand", 2, None, ["tag_1", "tag_2"])
+
+    brands = db.all_product_brands()
+    assert brands == ['mybrand']
+    tags = db.all_product_tags()
+    assert tags == ['tag_1', 'tag_2', 'tag_3']
+
+    db.remove_product("121212")
+    brands = db.all_product_brands()
+    assert brands == ['mybrand']
+    tags = db.all_product_tags()
+    assert tags == ['tag_1', 'tag_2']
+    db.remove_product("1212")
+    brands = db.all_product_brands()
+    assert brands == []
+    tags = db.all_product_tags()
+    assert tags == []
+
+    product = db.add_product(str("122122"), "Test Cereal", None, 2, None, [])
+    brands = db.all_product_brands()
+    assert brands == []
+    tags = db.all_product_tags()
+    assert tags == []
+    db.remove_product("122122")
+    brands = db.all_product_brands()
+    assert brands == []
+    tags = db.all_product_tags()
+    assert tags == []
+
 
 def test_query_and_map_rows(db):
     db.query("INSERT INTO brands (name) VALUES (?)", ["Test Brand"])
     brands = db.query_and_map_rows("SELECT name FROM brands", lambda row: row["name"])
+    print(len(brands))
+    
+    #assert 1 == 2
+    print(len(brands))
     assert brands == ["Test Brand"] #Ensure brand is in table
     db.remove_brand("Test Brand")
     brands = db.query_and_map_rows("SELECT name FROM brands", lambda row: row["name"])

@@ -543,12 +543,22 @@ class Database(ABC):
     # Deleting methods
     #------------------------------
 
-    def remove_product(self, id: int):
+    def remove_product(self, id: str):
         with self.transaction():
             rows = self.query("SELECT id FROM products WHERE id = ?", [id])
             if not rows:
                 raise ProductNotFoundError(id)
-            
+            else: #Removing additional brand and tags if they're only attatched to product being removed
+                product_brand = self.query_and_map_single("SELECT brand FROM products WHERE id = ?", lambda row: row["brand"],  lambda _: ProductNotFoundError(id), [id])
+                if product_brand != None:
+                    total_brands = self.products_from_brand(product_brand)
+                    if len(total_brands) == 1:
+                        self.remove_brand(product_brand)
+                product_tags = self.query_and_map_rows("SELECT tag_label FROM product_tags WHERE product_id = ?", lambda row: row["tag_label"], [id])
+                for i in product_tags:
+                    total_tags = self.query_and_map_single("SELECT COUNT(*) FROM product_tags where tag_label = ?", lambda row: row["COUNT(*)"], lambda _: TagNotFoundError(i), [i])
+                    if total_tags == 1:
+                        self.remove_tag(i)                
             self.query("DELETE FROM products WHERE id = ?", [id])
 
     def remove_brand(self, brand: str):
