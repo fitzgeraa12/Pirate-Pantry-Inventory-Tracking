@@ -125,17 +125,17 @@ def total_range(start: str, end: str):
     # Surrounding box
     box = FancyBboxPatch((0.05, 0.1), 0.9, 0.8,
                      boxstyle='round,pad=0.02',
-                     facecolor='#F5F5F5', edgecolor="#111111",
-                     linewidth=2, transform=fig.transFigure)
+                     facecolor="#FFFFFF", edgecolor="#111111",
+                     linewidth=2, transform=fig.transFigure, zorder=0)
     fig.add_artist(box) 
 
     ax.text(0.5, 0.65, f'Total Items Taken From {start} To {end}:',
             ha='center', fontsize=14, fontweight='bold', color='#111111',
-            transform=ax.transAxes)
+            transform=ax.transAxes, zorder=1)
 
     ax.text(0.5, 0.3, f'{total}',
             ha='center', fontsize=28, fontweight='bold', color='#FFCD00',
-            transform=ax.transAxes)
+            transform=ax.transAxes, zorder=1)
     return fig
 
 def top_item(start:str, end:str):
