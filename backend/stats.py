@@ -115,7 +115,7 @@ def total_range(start: str, end: str):
     s, e = parse_date(start), parse_date(end)
     rows = query("SELECT SUM(num_checked_out) AS total\
                  FROM total_checkouts\
-                 WHERE checkout_time >= ? AND checkout_time <= ?", [s,e])
+                 WHERE DATE(checkout_time) >= ? AND DATE(checkout_time) <= ?", [s,e])
     total = rows[0]['total'] if rows and rows[0]['total'] else 0
     
     fig, ax = plt.subplots(figsize=(12, 3))
@@ -143,7 +143,7 @@ def top_item(start:str, end:str):
     s, e = parse_date(start), parse_date(end)
     rows = query("SELECT name, SUM(num_checked_out) AS total\
                 FROM total_checkouts\
-                WHERE checkout_time >= ? AND checkout_time <= ?\
+                WHERE DATE(checkout_time) >= ? AND DATE(checkout_time) <= ?\
                 GROUP BY name\
                 ORDER BY total DESC\
                 LIMIT 10", [s, e])
@@ -177,7 +177,7 @@ def tag_range(start:str, end:str):
     s, e = parse_date(start), parse_date(end)
     rows = query("SELECT product_id\
                   FROM total_checkouts\
-                  WHERE checkout_time >= ? AND checkout_time <= ?", [s,e])
+                  WHERE DATE(checkout_time) >= ? AND DATE(checkout_time) <= ?", [s,e])
     tags = []
     for row in rows:
         id_tag = get_tags_for_item(id=row['product_id'])
@@ -199,7 +199,7 @@ def checkout_daily(start:str, end:str):
     rows = query(
         "SELECT DATE(checkout_time) AS day, COUNT(DISTINCT checkout_id) AS total "
         "FROM total_checkouts "
-        "WHERE checkout_time >= ? AND checkout_time <= ? "
+        "WHERE DATE(checkout_time) >= ? AND DATE(checkout_time) <= ? "
         "GROUP BY day "
         "ORDER BY day", [s, e]
     )
@@ -232,7 +232,7 @@ def checkout_daily_summarized(start: str, end: str):
     rows = query(
         "SELECT strftime('%w', checkout_time) AS dow, COUNT(DISTINCT checkout_id) AS total "
         "FROM total_checkouts "
-        "WHERE checkout_time >= ? AND checkout_time <= ? "
+        "WHERE DATE(checkout_time) >= ? AND DATE(checkout_time) <= ? "
         "GROUP BY dow "
         "ORDER BY dow", [s, e]
     )
@@ -262,7 +262,7 @@ def checkout_hourly(start: str, end: str):
                 strftime('%H', checkout_time) AS hour,
                 COUNT(DISTINCT checkout_id) AS total
         FROM total_checkouts
-        WHERE checkout_time >= ? AND checkout_time <= ?
+        WHERE DATE(checkout_time) >= ? AND DATE(checkout_time) <= ?
         GROUP BY day, hour
         ORDER BY day, hour
     """, [s, e])
@@ -338,7 +338,7 @@ def checkout_hourly_summarized(start: str, end: str):
         SELECT strftime('%H', checkout_time) AS hour,
                COUNT(DISTINCT checkout_id) AS total
         FROM total_checkouts
-        WHERE checkout_time >= ? AND checkout_time <= ?
+        WHERE DATE(checkout_time) >= ? AND DATE(checkout_time) <= ?
         GROUP BY hour
         ORDER BY hour
     """, [s, e])
