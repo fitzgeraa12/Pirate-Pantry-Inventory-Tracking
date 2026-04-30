@@ -431,6 +431,18 @@ def define_routes(app: Flask, db: Database):
         end = body.get('end')
         if not start or not end:
             return jsonify({'error': 'Both start and end date are required.'}), 400
+
+        # add this block
+        try:
+            s_dt = datetime.strptime(stats.parse_date(start), '%Y-%m-%d')
+            e_dt = datetime.strptime(stats.parse_date(end), '%Y-%m-%d')
+        except ValueError:
+            return jsonify({'error': 'Invalid date format. Use MM-DD-YYYY.'}), 400
+
+        if s_dt > e_dt:
+            return jsonify({'error': 'Start date must be before end date.'}), 400
+        # if s_dt == e_dt:
+        #     return jsonify({'error': 'Start and end date cannot be the same.'}), 400
         try:
             # title
             title_fig = stats.report_title(start, end)
