@@ -95,7 +95,7 @@ def report_title(start: str, end: str):
         0.5, 0.65,
         'Pirate Pantry Statistics Report',
         ha='center',
-        fontsize=40,
+        fontsize=26,
         fontweight='bold',
         color='#111111'
     )
@@ -104,7 +104,7 @@ def report_title(start: str, end: str):
         0.5, 0.3,
         f'{start} → {end}',
         ha='center',
-        fontsize=30,
+        fontsize=19,
         color='#111111'
     )
 
@@ -322,11 +322,11 @@ def checkout_hourly(start: str, end: str):
         ax.tick_params(axis='x', rotation=45)
     
     suptitle = f'Checkouts per Hour: {start} to {end}'
-    fig.suptitle(suptitle, fontsize=16, fontweight='bold',y=1.01)
+    fig.suptitle(suptitle, fontsize=16, fontweight='bold',y=0.985)
     if empty_label:
-        fig.text(0.5, 0.995, empty_label,
-                 ha='center', va='top', fontsize=9, color='#999999')
-    plt.subplots_adjust(hspace=0.5)
+        fig.text(0.5, 0.97, empty_label,
+                 ha='center', va='top', fontsize=12, color='#999999')
+    plt.subplots_adjust(hspace=0.5, top=0.9)
     plt.tight_layout()
     return fig
 
