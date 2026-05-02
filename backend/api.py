@@ -1,7 +1,6 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from functools import wraps
-from apscheduler.schedulers.background import BackgroundScheduler
 import os
 import io
 import re
@@ -68,10 +67,14 @@ def create_app(db: Database, is_local: bool) -> Flask:
         except Exception as e:
             app.logger.error(f'Scheduled report purge failed: {e}')
 
-    scheduler = BackgroundScheduler(timezone=CHICAGO)
-    scheduler.add_job(_scheduled_backup,      'cron', hour=23, minute=59)
-    scheduler.add_job(_scheduled_purge_reports,'cron', hour=23, minute=59)
-    scheduler.start()
+    try:
+        from apscheduler.schedulers.background import BackgroundScheduler
+        scheduler = BackgroundScheduler(timezone=CHICAGO)
+        scheduler.add_job(_scheduled_backup,      'cron', hour=23, minute=59)
+        scheduler.add_job(_scheduled_purge_reports,'cron', hour=23, minute=59)
+        scheduler.start()
+    except ImportError:
+        app.logger.warning('apscheduler not installed — scheduled tasks disabled.')
 
     @app.errorhandler(Exception)
     def handle_exception(e: Exception):
