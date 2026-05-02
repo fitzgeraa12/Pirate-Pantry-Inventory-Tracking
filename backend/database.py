@@ -749,6 +749,18 @@ class Database(ABC):
             raise UserNotFoundError(id)
         return user
 
+    def remove_user(self, id: str, acting_user_id: Optional[str] = None):
+        user = self.get_user(id)
+        if not user:
+            raise UserNotFoundError(id)
+
+        if user.access_level == AccessLevel.ADMIN and self.count_admin_users() <= 1:
+            raise CannotDemoteOnlyAdminError()
+
+        self.query("DELETE FROM users WHERE id = ?", [id])
+        # revoke all sessions for removed user
+        self.query("DELETE FROM auth_sessions WHERE user_id = ?", [id])
+
     def add_report(self, user_id: Optional[str], user_email: str, message: str) -> Report:
         report_id = str(uuid.uuid4())
         created_at = int(time.time())
