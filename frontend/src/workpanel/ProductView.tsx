@@ -115,7 +115,7 @@ export default function ProductView({ onEdit }: { onEdit?: (product: Product) =>
                 ref={searchRef}
                 className="table-search"
                 type="search"
-                placeholder="Search… id:110, name:, brand:, qty>N"
+                placeholder="Search… id:110, name:, brand:, tag:, qty>N"
                 value={inputValue}
                 onChange={e => setInputValue(e.target.value)}
             />

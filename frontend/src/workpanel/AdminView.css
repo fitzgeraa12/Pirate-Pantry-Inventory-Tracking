@@ -53,7 +53,7 @@
     border: 1px solid var(--chrome-border);
     border-radius: 8px;
     padding: 20px 24px;
-    max-width: 720px;
+    max-width: 900px;
     overflow-x: auto;
     box-sizing: border-box;
 }

@@ -4,6 +4,15 @@ import "./AddItem.css";
 import { API, type Product } from "../API";
 import { Spinner } from "../misc/misc";
 
+const SYMBOL_RE = /^(?:[^\W_]|[!()'":,./?%-])(?:[ ]?(?:[^\W_]|[!()'":,./?%-]))*$/u;
+
+function validateSymbol(value: string, fieldName: string): string | null {
+    if (!value.trim()) return `${fieldName} cannot be whitespace`;
+    if (value.includes('  ')) return `${fieldName} cannot contain consecutive whitespace`;
+    if (!SYMBOL_RE.test(value)) return `${fieldName} can only contain alphanumeric characters, spaces, and !()-'":,./?%`;
+    return null;
+}
+
 
 const AddItem = ({ editingProduct, onBack }: { editingProduct?: Product | null; onBack: () => void }) => {
 
@@ -49,6 +58,11 @@ const AddItem = ({ editingProduct, onBack }: { editingProduct?: Product | null; 
     }, [editingProduct]);
 
     const [loading, setLoading] = useState(false);
+    const [nameError, setNameError] = useState<string | null>(null);
+    const [brandError, setBrandError] = useState<string | null>(null);
+    const [tagsError, setTagsError] = useState<string | null>(null);
+
+    const hasErrors = !!nameError || !!brandError || !!tagsError;
 
     const parsedTags = Array.from(
         new Set(
@@ -105,9 +119,14 @@ const AddItem = ({ editingProduct, onBack }: { editingProduct?: Product | null; 
                         type="text"
                         placeholder="Name"
                         value={itemName}
-                        onChange={(e) => setItemName(e.target.value.replace(/,/g, ''))}
+                        onChange={(e) => {
+                            const v = e.target.value;
+                            setItemName(v);
+                            setNameError(v ? validateSymbol(v, 'Name') : null);
+                        }}
                         disabled={loading}
                     />
+                    {nameError && <span className="add-item-error">{nameError}</span>}
                     <div className="quantity-counter">
                         <button
                             type="button"
@@ -133,9 +152,14 @@ const AddItem = ({ editingProduct, onBack }: { editingProduct?: Product | null; 
                         type="text"
                         placeholder="Brand"
                         value={brand}
-                        onChange={(e) => setBrand(e.target.value)}
+                        onChange={(e) => {
+                            const v = e.target.value;
+                            setBrand(v);
+                            setBrandError(v ? validateSymbol(v, 'Brand') : null);
+                        }}
                         list="brands"
                     />
+                    {brandError && <span className="add-item-error">{brandError}</span>}
                     <datalist id="brands">
                         {brands.map(b => <option key={b} value={b} />)}
                     </datalist>
@@ -144,9 +168,16 @@ const AddItem = ({ editingProduct, onBack }: { editingProduct?: Product | null; 
                         type="text"
                         placeholder="Tags"
                         value={tags}
-                        onChange={(e) => setTags(e.target.value)}
+                        onChange={(e) => {
+                            const v = e.target.value;
+                            setTags(v);
+                            const tagList = v.split(',').map((t: string) => t.trim()).filter(Boolean);
+                            const firstErr = tagList.map(t => validateSymbol(t, `Tag '${t}'`)).find(Boolean) ?? null;
+                            setTagsError(firstErr);
+                        }}
                         list="tags"
                     />
+                    {tagsError && <span className="add-item-error">{tagsError}</span>}
                     <datalist id="tags">
                         {allTags.map(t => <option key={t} value={t} />)}
                     </datalist>
@@ -166,7 +197,7 @@ const AddItem = ({ editingProduct, onBack }: { editingProduct?: Product | null; 
                         />
                     )}
                     <div className="add-item-actions">
-                        <button className="add-item-btn add-item-btn--primary" onClick={handleSubmit} disabled={loading}>
+                        <button className="add-item-btn add-item-btn--primary" onClick={handleSubmit} disabled={loading || hasErrors}>
                             {loading ? <Spinner className="spinner--sm" /> : (isEditing ? "Save" : "Add")}
                         </button>
                         <button className="add-item-btn add-item-btn--secondary" onClick={onBack} disabled={loading}>Cancel</button>

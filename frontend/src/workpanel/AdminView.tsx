@@ -1,4 +1,5 @@
 import React from "react";
+import ReactDOM from "react-dom";
 import { API, type User, type Session, type AccessLevel } from "../API";
 import { Spinner } from "../misc/misc";
 import { createPortal } from "react-dom";  
@@ -8,10 +9,44 @@ function fmt_date(ts: number): string {
     return new Date(ts * 1000).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
 
+function RemoveUserConfirmModal({ user, onConfirm, onCancel }: { user: User; onConfirm: () => Promise<void>; onCancel: () => void }): React.ReactNode {
+    const [loading, setLoading] = React.useState(false);
+    async function handleConfirm() {
+        setLoading(true);
+        try { await onConfirm(); } finally { setLoading(false); }
+    }
+    return ReactDOM.createPortal(
+        <div className="add-item-overlay" onClick={loading ? undefined : onCancel}>
+            <div className="add-item-modal" style={{ width: 340 }} onClick={e => e.stopPropagation()}>
+                <div className="add-item-modal-header">
+                    <h2 className="add-item-modal-title">Remove User</h2>
+                    <button className="add-item-close" onClick={onCancel} disabled={loading}>✕</button>
+                </div>
+                <div className="add-item-form">
+                    <p style={{ margin: 0, fontSize: '0.92em', color: 'var(--chrome-text)' }}>
+                        Remove <strong>{user.email}</strong>? This cannot be undone.
+                    </p>
+                    <div className="add-item-actions">
+                        <button className="add-item-btn add-item-btn--secondary" onClick={onCancel} disabled={loading}>Cancel</button>
+                        <button
+                            className="add-item-btn add-item-btn--primary"
+                            style={{ backgroundColor: '#c0392b', borderColor: '#c0392b', color: '#fff' }}
+                            onClick={handleConfirm}
+                            disabled={loading}
+                        >{loading ? <Spinner className="spinner--sm" /> : "Remove"}</button>
+                    </div>
+                </div>
+            </div>
+        </div>,
+        document.body
+    );
+}
+
 function UsersSection({ api }: { api: API.Type }): React.ReactNode {
     const [users, setUsers] = React.useState<User[] | null>(null);
     const [currentUser, setCurrentUser] = React.useState<User | null>(null);
     const [saving, setSaving] = React.useState<Record<string, boolean>>({});
+    const [removingUser, setRemovingUser] = React.useState<User | null>(null);
     const [error, setError] = React.useState<string | null>(null);
 
     React.useEffect(() => {
@@ -32,6 +67,18 @@ function UsersSection({ api }: { api: API.Type }): React.ReactNode {
         }
     }
 
+    async function handleRemove(user: User) {
+        setError(null);
+        try {
+            await api.remove_user(user.id);
+            setUsers(prev => prev?.filter(u => u.id !== user.id) ?? prev);
+        } catch (e: any) {
+            setError(e?.response?.data?.error ?? "Failed to remove user");
+        } finally {
+            setRemovingUser(null);
+        }
+    }
+
     const adminCount = users?.filter(user => user.access_level === "admin").length ?? 0;
 
     return (
@@ -42,7 +89,7 @@ function UsersSection({ api }: { api: API.Type }): React.ReactNode {
             ) : (
                 <table className="admin-table">
                     <thead>
-                        <tr><th>Email</th><th>ID</th><th>Access Level</th></tr>
+                        <tr><th>Email</th><th>ID</th><th>Access Level</th><th></th></tr>
                     </thead>
                     <tbody>
                         {users.map(user => (
@@ -65,12 +112,27 @@ function UsersSection({ api }: { api: API.Type }): React.ReactNode {
                                         );
                                     })()}
                                 </td>
+                                <td>
+                                    <button
+                                        className="admin-revoke-button"
+                                        disabled={saving[user.id] || currentUser?.id === user.id}
+                                        title={currentUser?.id === user.id ? "Cannot remove yourself" : "Remove user"}
+                                        onClick={() => setRemovingUser(user)}
+                                    >Remove</button>
+                                </td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
             )}
             {error && <div className="admin-error">{error}</div>}
+            {removingUser && (
+                <RemoveUserConfirmModal
+                    user={removingUser}
+                    onConfirm={() => handleRemove(removingUser)}
+                    onCancel={() => setRemovingUser(null)}
+                />
+            )}
         </section>
     );
 }

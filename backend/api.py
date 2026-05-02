@@ -1,6 +1,7 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from functools import wraps
+from apscheduler.schedulers.background import BackgroundScheduler
 import os
 import io
 import re
@@ -47,6 +48,30 @@ def create_app(db: Database, is_local: bool) -> Flask:
     app.secret_key = env_get("FLASK_SECRET_KEY")
     stats.init(db)
     define_routes(app, db)
+
+    # --------------------------------------------------
+    # Scheduled tasks
+    # --------------------------------------------------
+    CHICAGO = ZoneInfo('America/Chicago')
+
+    def _scheduled_backup():
+        try:
+            db.save_backup()
+            app.logger.info('Scheduled backup completed successfully.')
+        except Exception as e:
+            app.logger.error(f'Scheduled backup failed: {e}')
+
+    def _scheduled_purge_reports():
+        try:
+            n = db.delete_old_reports(days=90)
+            app.logger.info(f'Purged {n} report(s) older than 90 days.')
+        except Exception as e:
+            app.logger.error(f'Scheduled report purge failed: {e}')
+
+    scheduler = BackgroundScheduler(timezone=CHICAGO)
+    scheduler.add_job(_scheduled_backup,      'cron', hour=23, minute=59)
+    scheduler.add_job(_scheduled_purge_reports,'cron', hour=23, minute=59)
+    scheduler.start()
 
     @app.errorhandler(Exception)
     def handle_exception(e: Exception):
@@ -611,13 +636,18 @@ def define_routes(app: Flask, db: Database):
                 return jsonify({'error': str(e)}), 400
 
             if products_query.search:
-                like = f"%{products_query.search}%"
-                conditions.append("""
-                                  (p.name LIKE ?
-                                  OR p.brand LIKE ?
-                                  OR CAST(p.id AS TEXT) LIKE?)
+                like = f"%{_escape_like(products_query.search)}%"
+                conditions.append(r"""
+                                  (p.name LIKE ? ESCAPE '\'
+                                  OR p.brand LIKE ? ESCAPE '\'
+                                  OR CAST(p.id AS TEXT) LIKE ? ESCAPE '\'
+                                  OR EXISTS (
+                                      SELECT 1 FROM product_tags pt_s
+                                      WHERE pt_s.product_id = p.id
+                                      AND pt_s.tag_label LIKE ? ESCAPE '\'
+                                  ))
                                   """)
-                params.extend([like,like,like])
+                params.extend([like, like, like, like])
             if products_query.name:
                 conditions.append('p.name LIKE ?')
                 params.append(products_query.name)
@@ -1356,18 +1386,18 @@ def parse_quantity_expr(raw: str) -> tuple[list[str], list[Any]]:
 
     return conditions, params
 
+def _escape_like(s: str) -> str:
+    '''Escape SQLite LIKE wildcards (% and _) in a search string using backslash.'''
+    return s.replace('\\', '\\\\').replace('%', r'\%').replace('_', r'\_')
+
 def validate_symbol(name: str, symbol_name: str) -> Optional[str]:
     ''' Validate a symbol. Returns an error string if invalid, None if valid. '''
-    if '%' in name:
-        return f'\'{symbol_name}\' cannot contain %'
-    if '_' in name:
-        return f'\'{symbol_name}\' cannot contain _'
     if not name.strip():
         return f'\'{symbol_name}\' cannot be whitespace'
     if '  ' in name:
         return f'\'{symbol_name}\' cannot contain consecutive whitespace'
-    if not re.match(r'^[^\W_]( ?[^\W_])*$', name, re.UNICODE):
-        return f'\'{symbol_name}\' can only contain alphanumeric characters and spaces'
+    if not re.match(r"""^(?:[^\W_]|[!()'":,./?%-])(?:[ ]?(?:[^\W_]|[!()'":,./?%-]))*$""", name, re.UNICODE):
+        return f"""\'{symbol_name}\' can only contain alphanumeric characters, spaces, and !()-'\":,./?%"""
     return None
 
 def log(data: Any):

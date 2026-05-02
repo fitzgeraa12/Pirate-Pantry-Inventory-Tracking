@@ -49,7 +49,7 @@ fi
 
 echo ""
 echo "Stopping any existing backend server..."
-pkill -f "main.py --local" 2>/dev/null; sleep 0.5
+pkill -f "main.py --local" 2>/dev/null || true; sleep 0.5
 
 echo "Hosting backend locally..."
 "$VENV/bin/python" "$MAIN" --local

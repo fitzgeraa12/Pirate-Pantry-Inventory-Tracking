@@ -774,6 +774,12 @@ class Database(ABC):
     def resolve_report(self, report_id: str):
         self.query("UPDATE reports SET resolved = 1 WHERE id = ?", [report_id])
 
+    def delete_old_reports(self, days: int = 90) -> int:
+        """Delete reports older than `days` days. Returns number of rows deleted."""
+        cutoff = int(time.time()) - days * 86400
+        self.query("DELETE FROM reports WHERE created_at < ?", [cutoff])
+        return self.query("SELECT changes() AS n")[0]["n"]
+
     def all_sessions(self) -> list[AuthSession]:
         return self.query_and_map_rows("SELECT * FROM auth_sessions", lambda row: AuthSession(**row))
 

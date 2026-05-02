@@ -92,6 +92,13 @@ input[type="text"].add-item-input {
     cursor: not-allowed;
 }
 
+.add-item-error {
+    color: #e05252;
+    font-size: 0.78rem;
+    margin-top: -6px;
+    margin-bottom: 2px;
+}
+
 /* ── Buttons ── */
 .add-item-actions {
     display: flex;

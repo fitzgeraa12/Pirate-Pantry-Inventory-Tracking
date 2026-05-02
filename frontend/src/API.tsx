@@ -127,6 +127,7 @@ export namespace API {
         update_settings: (patch: Record<string, string | number>) => Promise<Record<string, string>>,
         add_user: (email: string, access_level: AccessLevel) => Promise<User>,
         update_user: (id: string, patch: { access_level: AccessLevel }) => Promise<User>,
+        remove_user: (id: string) => Promise<void>,
         get_sessions: () => Promise<Array<Session>>,
         revoke_session: (id: string) => Promise<void>,
         checkout: (products: Array<{ id: string, amount: number }>) => Promise<Array<{ id: string, quantity: number }>>,
@@ -222,6 +223,10 @@ export namespace API {
 
                 update_user: async (id: string, patch: { access_level: AccessLevel }): Promise<User> => {
                     return (await api_base.patch(`/user/${id}`, patch)).data;
+                },
+
+                remove_user: async (id: string): Promise<void> => {
+                    await api_base.delete(`/user/${id}`);
                 },
 
                 get_sessions: async (): Promise<Array<Session>> => {
